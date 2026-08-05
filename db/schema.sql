@@ -1,0 +1,112 @@
+CREATE DATABASE coop_system;
+
+USE coop_system;
+
+-- ============================================================
+-- MEMBERS: personal + membership profile info (Manager-owned)
+-- A member may or may not have a linked user account yet.
+-- ============================================================
+CREATE TABLE members (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    membership_id VARCHAR(20) UNIQUE NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    middle_name VARCHAR(100) NULL,
+    gender ENUM('Male', 'Female') NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    contact_number VARCHAR(20) NOT NULL,
+    membership_type ENUM('Regular', 'Associate') NOT NULL,
+    date_joined DATE NOT NULL,
+
+    -- Farming profile
+    farmer_type ENUM('Livestock', 'Crops', 'Both') NULL,
+    livestock_details VARCHAR(255) NULL,
+    crops_details VARCHAR(255) NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- USERS: login accounts (Admin-owned). Optionally linked to a
+-- member profile (member_id). Admin/Manager staff accounts can
+-- have member_id = NULL since they're not coop members.
+-- ============================================================
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id INT NULL UNIQUE,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'manager', 'user') DEFAULT 'user',
+    account_status ENUM('Active', 'Inactive') DEFAULT 'Active',
+
+    -- Email verification fields
+    is_verified TINYINT(1) DEFAULT 0,
+    verification_token VARCHAR(64),
+    email_verification_expires DATETIME NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL
+);
+
+-- Insert sample staff accounts (password is 'password123' for all)
+-- These are staff (admin/manager) with no member profile attached.
+INSERT INTO users (member_id, email, password, role, account_status, is_verified) VALUES
+(NULL, 'admin@example.com', '$2y$10$HNfhClczEWBxcFuJwP53iu2Y75Tba7IEtmX8vX.1tp0dZ5EVt9CbO', 'admin', 'Active', 1),
+(NULL, 'manager@example.com', '$2y$10$HNfhClczEWBxcFuJwP53iu2Y75Tba7IEtmX8vX.1tp0dZ5EVt9CbO', 'manager', 'Active', 1);
+
+-- Sample member + linked regular user account, for testing
+INSERT INTO members (membership_id, last_name, first_name, middle_name, gender, address, contact_number, membership_type, date_joined, farmer_type, livestock_details, crops_details)
+VALUES ('SJFMC-0001', 'Dela Cruz', 'Juan', 'Santos', 'Male', 'Cagayan de Oro City', '09171234567', 'Regular', CURDATE(), 'Both', 'Chicken, Goat', 'Rice, Corn');
+
+INSERT INTO users (member_id, email, password, role, account_status, is_verified)
+VALUES (LAST_INSERT_ID(), 'user@example.com', '$2y$10$HNfhClczEWBxcFuJwP53iu2Y75Tba7IEtmX8vX.1tp0dZ5EVt9CbO', 'user', 'Active', 1);
+
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,  -- NULL for failed login attempts
+    email VARCHAR(255),
+    action VARCHAR(50) NOT NULL,
+    status ENUM('success', 'failed') DEFAULT 'success',
+    ip_address VARCHAR(45),
+    user_agent VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    INDEX idx_user_id (user_id),
+    INDEX idx_action (action),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- MIGRATION (run this instead of the CREATE TABLE statements
+-- above if you already have a coop_system database with data
+-- you want to keep - e.g. from the previous single-table version)
+-- ============================================================
+-- CREATE TABLE members (
+--     id INT AUTO_INCREMENT PRIMARY KEY,
+--     membership_id VARCHAR(20) UNIQUE NOT NULL,
+--     last_name VARCHAR(100) NOT NULL,
+--     first_name VARCHAR(100) NOT NULL,
+--     middle_name VARCHAR(100) NULL,
+--     gender ENUM('Male', 'Female') NOT NULL,
+--     address VARCHAR(255) NOT NULL,
+--     contact_number VARCHAR(20) NOT NULL,
+--     membership_type ENUM('Regular', 'Associate') NOT NULL,
+--     date_joined DATE NOT NULL,
+--     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+-- );
+--
+-- ALTER TABLE users ADD COLUMN member_id INT NULL UNIQUE AFTER id;
+-- ALTER TABLE users ADD CONSTRAINT fk_users_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
+-- -- If you previously ran the single-table migration (account_status, membership_id, names, etc. on `users`),
+-- -- move that data into `members` first, then drop those columns from `users`:
+-- -- ALTER TABLE users DROP COLUMN membership_id, DROP COLUMN last_name, DROP COLUMN first_name,
+-- --   DROP COLUMN middle_name, DROP COLUMN gender, DROP COLUMN address, DROP COLUMN contact_number,
+-- --   DROP COLUMN membership_type, DROP COLUMN date_joined;
+-- ALTER TABLE users ADD COLUMN account_status ENUM('Active', 'Inactive') DEFAULT 'Active' AFTER role;
+-- ALTER TABLE members ADD COLUMN farmer_type ENUM('Livestock', 'Crops', 'Both') NULL AFTER date_joined;
+-- ALTER TABLE members ADD COLUMN livestock_details VARCHAR(255) NULL AFTER farmer_type;
+-- ALTER TABLE members ADD COLUMN crops_details VARCHAR(255) NULL AFTER livestock_details;
