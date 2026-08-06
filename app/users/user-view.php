@@ -116,7 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['resend_verification']
 // Get user details, joined with their member profile (if any)
 $stmt = $pdo->prepare("
     SELECT u.*, m.membership_id, m.last_name, m.first_name, m.middle_name,
-           m.gender, m.address, m.contact_number, m.membership_type, m.date_joined,
+           m.gender, m.date_of_birth, m.occupation, m.address, m.contact_number,
+           m.membership_type, m.date_joined, m.hectares_cultivated,
            m.farmer_type, m.livestock_details, m.crops_details
     FROM users u
     LEFT JOIN members m ON u.member_id = m.id
@@ -236,6 +237,14 @@ renderHeader($title);
                 <td><?php echo htmlspecialchars($user['gender']); ?></td>
             </tr>
             <tr>
+                <th>Date of Birth</th>
+                <td><?php echo !empty($user['date_of_birth']) ? date('F j, Y', strtotime($user['date_of_birth'])) : '-'; ?></td>
+            </tr>
+            <tr>
+                <th>Occupation</th>
+                <td><?php echo htmlspecialchars($user['occupation'] ?? '-'); ?></td>
+            </tr>
+            <tr>
                 <th>Address</th>
                 <td><?php echo htmlspecialchars($user['address']); ?></td>
             </tr>
@@ -250,6 +259,10 @@ renderHeader($title);
             <tr>
                 <th>Date Joined</th>
                 <td><?php echo date('F j, Y', strtotime($user['date_joined'])); ?></td>
+            </tr>
+            <tr>
+                <th>Number of Hectares Cultivated</th>
+                <td><?php echo !empty($user['hectares_cultivated']) ? htmlspecialchars($user['hectares_cultivated']) . ' hectare' . ($user['hectares_cultivated'] !== '1' ? 's' : '') : '-'; ?></td>
             </tr>
             <tr>
                 <th>Type of Farmer</th>
