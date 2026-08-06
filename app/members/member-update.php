@@ -16,6 +16,7 @@ $success = false;
 
 $livestockOptions = ['Chicken', 'Pig', 'Goat', 'Cattle/Cow', 'Carabao', 'Duck'];
 $cropOptions = ['Rice', 'Corn', 'Vegetables', 'Coconut', 'Banana', 'Coffee'];
+$hectaresOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 
 // Splits a stored "Chicken, Goat, Turkey" string back into
 // [known checkbox values, leftover "others" text]
@@ -48,10 +49,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $first_name = trim($_POST['first_name'] ?? '');
     $middle_name = trim($_POST['middle_name'] ?? '');
     $gender = $_POST['gender'] ?? '';
+    $date_of_birth = $_POST['date_of_birth'] ?? '';
+    $occupation = trim($_POST['occupation'] ?? '');
     $address = trim($_POST['address'] ?? '');
     $contact_number = trim($_POST['contact_number'] ?? '');
     $membership_type = $_POST['membership_type'] ?? '';
     $date_joined = $_POST['date_joined'] ?? '';
+    $hectares_cultivated = $_POST['hectares_cultivated'] ?? '';
     $farmer_type = $_POST['farmer_type'] ?? '';
     $livestockSelected = $_POST['livestock'] ?? [];
     $livestockOthers = trim($_POST['livestock_others'] ?? '');
@@ -70,11 +74,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errors = [];
     if ($last_name === '') $errors[] = "Last Name is required.";
     if ($first_name === '') $errors[] = "First Name is required.";
+    if ($middle_name === '') $errors[] = "Middle Name is required.";
     if (!in_array($gender, ['Male', 'Female'])) $errors[] = "Gender is required.";
+    if ($date_of_birth === '') $errors[] = "Date of Birth is required.";
+    if ($occupation === '') $errors[] = "Occupation is required.";
     if ($address === '') $errors[] = "Complete Address is required.";
     if ($contact_number === '') $errors[] = "Contact Number is required.";
     if (!in_array($membership_type, ['Regular', 'Associate'])) $errors[] = "Membership Type is required.";
     if ($date_joined === '') $errors[] = "Date Joined is required.";
+    if (!in_array($hectares_cultivated, $hectaresOptions)) $errors[] = "Number of Hectares Cultivated is required.";
     if (!in_array($farmer_type, ['Livestock', 'Crops', 'Both'])) $errors[] = "Type of Farmer is required.";
     if (in_array($farmer_type, ['Livestock', 'Both']) && $livestock_details === '') $errors[] = "Please select or specify the livestock raised.";
     if (in_array($farmer_type, ['Crops', 'Both']) && $crops_details === '') $errors[] = "Please select or specify the crops grown.";
@@ -91,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = implode(' ', $errors);
         $success = false;
         // Keep the submitted values visible in the form
-        $member = array_merge($member, compact('last_name', 'first_name', 'middle_name', 'gender', 'address', 'contact_number', 'membership_type', 'date_joined', 'farmer_type', 'livestock_details', 'crops_details'));
+        $member = array_merge($member, compact('last_name', 'first_name', 'middle_name', 'gender', 'date_of_birth', 'occupation', 'address', 'contact_number', 'membership_type', 'date_joined', 'hectares_cultivated', 'farmer_type', 'livestock_details', 'crops_details'));
     } else {
         try {
             $stmt = $pdo->prepare("
@@ -100,28 +108,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     first_name = :first_name,
                     middle_name = :middle_name,
                     gender = :gender,
+                    date_of_birth = :date_of_birth,
+                    occupation = :occupation,
                     address = :address,
                     contact_number = :contact_number,
                     membership_type = :membership_type,
                     date_joined = :date_joined,
+                    hectares_cultivated = :hectares_cultivated,
                     farmer_type = :farmer_type,
                     livestock_details = :livestock_details,
                     crops_details = :crops_details
                 WHERE id = :id
             ");
             $stmt->execute([
-                ':last_name'         => $last_name,
-                ':first_name'        => $first_name,
-                ':middle_name'       => $middle_name !== '' ? $middle_name : null,
-                ':gender'            => $gender,
-                ':address'           => $address,
-                ':contact_number'    => $contact_number,
-                ':membership_type'   => $membership_type,
-                ':date_joined'       => $date_joined,
-                ':farmer_type'       => $farmer_type,
-                ':livestock_details' => $livestock_details !== '' ? $livestock_details : null,
-                ':crops_details'     => $crops_details !== '' ? $crops_details : null,
-                ':id'                => $memberId,
+                ':last_name'           => $last_name,
+                ':first_name'          => $first_name,
+                ':middle_name'         => $middle_name,
+                ':gender'              => $gender,
+                ':date_of_birth'       => $date_of_birth,
+                ':occupation'          => $occupation,
+                ':address'             => $address,
+                ':contact_number'      => $contact_number,
+                ':membership_type'     => $membership_type,
+                ':date_joined'         => $date_joined,
+                ':hectares_cultivated' => $hectares_cultivated,
+                ':farmer_type'         => $farmer_type,
+                ':livestock_details'   => $livestock_details !== '' ? $livestock_details : null,
+                ':crops_details'       => $crops_details !== '' ? $crops_details : null,
+                ':id'                  => $memberId,
             ]);
 
             $message = "Member profile updated successfully!";
@@ -188,7 +202,7 @@ renderHeader('Edit Member Profile');
 
         <div class="form-group">
             <label for="middle_name">Middle Name:</label>
-            <input type="text" id="middle_name" name="middle_name" placeholder="(optional)" value="<?php echo htmlspecialchars($member['middle_name'] ?? ''); ?>">
+            <input type="text" id="middle_name" name="middle_name" required value="<?php echo htmlspecialchars($member['middle_name'] ?? ''); ?>">
         </div>
 
         <div class="form-group">
@@ -197,6 +211,16 @@ renderHeader('Edit Member Profile');
                 <option value="Male" <?php echo $member['gender'] === 'Male' ? 'selected' : ''; ?>>Male</option>
                 <option value="Female" <?php echo $member['gender'] === 'Female' ? 'selected' : ''; ?>>Female</option>
             </select>
+        </div>
+
+        <div class="form-group">
+            <label for="date_of_birth">Date of Birth:</label>
+            <input type="date" id="date_of_birth" name="date_of_birth" required value="<?php echo htmlspecialchars($member['date_of_birth'] ?? ''); ?>">
+        </div>
+
+        <div class="form-group">
+            <label for="occupation">Occupation:</label>
+            <input type="text" id="occupation" name="occupation" required value="<?php echo htmlspecialchars($member['occupation'] ?? ''); ?>">
         </div>
 
         <div class="form-group">
@@ -222,6 +246,18 @@ renderHeader('Edit Member Profile');
         <div class="form-group">
             <label for="date_joined">Date Joined:</label>
             <input type="date" id="date_joined" name="date_joined" required value="<?php echo htmlspecialchars($member['date_joined']); ?>">
+        </div>
+
+        <div class="form-group">
+            <label for="hectares_cultivated">Number of Hectares Cultivated:</label>
+            <select id="hectares_cultivated" name="hectares_cultivated" required>
+                <option value="">-- Select Number of Hectares --</option>
+                <?php foreach ($hectaresOptions as $option): ?>
+                    <option value="<?php echo htmlspecialchars($option); ?>" <?php echo ($member['hectares_cultivated'] ?? '') === $option ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($option); ?> hectare<?php echo $option !== '1' ? 's' : ''; ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </div>
 
         <h3>Farming Profile</h3>

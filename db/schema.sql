@@ -110,3 +110,10 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 -- ALTER TABLE members ADD COLUMN farmer_type ENUM('Livestock', 'Crops', 'Both') NULL AFTER date_joined;
 -- ALTER TABLE members ADD COLUMN livestock_details VARCHAR(255) NULL AFTER farmer_type;
 -- ALTER TABLE members ADD COLUMN crops_details VARCHAR(255) NULL AFTER livestock_details;
+
+-- Run this once against your database before using the updated forms.
+
+ALTER TABLE members
+    ADD COLUMN date_of_birth DATE NULL AFTER gender,
+    ADD COLUMN occupation VARCHAR(100) NULL AFTER date_of_birth,
+    ADD COLUMN hectares_cultivated VARCHAR(20) NULL AFTER date_joined;
