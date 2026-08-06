@@ -36,6 +36,7 @@ renderHeader('Member List');
             <th>Gender</th>
             <th>Contact Number</th>
             <th>Membership Type</th>
+            <th>Hectares Cultivated</th>
             <th>Type of Farmer</th>
             <th>Date Joined</th>
             <th>Account</th>
@@ -50,6 +51,7 @@ renderHeader('Member List');
             <td><?php echo htmlspecialchars($m['gender']); ?></td>
             <td><?php echo htmlspecialchars($m['contact_number']); ?></td>
             <td><?php echo htmlspecialchars($m['membership_type']); ?></td>
+            <td><?php echo !empty($m['hectares_cultivated']) ? htmlspecialchars($m['hectares_cultivated']) . ' ha' : '-'; ?></td>
             <td>
                 <?php echo htmlspecialchars($m['farmer_type'] ?? '-'); ?>
                 <?php if ($m['farmer_type']): ?>
