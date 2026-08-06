@@ -25,7 +25,6 @@ renderHeader('Member List');
 
 <div class="info-box">
     Showing all cooperative members (<?php echo count($members); ?> total).
-    "Not Linked" means an Admin has not yet created a login account for that member.
 </div>
 
 <table>

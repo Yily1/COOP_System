@@ -158,7 +158,6 @@ renderHeader('Member Profiling');
 
     <div class="info-box">
         Create a new cooperative member profile. Membership ID is auto-generated.
-        Once created, an <strong>Admin</strong> can set up a login account for this member.
     </div>
 
     <?php if ($message): ?>
