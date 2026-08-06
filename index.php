@@ -66,8 +66,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 renderHeader('Login');
 ?>
 
+<div style="text-align: center; margin-bottom: 20px;">
+    <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC Coop Logo" style="max-width: 120px; height: auto;">
+</div>
 
-<h1>Login</h1>
+<h1>Log in to your SJFMC account</h1>
+
+
 
 
 <?php if ($error): ?>
@@ -87,10 +92,5 @@ renderHeader('Login');
     
     <button type="submit">Login</button>
 </form>
-
-<div class="info-box">
-    <strong>Test Accounts (password: password123):</strong><br>
-    admin@example.com | manager@example.com | user@example.com
-</div>
 
 <?php renderFooter(); ?>

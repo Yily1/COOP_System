@@ -177,7 +177,7 @@ body {
 h1 {
   color: #27500A;
   margin-bottom: 20px;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 h2 {
@@ -236,7 +236,8 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="date"],
-select {
+select,
+textarea {
   width: 100%;
   padding: 12px;
   border: 1px solid #C0DD97;
@@ -248,7 +249,8 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: #639922;
   background: white;
@@ -263,6 +265,7 @@ button {
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+  font-family: 'Roboto', Arial, sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
