@@ -140,6 +140,8 @@ function renderHeader($title) {
             /* ===== Box (mirrors MUI's <Box sx={{ display: 'flex' }}>) ===== */
             .box {
                 display: flex;
+                width: 100%;
+                min-height: 100vh;
             }
 
             /* ===== AppBar (mirrors MUI's <AppBar>) ===== */
@@ -294,7 +296,7 @@ function renderHeader($title) {
             /* Center the page content within Main, with equal spacing on both sides */
             .main > .container {
                 width: 100% !important;
-                max-width: none !important;
+                max-width: 1300px !important;
                 margin-left: auto !important;
                 margin-right: auto !important;
                 padding: 24px !important;
@@ -302,7 +304,15 @@ function renderHeader($title) {
                 float: none !important;
             }
 
-            /* Mobile: Drawer behaves as temporary/overlay instead of persistent */
+            .main > .container * {
+                min-width: 0;
+            }
+            .main > .container img,
+            .main > .container canvas,
+            .main > .container table {
+                max-width: 100%;
+            }
+            
             @media (max-width: 768px) {
                 .app-bar.app-bar-shift { margin-left: 0; width: 100%; }
                 .main.main-shift { margin-left: 0; }

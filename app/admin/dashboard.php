@@ -61,11 +61,34 @@ renderHeader('Admin Dashboard');
 <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
 
 <style>
+
+/* ============================================================
+   DEFENSIVE WIDTH FIX (page-level)
+   Forces the box/main/container chain to fill the viewport
+   regardless of whether functions.php has the global fix yet.
+============================================================ */
+.box {
+    width: 100% !important;
+    min-height: 100vh;
+}
+.main {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+.main > .container {
+    max-width: 1300px !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
 .stat-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 15px;
     margin: 20px 0;
+    width: 100%;
+    min-width: 0;
 }
 .stat-card {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -73,6 +96,8 @@ renderHeader('Admin Dashboard');
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    min-width: 0;
+    box-sizing: border-box;
 }
 .stat-card h3 {
     margin: 0;
@@ -88,15 +113,22 @@ renderHeader('Admin Dashboard');
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin: 20px 0;
+    min-width: 0;
+    box-sizing: border-box;
 }
 .chart-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 20px;
     margin: 20px 0;
+    width: 100%;
+    min-width: 0;
 }
 table.dataTable {
     width: 100% !important;
+}
+.chart-container canvas {
+    max-width: 100%;
 }
 .badge-success { background: #28a745; }
 .badge-failed { background: #dc3545; }
