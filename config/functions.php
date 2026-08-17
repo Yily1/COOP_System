@@ -129,34 +129,230 @@ function renderHeader($title) {
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="http://localhost/coop-system/assets/css/style.css">
 
+        <!-- Drawer/Sidebar toggle styles -->
+        <style>
+            :root {
+                --drawer-width: 240px;
+                --header-height: 56px;
+            }
 
+            <?php if ($isLoggedIn): ?>
+            /* ===== Box (mirrors MUI's <Box sx={{ display: 'flex' }}>) ===== */
+            .box {
+                display: flex;
+            }
+
+            /* ===== AppBar (mirrors MUI's <AppBar>) ===== */
+            .app-bar {
+                position: fixed;
+                top: 0; left: 0; right: 0;
+                height: var(--header-height);
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                padding: 0 12px;
+                background: #1976d2;
+                color: #fff;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+                z-index: 30;
+                transition: margin-left .3s ease, width .3s ease;
+            }
+            .app-bar.app-bar-shift {
+                margin-left: var(--drawer-width);
+                width: calc(100% - var(--drawer-width));
+            }
+            /* Toolbar (mirrors MUI's <Toolbar>) */
+            .toolbar {
+                display: flex;
+                align-items: center;
+                width: 100%;
+            }
+            /* IconButton inside AppBar (mirrors MUI's <IconButton>) */
+            .toolbar .icon-button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: auto !important;
+                max-width: 40px;
+                background: none;
+                border: none;
+                color: #fff;
+                font-size: 22px;
+                line-height: 1;
+                text-align: center;
+                cursor: pointer;
+                margin: 0 16px 0 0;
+                padding: 8px;
+            }
+            .toolbar .icon-button.icon-button-hidden { display: none; }
+
+            /* Typography h6 (mirrors MUI's <Typography variant="h6">) */
+            .typography-h6 {
+                font-size: 1.25rem;
+                font-weight: 500;
+                margin: 0;
+                white-space: nowrap;
+                color: #fff;
+            }
+
+            /* ===== Drawer (mirrors MUI's <Drawer variant="persistent">) ===== */
+            .drawer {
+                position: fixed;
+                top: 0; left: 0; bottom: 0;
+                width: var(--drawer-width);
+                background: #1976d2;
+                color: #fff;
+                transform: translateX(-100%);
+                transition: transform .3s ease;
+                z-index: 40;
+                overflow-y: auto;
+            }
+            .drawer.drawer-open { transform: translateX(0); }
+
+            /* DrawerHeader (mirrors MUI's styled <DrawerHeader>) */
+            .drawer-header {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                height: var(--header-height);
+                padding: 0 8px;
+                background: #1976d2;
+            }
+            .drawer-header .icon-button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: auto !important;
+                background: none;
+                border: none;
+                color: #fff;
+                font-size: 18px;
+                cursor: pointer;
+                padding: 6px;
+                border-radius: 50%;
+                margin: 0;
+            }
+            .drawer-header .icon-button:hover { background: rgba(255,255,255,0.15); }
+
+            /* Divider (mirrors MUI's <Divider />) */
+            hr.divider {
+                border: none;
+                border-top: 1px solid rgba(255,255,255,0.2);
+                margin: 0;
+            }
+
+            /* List (mirrors MUI's <List> / <ListItem> / <ListItemButton>) */
+            .list {
+                display: flex;
+                flex-direction: column;
+                padding: 8px 0;
+            }
+            .list a {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+                color: #fff;
+                text-decoration: none;
+                padding: 10px 16px;
+                font-size: .875rem;
+            }
+            .list a:hover {
+                background: rgba(255,255,255,0.1);
+            }
+            .list a.active {
+                background: rgba(255,255,255,0.2);
+                font-weight: 600;
+            }
+
+            /* Dark overlay for mobile (temporary drawer variant) */
+            .backdrop {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 35;
+            }
+            .backdrop.backdrop-show { display: block; }
+
+            /* ===== Main (mirrors MUI's styled <Main>) ===== */
+            .main {
+                flex: 1 1 auto;
+                min-width: 0;
+                margin-top: 0;
+                margin-left: 0;
+                transition: margin-left .225s cubic-bezier(0.4, 0, 0.6, 1);
+            }
+            .main.main-shift {
+                margin-left: var(--drawer-width);
+                transition: margin-left .225s cubic-bezier(0, 0, 0.2, 1);
+            }
+            /* DrawerHeader spacer inside Main (mirrors bare <DrawerHeader /> for top offset) */
+            .drawer-header-spacer {
+                height: var(--header-height);
+            }
+
+            /* Center the page content within Main, with equal spacing on both sides */
+            .main > .container {
+                width: 100% !important;
+                max-width: none !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                padding: 24px !important;
+                box-sizing: border-box !important;
+                float: none !important;
+            }
+
+            /* Mobile: Drawer behaves as temporary/overlay instead of persistent */
+            @media (max-width: 768px) {
+                .app-bar.app-bar-shift { margin-left: 0; width: 100%; }
+                .main.main-shift { margin-left: 0; }
+                .drawer { width: 80vw; max-width: 280px; }
+            }
+            <?php endif; ?>
+        </style>
     </head>
     <body>
         <?php if ($isLoggedIn): ?>
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC Coop Logo" class="sidebar-logo">
+
+            <div class="box">
+                <div class="app-bar" id="appBar">
+                    <div class="toolbar">
+                        <button class="icon-button" id="openBtn" aria-label="open drawer">&#9776;</button>
+                    </div>
                 </div>
-                <div class="sidebar-menu">
-                    <?php if ($currentRole === 'admin'): ?>
-                        <a class="<?php echo navActive('/app/admin/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/dashboard.php">Dashboard</a>
-                        <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">User Management</a>
-                        <a class="<?php echo navActive('/app/users/user-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/user-create.php">Create Account</a>
-                    <?php elseif ($currentRole === 'manager'): ?>
-                        <a class="<?php echo navActive('/app/manager/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/dashboard.php">Dashboard</a>
-                        <a class="<?php echo navActive('/app/members/member-list.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/member-list.php">View Members</a>
-                        <a class="<?php echo navActive('/app/members/member-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/member-create.php">Member Registration</a>
-                        <a class="<?php echo navActive('/app/members/account-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/account-create.php">Create Account</a>
-                        <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">User Management</a>
-                    <?php elseif ($currentRole === 'user'): ?>
-                        <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
-                        <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">My Account</a>
-                    <?php endif; ?>
-                    <a href="<?php echo BASE_URL; ?>/app/auth/signout.php">Logout</a>
+
+                <div class="drawer" id="drawer">
+                    <div class="drawer-header">
+                        <button class="icon-button" id="closeBtn" aria-label="close drawer">&#8592;</button>
+                    </div>
+
+                    <hr class="divider">
+                    <div class="list">
+                        <?php if ($currentRole === 'admin'): ?>
+                            <a class="<?php echo navActive('/app/admin/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/dashboard.php">Dashboard</a>
+                            <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">User Management</a>
+                            <a class="<?php echo navActive('/app/users/user-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/user-create.php">Create Account</a>
+                        <?php elseif ($currentRole === 'manager'): ?>
+                            <a class="<?php echo navActive('/app/manager/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/dashboard.php">Dashboard</a>
+                            <a class="<?php echo navActive('/app/members/member-list.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/member-list.php">View Members</a>
+                            <a class="<?php echo navActive('/app/members/member-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/member-create.php">Member Registration</a>
+                            <a class="<?php echo navActive('/app/members/account-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/account-create.php">Create Account</a>
+                            <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">User Management</a>
+                        <?php elseif ($currentRole === 'user'): ?>
+                            <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
+                            <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">My Account</a>
+                        <?php endif; ?>
+                    </div>
+                    <hr class="divider">
+                    <div class="list">
+                        <a href="<?php echo BASE_URL; ?>/app/auth/signout.php">Logout</a>
+                    </div>
                 </div>
-            </div>
-            <div class="main-content">
-                <div class="container">
+
+                <div class="backdrop" id="backdrop"></div>
+                <div class="main" id="main">
+                    <div class="drawer-header-spacer"></div>
+                    <div class="container">
         <?php else: ?>
             <div class="auth-wrapper">
                 <div class="auth-box">
@@ -168,8 +364,72 @@ function renderFooter() {
     $isLoggedIn = isset($_SESSION['user_id']);
     ?>
         <?php if ($isLoggedIn): ?>
-                </div>
-            </div>
+                </div> 
+            </div>  
+            </div> 
+            
+            <script>
+                (function() {
+                    const drawer   = document.getElementById('drawer');
+                    const appBar   = document.getElementById('appBar');
+                    const main     = document.getElementById('main');
+                    const backdrop = document.getElementById('backdrop');
+                    const openBtn  = document.getElementById('openBtn');
+                    const closeBtn = document.getElementById('closeBtn');
+
+                    function isMobile() {
+                        return window.innerWidth <= 768;
+                    }
+
+                    const STORAGE_KEY = 'drawerOpen';
+
+                    // mirrors handleDrawerOpen() / setOpen(true)
+                    function handleDrawerOpen() {
+                        drawer.classList.add('drawer-open');
+                        appBar.classList.add('app-bar-shift');
+                        openBtn.classList.add('icon-button-hidden');
+                        if (isMobile()) {
+                            backdrop.classList.add('backdrop-show');
+                        } else {
+                            main.classList.add('main-shift');
+                        }
+                        // Remember the state so it survives navigating to another page
+                        localStorage.setItem(STORAGE_KEY, 'true');
+                    }
+
+                    // mirrors handleDrawerClose() / setOpen(false)
+                    function handleDrawerClose() {
+                        drawer.classList.remove('drawer-open');
+                        appBar.classList.remove('app-bar-shift');
+                        main.classList.remove('main-shift');
+                        backdrop.classList.remove('backdrop-show');
+                        openBtn.classList.remove('icon-button-hidden');
+                        localStorage.setItem(STORAGE_KEY, 'false');
+                    }
+
+                    openBtn.addEventListener('click', handleDrawerOpen);
+                    closeBtn.addEventListener('click', handleDrawerClose);
+                    backdrop.addEventListener('click', handleDrawerClose);
+
+                    window.addEventListener('resize', () => {
+                        if (!drawer.classList.contains('drawer-open')) return;
+                        if (isMobile()) {
+                            main.classList.remove('main-shift');
+                            backdrop.classList.add('backdrop-show');
+                        } else {
+                            backdrop.classList.remove('backdrop-show');
+                            main.classList.add('main-shift');
+                        }
+                    });
+
+                    // Restore previous open/closed state from the last page
+                    // (falls back to closed, matching MUI's useState(false), if nothing saved yet)
+                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'true';
+                    if (wasOpen && !isMobile()) {
+                        handleDrawerOpen();
+                    }
+                })();
+            </script>
         <?php else: ?>
                 </div>
             </div>

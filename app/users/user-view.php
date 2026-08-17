@@ -149,6 +149,55 @@ $title = 'View User';
 renderHeader($title);
 ?>
 
+<style>
+
+    /* ============================================================
+       FULL-WIDTH FIX
+       (the default .card / table styles only size themselves to
+       their content, leaving unused space on wider screens)
+    ============================================================ */
+
+    .card {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .card table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .card table td {
+        word-break: break-word;
+    }
+
+    /* ============================================================
+       TWO-COLUMN INFO LAYOUT
+       (Account Information on the left, Personal & Membership
+       Information on the right, side by side on wider screens)
+    ============================================================ */
+
+    .info-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        align-items: start;
+    }
+
+    .info-columns > div h3 {
+        margin-top: 0;
+    }
+
+    @media (max-width: 900px) {
+
+        .info-columns {
+            grid-template-columns: 1fr;
+        }
+    }
+
+</style>
+
 <div class="card">
     <h2>Account Details</h2>
 
@@ -159,6 +208,8 @@ renderHeader($title);
     <?php endif; ?>
 
     <?php if ($user): ?>
+        <div class="info-columns">
+        <div>
         <h3 style="margin-top: 0;">Account Information</h3>
         <table>
             <tr>
@@ -220,7 +271,9 @@ renderHeader($title);
                 <td><?php echo date('F j, Y, g:i a', strtotime($user['created_at'])); ?></td>
             </tr>
         </table>
+        </div>
 
+        <div>
         <?php if ($user['membership_id']): ?>
         <h3>Personal & Membership Information</h3>
         <table>
@@ -286,7 +339,9 @@ renderHeader($title);
             This is a staff account with no linked member profile.
         </div>
         <?php endif; ?>
-        
+        </div>
+        </div>
+
         <?php if (!$user['is_verified']): ?>
             <div class="info-box" style="background: <?php echo $verificationExpired ? '#ffebee' : '#fff9c4'; ?>; border-left-color: <?php echo $verificationExpired ? '#f44336' : '#ffa726'; ?>; margin-top: 20px;">
                 <strong><?php echo $verificationExpired ? '⚠️ Verification Link Expired' : '📧 Email Not Verified'; ?></strong><br>
@@ -314,14 +369,14 @@ renderHeader($title);
             <a href="user-update.php?user_id=<?php echo $user['id']; ?>">
                 <button>
                     <span class="material-icons" style="vertical-align: middle; font-size: 18px;">edit</span>
-                    Edit User
+                    Edit
                 </button>
             </a>
             <?php endif; ?>
             <a href="dashboard.php">
                 <button style="background: #757575;">
                     <span class="material-icons" style="vertical-align: middle; font-size: 18px;">arrow_back</span>
-                    Back to List
+                    Back
                 </button>
             </a>
         </div>
