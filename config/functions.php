@@ -153,7 +153,7 @@ function renderHeader($title) {
                 align-items: center;
                 justify-content: flex-start;
                 padding: 0 12px;
-                background: #1976d2;
+                background: #3B6D11;
                 color: #fff;
                 box-shadow: 0 1px 4px rgba(0,0,0,0.15);
                 z-index: 30;
@@ -202,7 +202,7 @@ function renderHeader($title) {
                 position: fixed;
                 top: 0; left: 0; bottom: 0;
                 width: var(--drawer-width);
-                background: #1976d2;
+                background: #3B6D11;
                 color: #fff;
                 transform: translateX(-100%);
                 transition: transform .3s ease;
@@ -218,7 +218,7 @@ function renderHeader($title) {
                 justify-content: flex-end;
                 height: var(--header-height);
                 padding: 0 8px;
-                background: #1976d2;
+                background: #3B6D11;
             }
             .drawer-header .icon-button {
                 display: inline-flex;
@@ -432,9 +432,7 @@ function renderFooter() {
                         }
                     });
 
-                    // Restore previous open/closed state from the last page
-                    // (falls back to closed, matching MUI's useState(false), if nothing saved yet)
-                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'true';
+                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'false';
                     if (wasOpen && !isMobile()) {
                         handleDrawerOpen();
                     }
