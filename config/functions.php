@@ -202,12 +202,14 @@ function renderHeader($title) {
                 position: fixed;
                 top: 0; left: 0; bottom: 0;
                 width: var(--drawer-width);
-                background: #3B6D11;
+                background: #064E3B;
                 color: #fff;
                 transform: translateX(-100%);
                 transition: transform .3s ease;
                 z-index: 40;
                 overflow-y: auto;
+                display: flex;
+                flex-direction: column;
             }
             .drawer.drawer-open { transform: translateX(0); }
 
@@ -316,7 +318,11 @@ function renderHeader($title) {
             @media (max-width: 768px) {
                 .app-bar.app-bar-shift { margin-left: 0; width: 100%; }
                 .main.main-shift { margin-left: 0; }
-                .drawer { width: 80vw; max-width: 280px; }
+                .drawer { width: 160px; max-width: 160px; }
+                .drawer .list a {
+                    padding: 10px 10px;
+                    font-size: 12px;
+                }
             }
             <?php endif; ?>
         </style>
@@ -344,18 +350,21 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/users/user-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/user-create.php">Create Account</a>
                         <?php elseif ($currentRole === 'manager'): ?>
                             <a class="<?php echo navActive('/app/manager/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/dashboard.php">Dashboard</a>
-                            <a class="<?php echo navActive('/app/members/member-list.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/member-list.php">View Members</a>
-                            <a class="<?php echo navActive('/app/members/member-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/member-create.php">Member Registration</a>
-                            <a class="<?php echo navActive('/app/members/account-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/account-create.php">Create Account</a>
+                            <a class="<?php echo navActive('/app/members/member-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/member-management.php">Member Management</a>
                             <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">User Management</a>
+                            <a class="<?php echo navActive('/app/payments/payment-list.php'); ?>" href="<?php echo BASE_URL; ?>/app/payments/payment-list.php">Transactions</a>
+                            <a class="<?php echo navActive('/app/meetings/meetings.php'); ?>" href="<?php echo BASE_URL; ?>/app/meetings/meetings.php">Meeting Records</a>
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">My Account</a>
+                            <a class="<?php echo navActive('/app/user/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/payments.php">Transactions</a>
                         <?php endif; ?>
                     </div>
-                    <hr class="divider">
-                    <div class="list">
-                        <a href="<?php echo BASE_URL; ?>/app/auth/signout.php">Logout</a>
+                    <div style="margin-top: auto;">
+                        <hr class="divider">
+                        <div class="list">
+                            <a href="<?php echo BASE_URL; ?>/app/auth/signout.php">Logout</a>
+                        </div>
                     </div>
                 </div>
 

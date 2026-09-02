@@ -11,6 +11,11 @@ if ($currentRole !== 'manager') {
     die("Access denied. Only managers can create member accounts.");
 }
 
+// Detect AJAX requests coming from the "+ Create account" modal on
+// users/dashboard.php. Same pattern used by user-update.php.
+$isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+    || (!empty($_POST['ajax']));
+
 $message = '';
 $success = false;
 $verificationLink = '';
@@ -141,6 +146,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $success = true;
+            $createdUser = [
+                'id' => $new_user_id,
+                'email' => $email,
+                'account_status' => $account_status,
+                'membership_id' => $selectedMember['membership_id'],
+                'last_name' => $selectedMember['last_name'],
+                'first_name' => $selectedMember['first_name'],
+                'is_verified' => $email_verified,
+                'created_at' => date('Y-m-d H:i:s'),
+            ];
+
             $form = ['member_id' => '', 'email' => '', 'account_status' => 'Active'];
             $availableMembers = getAvailableMembers($pdo); // refresh dropdown
 
@@ -149,6 +165,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             logActivity($pdo, $_SESSION['user_id'], $_SESSION['email'], 'user_created', 'failed');
         }
     }
+
+    // ============================================================
+    // AJAX RESPONSE (used by the "+ Create account" modal on
+    // users/dashboard.php). Return JSON instead of a rendered page
+    // so the modal can close and the table can add the new row
+    // without a full page reload.
+    // ============================================================
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => $success,
+            'message' => $message,
+            'user' => $success ? $createdUser : null,
+        ]);
+        exit;
+    }
+}
+
+// ============================================================
+// AJAX GET (modal opening) - return the list of available members
+// as JSON so the create-account modal can populate its dropdown
+// without a full page load.
+// ============================================================
+if ($isAjax && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true, 'members' => $availableMembers]);
+    exit;
 }
 
 $title = 'Create Account';

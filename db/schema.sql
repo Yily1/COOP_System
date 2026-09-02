@@ -117,3 +117,87 @@ ALTER TABLE members
     ADD COLUMN date_of_birth DATE NULL AFTER gender,
     ADD COLUMN occupation VARCHAR(100) NULL AFTER date_of_birth,
     ADD COLUMN hectares_cultivated VARCHAR(20) NULL AFTER date_joined;
+
+
+
+
+
+
+    -- ============================================================
+-- PAYMENTS & ASSEMBLY MEETING ATTENDANCE SCHEMA
+-- Para sa SJFMC Coop System
+-- ============================================================
+
+-- 1. Payments table
+-- Bawat row = isang payment entry (registration o investment)
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id INT NOT NULL,
+    payment_type ENUM('registration', 'investment') NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_date DATE NOT NULL,
+    recorded_by INT NOT NULL,
+    notes VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+    FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE RESTRICT,
+
+    INDEX idx_member_type (member_id, payment_type)
+);
+
+-- 2. Assembly meetings table
+-- Listahan ng mga naganap na general assembly meetings
+CREATE TABLE assembly_meetings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    meeting_date DATE NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    recorded_by INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE RESTRICT
+);
+
+-- 3. Meeting attendance table
+-- Sino-sino ang dumalo sa bawat meeting (many-to-many: member <-> meeting)
+CREATE TABLE meeting_attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    meeting_id INT NOT NULL,
+    member_id INT NOT NULL,
+    recorded_by INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (meeting_id) REFERENCES assembly_meetings(id) ON DELETE CASCADE,
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+    FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE RESTRICT,
+
+    -- Isang member, isang beses lang pwede ma-mark sa parehong meeting
+    UNIQUE KEY unique_attendance (meeting_id, member_id)
+);
+
+
+-- ============================================================
+-- MIGRATION: Idagdag ang status sa payments table
+-- Para sa pending/confirmed workflow ng member-submitted payments
+-- ============================================================
+
+ALTER TABLE payments
+ADD COLUMN status ENUM('pending', 'confirmed') NOT NULL DEFAULT 'confirmed' AFTER notes;
+
+-- Note: 'confirmed' ang default, para lahat ng EXISTING records
+-- (na dating ni-record na ng manager mismo) ay awtomatikong "confirmed"
+-- Bagong records na galing sa member submission lang ang magiging 'pending'
+
+-- ============================================================
+-- MIGRATION: Idagdag ang attendance_finalized sa assembly_meetings
+-- Kapag naka-set na ito, permanenteng naka-lock/view-only na
+-- ang attendance checklist ng meeting na yun.
+-- ============================================================
+
+ALTER TABLE assembly_meetings
+ADD COLUMN attendance_finalized TINYINT(1) NOT NULL DEFAULT 0 AFTER meeting_time;
+
+ALTER TABLE assembly_meetings
+  ADD COLUMN meeting_type VARCHAR(100) NOT NULL DEFAULT 'General Assembly (GA) Meeting' AFTER title,
+  ADD COLUMN location VARCHAR(150) NOT NULL DEFAULT '' AFTER meeting_time,
+  ADD COLUMN agenda TEXT NOT NULL AFTER location;

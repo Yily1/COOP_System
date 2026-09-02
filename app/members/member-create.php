@@ -15,8 +15,8 @@ $message = '';
 $success = false;
 $newMembershipId = '';
 
-$livestockOptions = ['Chicken', 'Pig', 'Goat', 'Cattle/Cow', 'Carabao', 'Duck'];
-$cropOptions = ['Rice', 'Corn', 'Vegetables', 'Coconut', 'Banana', 'Coffee'];
+$livestockOptions = ['Chicken', 'Duck', 'Pig', 'Goat', 'Cow', 'Carabao'];
+$cropOptions = ['Corn', 'Cassava', 'Cucumber', 'Eggplant', 'Squash', 'Chayote', 'Bitter Melon', 'String Beans'];
 $hectaresOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 
 $form = [

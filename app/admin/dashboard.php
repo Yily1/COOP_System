@@ -144,23 +144,27 @@ table.dataTable {
 <h2>System Statistics</h2>
 
 <div class="stat-grid">
-    <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <div class="stat-card" style="background: #3F51B5; color: #fff;">
         <h3><?php echo $totalUsers; ?></h3>
         <p>Total Users</p>
     </div>
-    <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+
+    <div class="stat-card" style="background: #E53935; color: #fff;">
         <h3><?php echo $totalAdmins; ?></h3>
         <p>Admins</p>
     </div>
-    <div class="stat-card" style="background: linear-gradient(135deg, #fad0c4 0%, #ffd1ff 100%); color: #333;">
+
+    <div class="stat-card" style="background: #FB8C00; color: #fff;">
         <h3><?php echo $totalManagers; ?></h3>
         <p>Managers</p>
     </div>
-    <div class="stat-card" style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); color: #333;">
+
+    <div class="stat-card" style="background: #43A047; color: #fff;">
         <h3><?php echo $totalRegularUsers; ?></h3>
         <p>Regular Users</p>
     </div>
-    <div class="stat-card" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #333;">
+
+    <div class="stat-card" style="background: #FBC02D; color: #212121;">
         <h3><?php echo $unverifiedUsers; ?></h3>
         <p>Unverified</p>
     </div>
