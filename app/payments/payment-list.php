@@ -107,7 +107,7 @@ $grandTotal = array_sum($totals);
 renderHeader('Payments');
 ?>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; position: relative; width: 100%;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 18px; gap: 16px; position: relative; width: 100%; border-bottom: 2px solid #E4DCC8;">
     <h1 style="margin: 0; flex: 1 1 auto; min-width: 0; position: static !important;">Payments</h1>
     <button id="openModalBtn"
             style="background: #1976d2 !important; color: #fff !important; border: none !important; padding: 10px 18px !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important; display: inline-block !important; width: auto !important; max-width: 200px !important; flex: 0 0 auto !important; white-space: nowrap !important; position: static !important; top: auto !important; left: auto !important; right: auto !important; float: none !important; margin-left: auto !important;">
@@ -117,30 +117,29 @@ renderHeader('Payments');
 
 <!-- ============================================================
      OVERALL PAYMENT TOTALS
-     Flat neutral cards so the numbers carry the hierarchy instead
-     of a rainbow of pastel backgrounds. All five cards share the
-     same flat style; hierarchy comes from bold amount text only.
+     Flat solid-color cards, consistent radius and padding with
+     the Equipment Rental page's metric cards.
      ============================================================ -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px;">
-    <div style="border-radius: 10px; padding: 18px 20px; background: #3B6D11;">
-        <p style="margin: 0 0 4px; font-size: 13px; color: #EAF3DE;">Registration</p>
-        <p style="margin: 0; font-size: 20px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['registration'], 2); ?></p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px;">
+    <div style="border-radius: 10px; padding: 16px 18px; background: #33502F;">
+        <p style="margin: 0 0 6px; font-size: 12.5px; color: #E1EFDE;">Registration</p>
+        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['registration'], 2); ?></p>
     </div>
-    <div style="border-radius: 10px; padding: 18px 20px; background: #185FA5;">
-        <p style="margin: 0 0 4px; font-size: 13px; color: #E6F1FB;">Investment</p>
-        <p style="margin: 0; font-size: 20px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['investment'], 2); ?></p>
+    <div style="border-radius: 10px; padding: 16px 18px; background: #274B81;">
+        <p style="margin: 0 0 6px; font-size: 12.5px; color: #DCE7F5;">Investment</p>
+        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['investment'], 2); ?></p>
     </div>
-    <div style="border-radius: 10px; padding: 18px 20px; background: #534AB7;">
-        <p style="margin: 0 0 4px; font-size: 13px; color: #F4F3FE;">Rental</p>
-        <p style="margin: 0; font-size: 20px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['rental'], 2); ?></p>
+    <div style="border-radius: 10px; padding: 16px 18px; background: #4A3F7A;">
+        <p style="margin: 0 0 6px; font-size: 12.5px; color: #E4E1F5;">Rental</p>
+        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['rental'], 2); ?></p>
     </div>
-    <div style="border-radius: 10px; padding: 18px 20px; background: #854F0B;">
-        <p style="margin: 0 0 4px; font-size: 13px; color: #FAEEDA;">Utang</p>
-        <p style="margin: 0; font-size: 20px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['utang'], 2); ?></p>
+    <div style="border-radius: 10px; padding: 16px 18px; background: #C1892B;">
+        <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E4C3;">Utang</p>
+        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['utang'], 2); ?></p>
     </div>
-    <div style="border-radius: 10px; padding: 18px 20px; background: #1976d2;">
-        <p style="margin: 0 0 4px; font-size: 13px; color: #E3F2FD;">Grand total</p>
-        <p style="margin: 0; font-size: 20px; font-weight: 600; color: #fff;">₱<?php echo number_format($grandTotal, 2); ?></p>
+    <div style="border-radius: 10px; padding: 16px 18px; background: #B54A3C;">
+        <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E1DC;">Grand total</p>
+        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($grandTotal, 2); ?></p>
     </div>
 </div>
 
@@ -389,27 +388,22 @@ renderHeader('Payments');
         utang:        { label: 'Utang',         bg: '#faeeda', text: '#633806' }
     };
 
-    // ============================================================
-    // MEMBER AVATAR COLOR — mirrors PHP's memberAvatarColor() so a
-    // member gets the same color whether their row was rendered on
-    // page load or appended here after "Save payment".
-    // ============================================================
     const AVATAR_PALETTE = [
-        { bg: '#534AB7', text: '#F4F3FE' }, // purple
-        { bg: '#0F6E56', text: '#E1F5EE' }, // teal
-        { bg: '#993C1D', text: '#FAECE7' }, // coral
-        { bg: '#993556', text: '#FBEAF0' }, // pink
-        { bg: '#185FA5', text: '#E6F1FB' }, // blue
-        { bg: '#3B6D11', text: '#EAF3DE' }, // green
-        { bg: '#854F0B', text: '#FAEEDA' }, // amber
-        { bg: '#791F1F', text: '#FCEBEB' }  // red
+        { bg: '#534AB7', text: '#F4F3FE' },
+        { bg: '#0F6E56', text: '#E1F5EE' },
+        { bg: '#993C1D', text: '#FAECE7' },
+        { bg: '#993556', text: '#FBEAF0' },
+        { bg: '#185FA5', text: '#E6F1FB' },
+        { bg: '#3B6D11', text: '#EAF3DE' },
+        { bg: '#854F0B', text: '#FAEEDA' },
+        { bg: '#791F1F', text: '#FCEBEB' }
     ];
 
     function simpleHash(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             hash = (hash << 5) - hash + str.charCodeAt(i);
-            hash = hash | 0; // wrap to 32-bit signed, same as PHP's masked version
+            hash = hash | 0;
         }
         return Math.abs(hash);
     }
@@ -511,9 +505,6 @@ renderHeader('Payments');
         }
     });
 
-    // ============================================================
-    // CONFIRM / REJECT pending payments
-    // ============================================================
     tableBody.addEventListener('click', async function(e) {
         const confirmBtn = e.target.closest('.confirmBtn');
         const rejectBtn = e.target.closest('.rejectBtn');
@@ -560,9 +551,6 @@ renderHeader('Payments');
         }
     });
 
-    // ============================================================
-    // TYPE FILTER (navigates with query param)
-    // ============================================================
     document.getElementById('paymentTypeSelect').addEventListener('change', function() {
         const url = new URL(window.location.href);
         if (this.value) {
@@ -573,10 +561,6 @@ renderHeader('Payments');
         window.location.href = url.toString();
     });
 
-    // ============================================================
-    // MEMBER SEARCH (client-side, filters visible rows by
-    // name or membership ID as the user types)
-    // ============================================================
     const memberSearchInput = document.getElementById('memberSearchInput');
     memberSearchInput.addEventListener('input', function() {
         const q = this.value.trim().toLowerCase();
@@ -586,9 +570,6 @@ renderHeader('Payments');
         });
     });
 
-    // ============================================================
-    // PAYMENT SUMMARY PER MEMBER
-    // ============================================================
     const summaryMembers = JSON.parse(document.getElementById('summaryMembersJson').textContent);
     const summarySearch = document.getElementById('summaryMemberSearch');
     const summarySuggestions = document.getElementById('summarySuggestions');
@@ -610,16 +591,11 @@ renderHeader('Payments');
         return letters.slice(0, 2).join('');
     }
 
-    // Nananatili ang na-type na pangalan/ID sa search box mismo — walang
-    // paglipat sa ibang chip element, walang X icon.
     function selectMember(mId, mName, mMembershipId) {
         summarySuggestions.style.display = 'none';
         loadMemberSummary(mId, mName, mMembershipId);
     }
 
-    // Build the avatar-pill suggestion list as the user types.
-    // Kapag iisa na lang ang natitirang match, diretso nang ipapakita
-    // ang summary card nang hindi na kailangang i-click pa.
     summarySearch.addEventListener('input', function() {
         const q = this.value.trim().toLowerCase();
         if (!q) {
@@ -641,7 +617,6 @@ renderHeader('Payments');
             return;
         }
 
-        // AUTO-SELECT kapag iisa na lang ang match
         if (matches.length === 1) {
             const m = matches[0];
             selectMember(m.id, m.name, m.membership_id);
@@ -749,4 +724,4 @@ renderHeader('Payments');
 })();
 </script>
 
-<?php renderFooter(); ?>x`
+<?php renderFooter(); ?>

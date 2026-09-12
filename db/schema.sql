@@ -146,34 +146,7 @@ CREATE TABLE payments (
     INDEX idx_member_type (member_id, payment_type)
 );
 
--- 2. Assembly meetings table
--- Listahan ng mga naganap na general assembly meetings
-CREATE TABLE assembly_meetings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    meeting_date DATE NOT NULL,
-    title VARCHAR(150) NOT NULL,
-    recorded_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE RESTRICT
-);
-
--- 3. Meeting attendance table
--- Sino-sino ang dumalo sa bawat meeting (many-to-many: member <-> meeting)
-CREATE TABLE meeting_attendance (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    meeting_id INT NOT NULL,
-    member_id INT NOT NULL,
-    recorded_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (meeting_id) REFERENCES assembly_meetings(id) ON DELETE CASCADE,
-    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
-    FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE RESTRICT,
-
-    -- Isang member, isang beses lang pwede ma-mark sa parehong meeting
-    UNIQUE KEY unique_attendance (meeting_id, member_id)
-);
+-
 
 
 -- ============================================================
@@ -194,10 +167,14 @@ ADD COLUMN status ENUM('pending', 'confirmed') NOT NULL DEFAULT 'confirmed' AFTE
 -- ang attendance checklist ng meeting na yun.
 -- ============================================================
 
-ALTER TABLE assembly_meetings
-ADD COLUMN attendance_finalized TINYINT(1) NOT NULL DEFAULT 0 AFTER meeting_time;
+CREATE TABLE meetings (
+    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title         VARCHAR(150) NOT NULL,
+    meeting_date  DATE NOT NULL,
+    `time`        TIME NOT NULL,
+    location      VARCHAR(150) DEFAULT NULL,
+    description   TEXT DEFAULT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-ALTER TABLE assembly_meetings
-  ADD COLUMN meeting_type VARCHAR(100) NOT NULL DEFAULT 'General Assembly (GA) Meeting' AFTER title,
-  ADD COLUMN location VARCHAR(150) NOT NULL DEFAULT '' AFTER meeting_time,
-  ADD COLUMN agenda TEXT NOT NULL AFTER location;
+

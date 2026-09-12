@@ -202,7 +202,7 @@ function renderHeader($title) {
                 position: fixed;
                 top: 0; left: 0; bottom: 0;
                 width: var(--drawer-width);
-                background: #064E3B;
+                background: #3B6D11;
                 color: #fff;
                 transform: translateX(-100%);
                 transition: transform .3s ease;
@@ -314,7 +314,7 @@ function renderHeader($title) {
             .main > .container table {
                 max-width: 100%;
             }
-            
+
             @media (max-width: 768px) {
                 .app-bar.app-bar-shift { margin-left: 0; width: 100%; }
                 .main.main-shift { margin-left: 0; }
@@ -353,7 +353,7 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/members/member-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/member-management.php">Member Management</a>
                             <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">User Management</a>
                             <a class="<?php echo navActive('/app/payments/payment-list.php'); ?>" href="<?php echo BASE_URL; ?>/app/payments/payment-list.php">Transactions</a>
-                            <a class="<?php echo navActive('/app/meetings/meetings.php'); ?>" href="<?php echo BASE_URL; ?>/app/meetings/meetings.php">Meeting Records</a>
+                            <a class="<?php echo navActive('/app/manager/meetings/meeting.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/meetings/meeting.php">Meetings</a>
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">My Account</a>
@@ -383,10 +383,10 @@ function renderFooter() {
     $isLoggedIn = isset($_SESSION['user_id']);
     ?>
         <?php if ($isLoggedIn): ?>
-                </div> 
-            </div>  
-            </div> 
-            
+                </div>
+            </div>
+            </div>
+
             <script>
                 (function() {
                     const drawer   = document.getElementById('drawer');
@@ -441,7 +441,7 @@ function renderFooter() {
                         }
                     });
 
-                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'false';
+                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'true';
                     if (wasOpen && !isMobile()) {
                         handleDrawerOpen();
                     }
@@ -455,5 +455,4 @@ function renderFooter() {
     </html>
     <?php
 }
-
 ?>

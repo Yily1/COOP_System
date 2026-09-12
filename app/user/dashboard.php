@@ -37,12 +37,12 @@ $stmt = $pdo->prepare("
         id,
         title,
         location,
-        agenda,
+        description,
         meeting_date,
-        meeting_time
-    FROM assembly_meetings
+        `time`
+    FROM meetings
     WHERE meeting_date >= CURDATE()
-    ORDER BY meeting_date ASC, meeting_time ASC
+    ORDER BY meeting_date ASC, `time` ASC
 ");
 
 $stmt->execute();
@@ -708,9 +708,9 @@ renderHeader($title);
                 <div class="meeting-preview-card"
                      data-title="<?php echo htmlspecialchars($meeting['title']); ?>"
                      data-location="<?php echo htmlspecialchars($meeting['location'] ?? ''); ?>"
-                     data-agenda="<?php echo htmlspecialchars($meeting['agenda'] ?? ''); ?>"
+                     data-agenda="<?php echo htmlspecialchars($meeting['description'] ?? ''); ?>"
                      data-date="<?php echo date('F j, Y', strtotime($meeting['meeting_date'])); ?>"
-                     data-time="<?php echo !empty($meeting['meeting_time']) ? date('g:i A', strtotime($meeting['meeting_time'])) : ''; ?>">
+                     data-time="<?php echo !empty($meeting['time']) ? date('g:i A', strtotime($meeting['time'])) : ''; ?>">
                     <div class="meeting-preview-date">
                         <div class="month"><?php echo strtoupper(date('M', strtotime($meeting['meeting_date']))); ?></div>
                         <div class="day"><?php echo date('d', strtotime($meeting['meeting_date'])); ?></div>
@@ -720,8 +720,8 @@ renderHeader($title);
                         <p class="meeting-preview-sub">
                             <?php
                             echo date('F j, Y', strtotime($meeting['meeting_date']));
-                            if (!empty($meeting['meeting_time'])) {
-                                echo ' &middot; ' . date('g:i A', strtotime($meeting['meeting_time']));
+                            if (!empty($meeting['time'])) {
+                                echo ' &middot; ' . date('g:i A', strtotime($meeting['time']));
                             }
                             ?>
                         </p>
@@ -852,7 +852,7 @@ renderHeader($title);
             </div>
 
             <div>
-                <p style="margin: 0 0 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: #98a498; text-transform: uppercase;">Agenda</p>
+                <p style="margin: 0 0 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: #98a498; text-transform: uppercase;">Description</p>
                 <p id="mdAgenda" style="margin: 0; font-size: 14px; color: #000; line-height: 1.65; white-space: pre-line;"></p>
             </div>
 
@@ -880,7 +880,7 @@ renderHeader($title);
             mdDate.textContent = card.dataset.date;
             mdTime.textContent = card.dataset.time || 'Not set';
             mdLocation.textContent = card.dataset.location || 'No location set';
-            mdAgenda.textContent = card.dataset.agenda || 'No agenda provided.';
+            mdAgenda.textContent = card.dataset.agenda || 'No description provided.';
             backdrop.style.display = 'flex';
         });
     });
