@@ -2,14 +2,7 @@
 require_once '../../config/config.php';
 require_once '../../config/functions.php';
 require_once '../../includes/activity-logger.php';
-requireLogin();
-
-$currentRole = $_SESSION['role'];
-
-// Only admins can create staff accounts (Admin/Manager) - per system requirement
-if ($currentRole !== 'admin') {
-    die("Access denied. Only administrators can create staff accounts.");
-}
+requireRole('admin');
 
 $message = '';
 $success = false;

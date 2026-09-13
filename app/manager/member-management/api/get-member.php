@@ -1,6 +1,6 @@
 <?php
-require_once '../../../config/config.php';
-require_once '../../../config/functions.php';
+require_once '../../../../config/config.php';
+require_once '../../../../config/functions.php';
 
 requireRole('manager');
 
@@ -13,7 +13,7 @@ $cropOptions = ['Corn', 'Cassava', 'Cucumber', 'Eggplant', 'Squash', 'Chayote', 
 
 // Splits a stored "Chicken, Goat, Turkey" string back into
 // [known checkbox values, leftover "others" text] - same logic
-// used by member-update.php.
+// used by update-member.php.
 function splitDetails($stored, $options) {
     if (empty($stored)) return ['selected' => [], 'others' => ''];
     $parts = array_filter(array_map('trim', explode(',', $stored)));

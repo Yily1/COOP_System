@@ -1,17 +1,26 @@
 <?php
-require_once '../../config/config.php';
-require_once '../../config/functions.php';
-require_once '../../includes/activity-logger.php';
+require_once '../../../config/config.php';
+require_once '../../../config/functions.php';
+require_once '../../../includes/activity-logger.php';
 requireLogin();
 
 $currentRole = $_SESSION['role'];
 $currentUserId = $_SESSION['user_id'];
 $userId = $_GET['user_id'] ?? 0;
 $message = '';
-$success = false;
 
+// Detect AJAX requests coming from the delete modal on
+// admin/user-management.php or manager/user-management.php.
 $isAjax = ($_SERVER['REQUEST_METHOD'] === 'POST') &&
           (($_POST['ajax'] ?? '') === '1' || ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest');
+
+// Where to send the browser back to after a non-AJAX delete,
+// based on the role of the person doing the deleting - this
+// handler is now shared across admin/ and manager/ instead of
+// living under app/users/.
+function deleterReturnUrl($role) {
+    return $role === 'admin' ? '/app/admin/user-management.php' : '/app/manager/user-management.php';
+}
 
 $stmt = $pdo->prepare("SELECT id, email, role FROM users WHERE id = ?");
 $stmt->execute([$userId]);
@@ -26,6 +35,7 @@ if (!$user) {
     }
 }
 
+// SECURITY: enforce the same rule the UI uses to hide the "Delete" link/button.
 $allowedToDelete = $user && canDeleteUser($currentRole, $currentUserId, $user['role'], $user['id']);
 
 if ($user && !$allowedToDelete) {
@@ -53,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $allowedToDelete) {
                 echo json_encode(['success' => true, 'message' => 'User deleted successfully.']);
                 exit;
             }
-            redirect('/app/users/dashboard.php');
+            redirect(deleterReturnUrl($currentRole));
         } else {
             $message = "User not found.";
             if ($isAjax) {
@@ -94,7 +104,7 @@ renderHeader('Delete User');
 
     <form method="POST">
         <button type="submit" style="background: #dc3545;">Delete User</button>
-        <a href="<?php echo BASE_URL; ?>/app/users/dashboard.php">
+        <a href="<?php echo BASE_URL . deleterReturnUrl($currentRole); ?>">
             <button type="button" style="background: #6c757d;">Cancel</button>
         </a>
     </form>

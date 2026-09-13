@@ -1,23 +1,13 @@
 <?php
-require_once '../../../config/config.php';
-require_once '../../../config/functions.php';
-require_once '../../../includes/activity-logger.php';
+require_once '../../../../config/config.php';
+require_once '../../../../config/functions.php';
+require_once '../../../../includes/activity-logger.php';
 
 requireRole('manager');
 
 header('Content-Type: application/json');
 
-$memberId = $_POST['member_id'] ?? 0;
 $hectaresOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
-
-$stmt = $pdo->prepare("SELECT * FROM members WHERE id = ?");
-$stmt->execute([$memberId]);
-$member = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$member) {
-    echo json_encode(['success' => false, 'errors' => ['Member not found.']]);
-    exit;
-}
 
 $last_name = trim($_POST['last_name'] ?? '');
 $first_name = trim($_POST['first_name'] ?? '');
@@ -28,7 +18,7 @@ $occupation = trim($_POST['occupation'] ?? '');
 $address = trim($_POST['address'] ?? '');
 $contact_number = trim($_POST['contact_number'] ?? '');
 $membership_type = $_POST['membership_type'] ?? '';
-$date_joined = $_POST['date_joined'] ?? '';
+$date_joined = $_POST['date_joined'] ?? date('Y-m-d');
 $hectares_cultivated = $_POST['hectares_cultivated'] ?? '';
 $farmer_type = $_POST['farmer_type'] ?? '';
 $livestockSelected = $_POST['livestock'] ?? [];
@@ -69,54 +59,45 @@ if (!empty($errors)) {
 }
 
 try {
+    $membership_id = generateMembershipId($pdo);
+
     $stmt = $pdo->prepare("
-        UPDATE members SET
-            last_name = :last_name,
-            first_name = :first_name,
-            middle_name = :middle_name,
-            gender = :gender,
-            date_of_birth = :date_of_birth,
-            occupation = :occupation,
-            address = :address,
-            contact_number = :contact_number,
-            membership_type = :membership_type,
-            date_joined = :date_joined,
-            hectares_cultivated = :hectares_cultivated,
-            farmer_type = :farmer_type,
-            livestock_details = :livestock_details,
-            crops_details = :crops_details
-        WHERE id = :id
+        INSERT INTO members
+            (membership_id, last_name, first_name, middle_name, gender, date_of_birth, occupation, address, contact_number, membership_type, date_joined, hectares_cultivated, farmer_type, livestock_details, crops_details, created_at)
+        VALUES
+            (:membership_id, :last_name, :first_name, :middle_name, :gender, :date_of_birth, :occupation, :address, :contact_number, :membership_type, :date_joined, :hectares_cultivated, :farmer_type, :livestock_details, :crops_details, NOW())
     ");
     $stmt->execute([
-        ':last_name'           => $last_name,
-        ':first_name'          => $first_name,
-        ':middle_name'         => $middle_name,
-        ':gender'              => $gender,
-        ':date_of_birth'       => $date_of_birth,
-        ':occupation'          => $occupation,
-        ':address'             => $address,
-        ':contact_number'      => $contact_number,
-        ':membership_type'     => $membership_type,
-        ':date_joined'         => $date_joined,
+        ':membership_id'   => $membership_id,
+        ':last_name'       => $last_name,
+        ':first_name'      => $first_name,
+        ':middle_name'     => $middle_name,
+        ':gender'          => $gender,
+        ':date_of_birth'   => $date_of_birth,
+        ':occupation'      => $occupation,
+        ':address'         => $address,
+        ':contact_number'  => $contact_number,
+        ':membership_type' => $membership_type,
+        ':date_joined'     => $date_joined,
         ':hectares_cultivated' => $hectares_cultivated,
-        ':farmer_type'         => $farmer_type,
-        ':livestock_details'   => $livestock_details !== '' ? $livestock_details : null,
-        ':crops_details'       => $crops_details !== '' ? $crops_details : null,
-        ':id'                  => $memberId,
+        ':farmer_type'     => $farmer_type,
+        ':livestock_details' => $livestock_details !== '' ? $livestock_details : null,
+        ':crops_details'   => $crops_details !== '' ? $crops_details : null,
     ]);
 
-    logActivity($pdo, $_SESSION['user_id'], $_SESSION['email'], 'member_updated', 'success');
+    $newId = $pdo->lastInsertId();
+    logActivity($pdo, $_SESSION['user_id'], $_SESSION['email'], 'member_created', 'success');
 
     $stmt = $pdo->prepare("SELECT * FROM members WHERE id = ?");
-    $stmt->execute([$memberId]);
-    $updatedMember = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute([$newId]);
+    $member = $stmt->fetch(PDO::FETCH_ASSOC);
 
     echo json_encode([
         'success' => true,
-        'message' => 'Member profile updated successfully!',
-        'member' => $updatedMember,
+        'message' => "Member profile created successfully! Membership ID: {$membership_id}.",
+        'member' => $member,
     ]);
 } catch (PDOException $e) {
-    logActivity($pdo, $_SESSION['user_id'], $_SESSION['email'], 'member_updated', 'failed');
-    echo json_encode(['success' => false, 'errors' => ['Error updating member profile: ' . $e->getMessage()]]);
+    logActivity($pdo, $_SESSION['user_id'], $_SESSION['email'], 'member_created', 'failed');
+    echo json_encode(['success' => false, 'errors' => ['Error creating member profile: ' . $e->getMessage()]]);
 }

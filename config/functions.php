@@ -346,17 +346,17 @@ function renderHeader($title) {
                     <div class="list">
                         <?php if ($currentRole === 'admin'): ?>
                             <a class="<?php echo navActive('/app/admin/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/dashboard.php">Dashboard</a>
-                            <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">User Management</a>
-                            <a class="<?php echo navActive('/app/users/user-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/user-create.php">Create Account</a>
+                            <a class="<?php echo navActive('/app/admin/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/user-management.php">User Management</a>
+                            <a class="<?php echo navActive('/app/admin/user-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/user-create.php">Create Account</a>
                         <?php elseif ($currentRole === 'manager'): ?>
                             <a class="<?php echo navActive('/app/manager/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/dashboard.php">Dashboard</a>
-                            <a class="<?php echo navActive('/app/members/member-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/members/member-management.php">Member Management</a>
-                            <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">User Management</a>
-                            <a class="<?php echo navActive('/app/payments/payment-list.php'); ?>" href="<?php echo BASE_URL; ?>/app/payments/payment-list.php">Transactions</a>
+                            <a class="<?php echo navActive('/app/manager/member-management/member-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/member-management/member-management.php">Member Management</a>
+                            <a class="<?php echo navActive('/app/manager/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/user-management.php">User Management</a>
+                            <a class="<?php echo navActive('/app/manager/payments/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/manager/meetings/meeting.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/meetings/meeting.php">Meetings</a>
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
-                            <a class="<?php echo navActive('/app/users/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">My Account</a>
+                            <a class="<?php echo navActive('/app/user/profile.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/profile.php">My Account</a>
                             <a class="<?php echo navActive('/app/user/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/payments.php">Transactions</a>
                         <?php endif; ?>
                     </div>

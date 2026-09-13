@@ -319,7 +319,7 @@ renderHeader('Payments');
 
         try {
             const formData = new FormData(form);
-            const response = await fetch('<?php echo BASE_URL; ?>/app/payments/api/submit-pending-payment.php', {
+            const response = await fetch('<?php echo BASE_URL; ?>/app/user/api/submit-pending-payment.php', {
                 method: 'POST',
                 body: formData
             });

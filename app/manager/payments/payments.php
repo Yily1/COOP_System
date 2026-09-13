@@ -1,7 +1,7 @@
 <?php
-require_once '../../config/config.php';
-require_once '../../config/functions.php';
-require_once '../../config/payment-functions.php';
+require_once '../../../config/config.php';
+require_once '../../../config/functions.php';
+require_once '../../../config/payment-functions.php';
 
 requireRole('manager');
 
@@ -117,8 +117,6 @@ renderHeader('Payments');
 
 <!-- ============================================================
      OVERALL PAYMENT TOTALS
-     Flat solid-color cards, consistent radius and padding with
-     the Equipment Rental page's metric cards.
      ============================================================ -->
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px;">
     <div style="border-radius: 10px; padding: 16px 18px; background: #33502F;">
@@ -212,7 +210,7 @@ renderHeader('Payments');
                     </td>
                     <td style="padding: 10px 12px; color: #666;"><?php echo htmlspecialchars($payment['notes'] ?? '-'); ?></td>
                     <td style="padding: 10px 12px; color: #666;"><?php echo htmlspecialchars($payment['recorded_by_email'] ?? '-'); ?></td>
-                                        <td style="padding: 10px 12px;">
+                    <td style="padding: 10px 12px;">
                         <?php if ($payment['status'] === 'pending'): ?>
                             <div style="display: flex; gap: 6px;">
                                 <button class="confirmBtn" data-id="<?php echo $payment['id']; ?>"
@@ -227,7 +225,6 @@ renderHeader('Payments');
                         <?php else: ?>
                             <span style="color: #ccc;">-</span>
                         <?php endif; ?>
-                    </td>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -473,7 +470,9 @@ renderHeader('Payments');
 
         try {
             const formData = new FormData(form);
-            const response = await fetch('<?php echo BASE_URL; ?>/app/payments/api/save-payment.php', {
+            // NOTE: save-payment.php now lives under app/manager/payments/api/
+            // instead of app/payments/api/.
+            const response = await fetch('<?php echo BASE_URL; ?>/app/manager/payments/api/save-payment.php', {
                 method: 'POST',
                 body: formData
             });
@@ -526,7 +525,9 @@ renderHeader('Payments');
             formData.append('payment_id', paymentId);
             formData.append('action', action);
 
-            const response = await fetch('<?php echo BASE_URL; ?>/app/payments/api/update-payment-status.php', {
+            // NOTE: update-payment-status.php now lives under
+            // app/manager/payments/api/ instead of app/payments/api/.
+            const response = await fetch('<?php echo BASE_URL; ?>/app/manager/payments/api/update-payment-status.php', {
                 method: 'POST',
                 body: formData
             });
@@ -670,7 +671,9 @@ renderHeader('Payments');
         summaryInvestmentBar.style.width = '0%';
 
         try {
-            const response = await fetch('<?php echo BASE_URL; ?>/app/payments/api/get-member-summary.php?member_id=' + memberId);
+            // NOTE: get-member-summary.php now lives under
+            // app/manager/payments/api/ instead of app/payments/api/.
+            const response = await fetch('<?php echo BASE_URL; ?>/app/manager/payments/api/get-member-summary.php?member_id=' + memberId);
             const data = await response.json();
 
             if (!data.success) {

@@ -1,6 +1,6 @@
 <?php
-require_once '../../config/config.php';
-require_once '../../config/functions.php';
+require_once '../../../config/config.php';
+require_once '../../../config/functions.php';
 
 requireRole('manager');
 
@@ -18,7 +18,7 @@ $linkedCount = count(array_filter($members, fn($m) => !empty($m['user_id'])));
 
 // ============================================================
 // CROP / LIVESTOCK OPTIONS + IMAGE MAPPING
-// Same option lists used by member-create.php / api/get-member.php.
+// Same option lists used by api/get-member.php.
 // Add a new crop or livestock type here and it flows through the
 // Add/Edit checkboxes AND the View-mode image badges automatically.
 // One image file per type - reused across every member who has it.
@@ -646,7 +646,7 @@ renderHeader('Member Management');
         modalTitle.textContent = mode === 'edit' ? 'Loading edit form...' : 'Loading member...';
 
         try {
-            const res = await fetch(`${BASE}/app/members/api/get-member.php?member_id=${memberId}`);
+            const res = await fetch(`${BASE}/app/manager/member-management/api/get-member.php?member_id=${memberId}`);
             const data = await res.json();
             if (!data.success) {
                 errorsBox.textContent = data.message || 'Could not load member.';
@@ -684,8 +684,8 @@ renderHeader('Member Management');
 
         const isEdit = !!memberIdField.value;
         const endpoint = isEdit
-            ? `${BASE}/app/members/api/update-member.php`
-            : `${BASE}/app/members/api/save-member.php`;
+            ? `${BASE}/app/manager/member-management/api/update-member.php`
+            : `${BASE}/app/manager/member-management/api/save-member.php`;
 
         try {
             const formData = new FormData(form);
@@ -740,7 +740,7 @@ renderHeader('Member Management');
         try {
             const formData = new FormData();
             formData.append('member_id', memberIdToDelete);
-            const res = await fetch(`${BASE}/app/members/api/delete-member.php`, { method: 'POST', body: formData });
+            const res = await fetch(`${BASE}/app/manager/member-management/api/delete-member.php`, { method: 'POST', body: formData });
             const data = await res.json();
 
             if (data.success) {
@@ -760,4 +760,4 @@ renderHeader('Member Management');
 })();
 </script>
 
-<?php renderFooter(); ?>  
+<?php renderFooter(); ?>

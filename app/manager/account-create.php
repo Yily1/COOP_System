@@ -12,7 +12,8 @@ if ($currentRole !== 'manager') {
 }
 
 // Detect AJAX requests coming from the "+ Create account" modal on
-// users/dashboard.php. Same pattern used by user-update.php.
+// manager/user-management.php. Same pattern used by
+// includes/handlers/user-update.php.
 $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
     || (!empty($_POST['ajax']));
 
@@ -168,9 +169,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // ============================================================
     // AJAX RESPONSE (used by the "+ Create account" modal on
-    // users/dashboard.php). Return JSON instead of a rendered page
-    // so the modal can close and the table can add the new row
-    // without a full page reload.
+    // manager/user-management.php). Return JSON instead of a
+    // rendered page so the modal can close and the table can add
+    // the new row without a full page reload.
     // ============================================================
     if ($isAjax) {
         header('Content-Type: application/json');
@@ -206,7 +207,7 @@ renderHeader($title);
 
     <div class="info-box">
         Select a cooperative member to give them a login account. Only members without an existing account are listed.
-        Don't see the member you're looking for? <a href="<?php echo BASE_URL; ?>/app/members/member-create.php">Create their profile first</a>.
+        Don't see the member you're looking for? <a href="<?php echo BASE_URL; ?>/app/manager/member-management/member-create.php">Create their profile first</a>.
     </div>
 
     <?php if ($message): ?>

@@ -1,7 +1,7 @@
 <?php
-require_once '../../config/config.php';
-require_once '../../config/functions.php';
-require_once '../../includes/activity-logger.php';
+require_once '../../../config/config.php';
+require_once '../../../config/functions.php';
+require_once '../../../includes/activity-logger.php';
 requireLogin();
 
 $currentRole = $_SESSION['role'];
@@ -10,10 +10,11 @@ $userId = $_GET['user_id'] ?? 0;
 $message = '';
 $success = false;
 
-// Detect AJAX requests coming from the edit modal on user-view.php.
-// We check both the header (sent by fetch()) and the hidden
-// "ajax" field (belt-and-suspenders, in case the header is ever
-// stripped by a proxy).
+// Detect AJAX requests coming from the edit modal on
+// admin/user-management.php, manager/user-management.php,
+// or user/profile.php. We check both the header (sent by fetch())
+// and the hidden "ajax" field (belt-and-suspenders, in case the
+// header is ever stripped by a proxy).
 $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
     || (!empty($_POST['ajax']));
 
@@ -112,7 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $allowedToEdit) {
 }
 
 // ============================================================
-// AJAX RESPONSE (used by the edit modal on user-view.php)
+// AJAX RESPONSE (used by the edit modal on admin/user-management.php,
+// manager/user-management.php, and user/profile.php)
 // Return JSON instead of a rendered page so the modal can
 // update the Account Information card in place.
 // ============================================================
@@ -131,9 +133,22 @@ if ($isAjax) {
 }
 
 // ============================================================
-// NON-AJAX FALLBACK (admin/manager editing another account via
-// the full-page form, or direct navigation) - unchanged.
+// NON-AJAX FALLBACK (direct navigation) - redirect back to the
+// correct listing page based on the role of the person doing the
+// editing, since this handler is now shared across admin, manager,
+// and user pages instead of living under app/users/.
 // ============================================================
+function editorReturnUrl($role) {
+    switch ($role) {
+        case 'admin':
+            return '/app/admin/user-management.php';
+        case 'manager':
+            return '/app/manager/user-management.php';
+        default:
+            return '/app/user/profile.php';
+    }
+}
+
 renderHeader('Update User');
 ?>
 
@@ -181,6 +196,10 @@ renderHeader('Update User');
 
         <button type="submit">Update User</button>
     </form>
+
+    <p style="margin-top: 12px;">
+        <a href="<?php echo BASE_URL . editorReturnUrl($currentRole); ?>">&larr; Back</a>
+    </p>
 
     <?php
     // Show linked member profile info, read-only (Personal/Membership
