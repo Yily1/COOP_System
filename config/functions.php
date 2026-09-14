@@ -358,6 +358,7 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/user/profile.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/profile.php">My Account</a>
                             <a class="<?php echo navActive('/app/user/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/payments.php">Transactions</a>
+                            <a class="<?php echo navActive('/app/user/checkins.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/checkins.php">Meetings</a>
                         <?php endif; ?>
                     </div>
                     <div style="margin-top: auto;">
@@ -441,7 +442,7 @@ function renderFooter() {
                         }
                     });
 
-                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'true';
+                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'false';
                     if (wasOpen && !isMobile()) {
                         handleDrawerOpen();
                     }

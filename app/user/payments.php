@@ -49,33 +49,6 @@ renderHeader('Payments');
 .payment-card-header-right { display: flex; align-items: center; gap: 14px; }
 .payment-card-header h1 { margin: 0; color: #2e7d32; font-size: 25px; font-weight: 500; }
 .payment-card h3 { color: #333; font-size: 18px; font-weight: 500; }
-.back-link {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-    background: none !important;
-    border: 1px solid #2e7d32 !important;
-    color: #2e7d32 !important;
-    text-decoration: none !important;
-    text-transform: none !important;
-    letter-spacing: normal !important;
-    font-weight: 500 !important;
-    font-size: 14px !important;
-    line-height: 1.4 !important;
-    padding: 9px 16px !important;
-    border-radius: 6px !important;
-    white-space: nowrap !important;
-    box-sizing: border-box !important;
-}
-.back-link svg {
-    width: 15px !important;
-    height: 15px !important;
-    stroke: #2e7d32 !important;
-}
-.back-link:hover {
-    background: #eaf4ea !important;
-    text-decoration: none !important;
-}
 .add-payment-btn {
     background: #2e7d32 !important;
     color: #fff !important;
@@ -120,9 +93,6 @@ renderHeader('Payments');
         font-size: 18px !important;
         white-space: nowrap;
     }
-    .back-link {
-        display: none !important;
-    }
     .add-payment-btn {
         padding: 8px 14px !important;
         font-size: 13px !important;
@@ -137,10 +107,6 @@ renderHeader('Payments');
             <?php if (!empty($memberDbId)): ?>
                 <button id="openPayModalBtn" class="add-payment-btn">+ Add payment</button>
             <?php endif; ?>
-            <a href="javascript:history.back()" class="back-link">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                Back
-            </a>
         </div>
     </div>
 

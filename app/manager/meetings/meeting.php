@@ -338,7 +338,10 @@ $today = date('Y-m-d');
 renderHeader('Meetings');
 ?>
 <style>
-    .mtg-page-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+    .mtg-page-head {
+        display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;
+        margin-bottom:20px; padding-bottom:18px; border-bottom:2px solid #E4DCC8;
+    }
     .mtg-page-head h1 { display:flex; align-items:center; gap:8px; font-size:24px; color:#2c2c2a; margin:0 0 4px; }
     .mtg-page-head p { font-size:13px; color:#6b7280; margin:0; }
     button.mtg-btn-create,

@@ -178,3 +178,23 @@ CREATE TABLE meetings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+CREATE TABLE IF NOT EXISTS meeting_attendance (
+    id           INT(11) NOT NULL AUTO_INCREMENT,
+    meeting_id   INT(11) NOT NULL,
+    member_id    INT(11) NOT NULL,
+    recorded_by  INT(11) DEFAULT NULL,
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uniq_meeting_member (meeting_id, member_id),
+    CONSTRAINT fk_attendance_meeting FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE,
+    CONSTRAINT fk_attendance_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+ALTER TABLE payments 
+MODIFY COLUMN payment_type ENUM('registration','investment','rental') NOT NULL;
+
+
+ALTER TABLE members ADD COLUMN farmer_type ENUM('Livestock', 'Crops', 'Both') NULL AFTER date_joined;
+ALTER TABLE members ADD COLUMN livestock_details VARCHAR(255) NULL AFTER farmer_type;
+ALTER TABLE members ADD COLUMN crops_details VARCHAR(255) NULL AFTER livestock_details;

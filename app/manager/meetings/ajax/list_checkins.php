@@ -17,7 +17,7 @@ if (!$meetingId) {
 $stmt = $pdo->prepare(
     "SELECT m.id, m.membership_id,
             CONCAT(m.first_name, ' ', m.last_name) AS name
-     FROM attendance a
+     FROM meeting_attendance a
      JOIN members m ON m.id = a.member_id
      WHERE a.meeting_id = :meeting_id
      ORDER BY m.last_name ASC, m.first_name ASC"

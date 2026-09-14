@@ -121,6 +121,17 @@ $stmt->execute([$userId]);
 $lastLogin = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // ============================================================
+// MY CHECK-IN COUNT (for the nav card subtitle)
+// ============================================================
+
+$myCheckinCount = 0;
+if ($myProfile && !empty($myProfile['member_db_id'])) {
+    $stmt = $pdo->prepare("SELECT COUNT(*) AS total FROM meeting_attendance WHERE member_id = ?");
+    $stmt->execute([$myProfile['member_db_id']]);
+    $myCheckinCount = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+}
+
+// ============================================================
 // DISPLAY NAME + GREETING (used in header)
 // ============================================================
 
@@ -684,8 +695,18 @@ renderHeader($title);
             </div>
         </a>
 
-        <!-- BLANK SLOTS - reserved for future features -->
-        <div class="nav-card blank"></div>
+        <!-- MY CHECK-INS -->
+        <a class="nav-card purple" href="<?php echo BASE_URL; ?>/app/user/checkins.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Meetings</p>
+                <p class="nav-card-sub">View meeting history</p>
+            </div>
+        </a>
+
+        <!-- BLANK SLOT - reserved for future features -->
         <div class="nav-card blank"></div>
 
     </div>

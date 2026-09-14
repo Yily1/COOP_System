@@ -40,7 +40,6 @@ function paymentTypeMeta($type) {
         'registration' => ['label' => 'Registration', 'bg' => '#d4edda', 'text' => '#155724'],
         'investment'   => ['label' => 'Investment',   'bg' => '#cce5ff', 'text' => '#004085'],
         'rental'       => ['label' => 'Rental',        'bg' => '#eeedfe', 'text' => '#3c3489'],
-        'utang'        => ['label' => 'Utang',         'bg' => '#faeeda', 'text' => '#633806'],
     ];
     return $map[$type] ?? ['label' => ucfirst($type), 'bg' => '#eee', 'text' => '#555'];
 }
@@ -91,7 +90,7 @@ function memberInitials($firstName, $lastName) {
 // ============================================================
 // SUMMARY TOTALS (confirmed payments only, respects current filters)
 // ============================================================
-$totals = ['registration' => 0, 'investment' => 0, 'rental' => 0, 'utang' => 0];
+$totals = ['registration' => 0, 'investment' => 0, 'rental' => 0];
 
 foreach ($payments as $payment) {
     if ($payment['status'] !== 'confirmed') {
@@ -131,10 +130,6 @@ renderHeader('Payments');
         <p style="margin: 0 0 6px; font-size: 12.5px; color: #E4E1F5;">Rental</p>
         <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['rental'], 2); ?></p>
     </div>
-    <div style="border-radius: 10px; padding: 16px 18px; background: #C1892B;">
-        <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E4C3;">Utang</p>
-        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['utang'], 2); ?></p>
-    </div>
     <div style="border-radius: 10px; padding: 16px 18px; background: #B54A3C;">
         <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E1DC;">Grand total</p>
         <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($grandTotal, 2); ?></p>
@@ -152,7 +147,6 @@ renderHeader('Payments');
         <option value="registration" <?php echo ($filterType === 'registration') ? 'selected' : ''; ?>>Registration</option>
         <option value="investment" <?php echo ($filterType === 'investment') ? 'selected' : ''; ?>>Investment</option>
         <option value="rental" <?php echo ($filterType === 'rental') ? 'selected' : ''; ?>>Rental</option>
-        <option value="utang" <?php echo ($filterType === 'utang') ? 'selected' : ''; ?>>Utang</option>
     </select>
 </div>
 
@@ -232,66 +226,6 @@ renderHeader('Payments');
     </tbody>
 </table>
 
-<!-- ============================================================
-     PAYMENT SUMMARY PER MEMBER
-     ============================================================ -->
-<div style="display: flex; align-items: center; gap: 16px; margin: 32px 0 16px 0; flex-wrap: wrap;">
-    <h2 style="margin: 0;">Member Payment Summary</h2>
-
-    <div id="summarySearchWrap" style="position: relative; width: 240px; max-width: 240px;">
-        <input type="text" id="summaryMemberSearch" placeholder="Search member name or ID" autocomplete="off"
-               style="padding: 8px; border-radius: 6px; border: 1px solid #ccc; width: 240px; max-width: 240px; box-sizing: border-box;">
-        <div id="summarySuggestions" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); max-height: 220px; overflow-y: auto; z-index: 20;"></div>
-    </div>
-
-    <script type="application/json" id="summaryMembersJson"><?php
-        echo json_encode(array_map(function($m) {
-            return [
-                'id' => $m['id'],
-                'name' => $m['last_name'] . ', ' . $m['first_name'],
-                'membership_id' => $m['membership_id'],
-            ];
-        }, $members));
-    ?></script>
-</div>
-
-<div id="summaryCards" style="display: none; background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden;">
-    <div style="display: flex; align-items: center; gap: 12px; padding: 20px; border-bottom: 1px solid #eee;">
-        <div id="summaryAvatar" style="width: 44px; height: 44px; border-radius: 50%; background: #534ab7; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px; color: #f4f3fe; flex-shrink: 0;">-</div>
-        <div style="flex: 1;">
-            <p id="summaryMemberName" style="font-weight: 600; font-size: 16px; margin: 0;">-</p>
-            <p id="summaryMembershipId" style="font-size: 13px; color: #888; margin: 2px 0 0;">-</p>
-        </div>
-        <div id="summaryStatusBadge" style="font-size: 12px; padding: 4px 12px; border-radius: 6px; white-space: nowrap;">-</div>
-    </div>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr;">
-        <div style="padding: 20px; border-right: 1px solid #eee;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-                <div id="summaryRegIconWrap" style="width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px;">-</div>
-                <p style="font-size: 13px; color: #666; margin: 0;">Registration fee</p>
-            </div>
-            <p id="summaryRegistration" style="font-size: 20px; font-weight: 600; margin: 0; color: #222;">-</p>
-        </div>
-
-        <div style="padding: 20px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-                <div style="width: 26px; height: 26px; border-radius: 50%; background: #e6f1fb; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; color: #185fa5; font-weight: 700;">₱</div>
-                <p style="font-size: 13px; color: #666; margin: 0;">Investment</p>
-            </div>
-            <p id="summaryInvestment" style="font-size: 20px; font-weight: 600; margin: 0; color: #222;">-</p>
-            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
-                <div style="height: 6px; background: #eee; border-radius: 4px; flex: 1; overflow: hidden;">
-                    <div id="summaryInvestmentBar" style="height: 100%; width: 0%; background: #639922; border-radius: 4px;"></div>
-                </div>
-                <span id="summaryInvestmentPct" style="font-size: 12px; color: #888; white-space: nowrap;">-</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-<p id="summaryEmptyState" style="color: #666;">Select a member above to view the summary.</p>
-
 <!-- MODAL - Add Payment -->
 <div id="paymentModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
     <div style="background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 420px; box-sizing: border-box; position: relative;">
@@ -321,7 +255,6 @@ renderHeader('Payments');
                     <option value="registration">Registration fee (₱150)</option>
                     <option value="investment">Investment</option>
                     <option value="rental">Rental</option>
-                    <option value="utang">Utang</option>
                 </select>
             </div>
 
@@ -381,8 +314,7 @@ renderHeader('Payments');
     const TYPE_META = {
         registration: { label: 'Registration', bg: '#d4edda', text: '#155724' },
         investment:   { label: 'Investment',   bg: '#cce5ff', text: '#004085' },
-        rental:       { label: 'Rental',        bg: '#eeedfe', text: '#3c3489' },
-        utang:        { label: 'Utang',         bg: '#faeeda', text: '#633806' }
+        rental:       { label: 'Rental',        bg: '#eeedfe', text: '#3c3489' }
     };
 
     const AVATAR_PALETTE = [
@@ -570,160 +502,6 @@ renderHeader('Payments');
             row.style.display = matches ? '' : 'none';
         });
     });
-
-    const summaryMembers = JSON.parse(document.getElementById('summaryMembersJson').textContent);
-    const summarySearch = document.getElementById('summaryMemberSearch');
-    const summarySuggestions = document.getElementById('summarySuggestions');
-    const summaryCards = document.getElementById('summaryCards');
-    const summaryEmptyState = document.getElementById('summaryEmptyState');
-    const summaryAvatar = document.getElementById('summaryAvatar');
-    const summaryMemberName = document.getElementById('summaryMemberName');
-    const summaryMembershipId = document.getElementById('summaryMembershipId');
-    const summaryStatusBadge = document.getElementById('summaryStatusBadge');
-    const summaryRegIconWrap = document.getElementById('summaryRegIconWrap');
-    const summaryRegistration = document.getElementById('summaryRegistration');
-    const summaryInvestment = document.getElementById('summaryInvestment');
-    const summaryInvestmentBar = document.getElementById('summaryInvestmentBar');
-    const summaryInvestmentPct = document.getElementById('summaryInvestmentPct');
-
-    function getInitials(name) {
-        const parts = name.split(',').map(s => s.trim()).filter(Boolean);
-        const letters = parts.map(p => p.charAt(0).toUpperCase());
-        return letters.slice(0, 2).join('');
-    }
-
-    function selectMember(mId, mName, mMembershipId) {
-        summarySuggestions.style.display = 'none';
-        loadMemberSummary(mId, mName, mMembershipId);
-    }
-
-    summarySearch.addEventListener('input', function() {
-        const q = this.value.trim().toLowerCase();
-        if (!q) {
-            summarySuggestions.style.display = 'none';
-            summaryCards.style.display = 'none';
-            summaryEmptyState.style.display = 'block';
-            return;
-        }
-
-        const matches = summaryMembers.filter(m =>
-            m.name.toLowerCase().includes(q) || m.membership_id.toLowerCase().includes(q)
-        );
-
-        if (matches.length === 0) {
-            summarySuggestions.innerHTML = '<div style="padding: 10px 12px; font-size: 13px; color: #888;">No matching member.</div>';
-            summarySuggestions.style.display = 'block';
-            summaryCards.style.display = 'none';
-            summaryEmptyState.style.display = 'none';
-            return;
-        }
-
-        if (matches.length === 1) {
-            const m = matches[0];
-            selectMember(m.id, m.name, m.membership_id);
-            return;
-        }
-
-        summarySuggestions.innerHTML = matches.map(m => {
-            const av = avatarColorFor(m.membership_id);
-            return `
-            <div class="summary-sug-item" data-id="${m.id}" data-name="${m.name.replace(/"/g, '&quot;')}" data-membership-id="${m.membership_id}"
-                 style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0;">
-                <div style="width: 30px; height: 30px; border-radius: 50%; background: ${av.bg}; color: ${av.text}; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; flex-shrink: 0;">${getInitials(m.name)}</div>
-                <div>
-                    <p style="margin: 0; font-weight: 600; font-size: 13px;">${m.name}</p>
-                    <p style="margin: 0; font-size: 11px; color: #888;">${m.membership_id}</p>
-                </div>
-            </div>
-        `;
-        }).join('');
-        summarySuggestions.style.display = 'block';
-
-        summarySuggestions.querySelectorAll('.summary-sug-item').forEach(function(item) {
-            item.addEventListener('mouseenter', function() { this.style.background = '#f5f5f5'; });
-            item.addEventListener('mouseleave', function() { this.style.background = '#fff'; });
-            item.addEventListener('click', function() {
-                selectMember(this.dataset.id, this.dataset.name, this.dataset.membershipId);
-            });
-        });
-    });
-
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('#summaryMemberSearch') && !e.target.closest('#summarySuggestions')) {
-            summarySuggestions.style.display = 'none';
-        }
-    });
-
-    async function loadMemberSummary(memberId, memberName, membershipId) {
-        summaryEmptyState.style.display = 'none';
-        summaryCards.style.display = 'block';
-
-        const av = avatarColorFor(membershipId || memberName);
-        summaryAvatar.style.background = av.bg;
-        summaryAvatar.style.color = av.text;
-        summaryAvatar.textContent = getInitials(memberName);
-        summaryMemberName.textContent = memberName;
-        summaryMembershipId.textContent = membershipId || '';
-        summaryStatusBadge.textContent = '...';
-        summaryRegistration.textContent = '...';
-        summaryInvestment.textContent = '...';
-        summaryInvestmentPct.textContent = '';
-        summaryInvestmentBar.style.width = '0%';
-
-        try {
-            // NOTE: get-member-summary.php now lives under
-            // app/manager/payments/api/ instead of app/payments/api/.
-            const response = await fetch('<?php echo BASE_URL; ?>/app/manager/payments/api/get-member-summary.php?member_id=' + memberId);
-            const data = await response.json();
-
-            if (!data.success) {
-                summaryRegistration.textContent = 'Error';
-                summaryInvestment.textContent = 'Error';
-                return;
-            }
-
-            const e = data.eligibility;
-            const registrationPaid = !!e.registration_paid;
-            const totalInvestment = parseFloat(e.total_investment) || 0;
-            const investmentTarget = parseFloat(e.investment_target) || 0;
-            const pct = investmentTarget > 0 ? Math.min(100, Math.round((totalInvestment / investmentTarget) * 100)) : 0;
-
-            if (registrationPaid && pct >= 100) {
-                summaryStatusBadge.textContent = 'Member in good standing';
-                summaryStatusBadge.style.background = '#d4edda';
-                summaryStatusBadge.style.color = '#155724';
-            } else if (registrationPaid) {
-                summaryStatusBadge.textContent = 'Investment in progress';
-                summaryStatusBadge.style.background = '#fff3cd';
-                summaryStatusBadge.style.color = '#856404';
-            } else {
-                summaryStatusBadge.textContent = 'Registration pending';
-                summaryStatusBadge.style.background = '#f8d7da';
-                summaryStatusBadge.style.color = '#721c24';
-            }
-
-            if (registrationPaid) {
-                summaryRegIconWrap.textContent = '✓';
-                summaryRegIconWrap.style.background = '#d4edda';
-                summaryRegIconWrap.style.color = '#155724';
-                summaryRegistration.textContent = '₱' + formatAmount(e.registration_amount);
-            } else {
-                summaryRegIconWrap.textContent = '!';
-                summaryRegIconWrap.style.background = '#f8d7da';
-                summaryRegIconWrap.style.color = '#721c24';
-                summaryRegistration.textContent = 'Not yet paid';
-            }
-
-            summaryInvestment.textContent = '₱' + formatAmount(totalInvestment) + ' / ₱' + formatAmount(investmentTarget);
-            summaryInvestmentBar.style.width = pct + '%';
-            summaryInvestmentBar.style.background = pct >= 100 ? '#639922' : '#378add';
-            summaryInvestmentPct.textContent = pct + '%';
-        } catch (err) {
-            console.error('Failed to load member summary:', err);
-            summaryRegistration.textContent = 'Error';
-            summaryInvestment.textContent = 'Error';
-        }
-    }
 })();
 </script>
 
