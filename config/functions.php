@@ -74,6 +74,147 @@ function canChangeRole($currentRole, $currentUserId, $targetUserId) {
 }
 
 /**
+ * Only manager and user (member) roles may view the Equipment Rental page.
+ */
+function canAccessEquipment($role) {
+    return in_array($role, ['manager', 'user'], true);
+}
+
+/**
+ * All equipment items, for the browse grid and the booking form's dropdown.
+ */
+/**
+ * Total number of equipment items (all statuses).
+ */
+function getTotalEquipmentCount($pdo) {
+    $stmt = $pdo->query("SELECT COUNT(*) FROM equipment");
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * How many bookings started within the current calendar month,
+ * across all equipment (used for the "Rented this month" summary card).
+ */
+function getRentedThisMonthCount($pdo) {
+    $stmt = $pdo->query("
+        SELECT COUNT(*) FROM equipment_bookings
+        WHERE start_date >= DATE_FORMAT(NOW(), '%Y-%m-01')
+          AND start_date < DATE_FORMAT(NOW() + INTERVAL 1 MONTH, '%Y-%m-01')
+    ");
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * All bookings still relevant to the manager's "Currently rented" table
+ * (pending approval, ongoing, or overdue), across ALL members — unlike
+ * getMyEquipmentBookings(), which is scoped to a single user.
+ */
+function getCurrentEquipmentBookings($pdo) {
+    $stmt = $pdo->query("
+        SELECT b.*, e.name AS equipment_name
+        FROM equipment_bookings b
+        INNER JOIN equipment e ON e.id = b.equipment_id
+        WHERE b.status IN ('pending', 'ongoing', 'overdue')
+        ORDER BY b.start_date ASC
+    ");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Bookings-this-month count per equipment, e.g. [3 => 5, 7 => 2],
+ * for the per-equipment summary cards ($monthlyRentCounts[$eq['id']]).
+ */
+function getMonthlyRentCountByEquipment($pdo) {
+    $stmt = $pdo->query("
+        SELECT equipment_id, COUNT(*) AS cnt
+        FROM equipment_bookings
+        WHERE start_date >= DATE_FORMAT(NOW(), '%Y-%m-01')
+          AND start_date < DATE_FORMAT(NOW() + INTERVAL 1 MONTH, '%Y-%m-01')
+        GROUP BY equipment_id
+    ");
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $counts = [];
+    foreach ($rows as $row) {
+        $counts[$row['equipment_id']] = (int) $row['cnt'];
+    }
+    return $counts;
+}
+
+function getAllEquipment($pdo) {
+    $stmt = $pdo->query("SELECT * FROM equipment ORDER BY name ASC");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * All bookings whose date range overlaps the given month, for the
+ * manager's Booking Schedule calendar (get-month-booking.php).
+ * Uses an overlap check (start <= last day of month AND end >= first
+ * day of month) rather than matching start_date alone, so multi-day
+ * bookings that started in an earlier month but run into this one
+ * still show up on the calendar.
+ */
+function getBookingsForMonth($pdo, $year, $month) {
+    $monthStart = sprintf('%04d-%02d-01', $year, $month);
+    $stmt = $pdo->prepare("
+        SELECT b.*, e.name AS equipment_name
+        FROM equipment_bookings b
+        INNER JOIN equipment e ON e.id = b.equipment_id
+        WHERE b.start_date <= LAST_DAY(:month_start)
+          AND b.end_date >= :month_start
+        ORDER BY b.start_date ASC
+    ");
+    $stmt->execute([':month_start' => $monthStart]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * The current user's own active bookings (pending approval, ongoing, or
+ * overdue) with the equipment name joined in. Returned/rejected/cancelled
+ * bookings are left out since this feeds the "active bookings" summary.
+ */
+function getMyEquipmentBookings($pdo, $userId) {
+    $stmt = $pdo->prepare("
+        SELECT b.*, e.name AS equipment_name
+        FROM equipment_bookings b
+        INNER JOIN equipment e ON e.id = b.equipment_id
+        WHERE b.recorded_by = :user_id
+          AND b.status IN ('pending', 'ongoing', 'overdue')
+        ORDER BY b.start_date ASC
+    ");
+    $stmt->execute([':user_id' => $userId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Human-friendly label for an equipment's billing unit (matches the
+ * 'day' | 'hectare' | 'sack' values enforced in add-equipment.php).
+ */
+function equipmentUnitLabel($unitType) {
+    $map = [
+        'day'     => 'day',
+        'hectare' => 'hectare',
+        'sack'    => 'sack',
+    ];
+    return $map[$unitType] ?? $unitType;
+}
+
+/**
+ * Renders the colored status pill used in the bookings table.
+ */
+function equipmentStatusBadge($status) {
+    $map = [
+        'pending'   => ['label' => 'Pending Approval', 'class' => 'eq-rented'],
+        'ongoing'   => ['label' => 'Ongoing', 'class' => 'eq-rented'],
+        'overdue'   => ['label' => 'Overdue', 'class' => 'eq-overdue'],
+        'returned'  => ['label' => 'Returned', 'class' => 'eq-returned'],
+        'rejected'  => ['label' => 'Rejected', 'class' => 'eq-overdue'],
+        'cancelled' => ['label' => 'Cancelled', 'class' => 'eq-overdue'],
+    ];
+    $meta = $map[$status] ?? ['label' => ucfirst($status), 'class' => ''];
+    return '<span class="eq-status-badge ' . htmlspecialchars($meta['class']) . '">' . htmlspecialchars($meta['label']) . '</span>';
+}
+
+/**
  * Generate the next Membership ID, e.g. SJFMC-0001, SJFMC-0002...
  * Looks at the highest existing numeric suffix (not just row count)
  * so deleted members don't cause duplicate IDs to be reused.
@@ -354,11 +495,13 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/manager/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/user-management.php">User Management</a>
                             <a class="<?php echo navActive('/app/manager/payments/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/manager/meetings/meeting.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/meetings/meeting.php">Meetings</a>
+                            <a class="<?php echo navActive('/app/manager/equipment/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.php">Equipment</a>
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/user/profile.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/profile.php">My Account</a>
                             <a class="<?php echo navActive('/app/user/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/user/checkins.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/checkins.php">Meetings</a>
+                            <a class="<?php echo navActive('/app/user/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/equipment.php">Equipment</a>
                         <?php endif; ?>
                     </div>
                     <div style="margin-top: auto;">

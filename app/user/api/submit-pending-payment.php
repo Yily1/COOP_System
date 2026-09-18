@@ -12,7 +12,7 @@ $response = ['success' => false, 'errors' => []];
 $paymentType = $_POST['payment_type'] ?? '';
 $amount = $_POST['amount'] ?? '';
 
-if (!in_array($paymentType, ['registration', 'investment'])) {
+if (!in_array($paymentType, ['registration', 'investment', 'rental', 'loan_repayment'])) {
     $response['errors'][] = 'Piliin ang tamang payment type.';
 }
 if (!is_numeric($amount) || $amount <= 0) {

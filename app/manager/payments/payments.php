@@ -37,9 +37,10 @@ $members = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 // ============================================================
 function paymentTypeMeta($type) {
     $map = [
-        'registration' => ['label' => 'Registration', 'bg' => '#d4edda', 'text' => '#155724'],
-        'investment'   => ['label' => 'Investment',   'bg' => '#cce5ff', 'text' => '#004085'],
-        'rental'       => ['label' => 'Rental',        'bg' => '#eeedfe', 'text' => '#3c3489'],
+        'registration'    => ['label' => 'Registration',    'bg' => '#d4edda', 'text' => '#155724'],
+        'investment'      => ['label' => 'Investment',      'bg' => '#cce5ff', 'text' => '#004085'],
+        'rental'          => ['label' => 'Rental',           'bg' => '#eeedfe', 'text' => '#3c3489'],
+        'loan_repayment'  => ['label' => 'Loan Repayment',   'bg' => '#faeeda', 'text' => '#633806'],
     ];
     return $map[$type] ?? ['label' => ucfirst($type), 'bg' => '#eee', 'text' => '#555'];
 }
@@ -90,7 +91,7 @@ function memberInitials($firstName, $lastName) {
 // ============================================================
 // SUMMARY TOTALS (confirmed payments only, respects current filters)
 // ============================================================
-$totals = ['registration' => 0, 'investment' => 0, 'rental' => 0];
+$totals = ['registration' => 0, 'investment' => 0, 'rental' => 0, 'loan_repayment' => 0];
 
 foreach ($payments as $payment) {
     if ($payment['status'] !== 'confirmed') {
@@ -130,6 +131,10 @@ renderHeader('Payments');
         <p style="margin: 0 0 6px; font-size: 12.5px; color: #E4E1F5;">Rental</p>
         <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['rental'], 2); ?></p>
     </div>
+    <div style="border-radius: 10px; padding: 16px 18px; background: #C1892B;">
+        <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E4C3;">Loan Repayment</p>
+        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['loan_repayment'], 2); ?></p>
+    </div>
     <div style="border-radius: 10px; padding: 16px 18px; background: #B54A3C;">
         <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E1DC;">Grand total</p>
         <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($grandTotal, 2); ?></p>
@@ -147,6 +152,7 @@ renderHeader('Payments');
         <option value="registration" <?php echo ($filterType === 'registration') ? 'selected' : ''; ?>>Registration</option>
         <option value="investment" <?php echo ($filterType === 'investment') ? 'selected' : ''; ?>>Investment</option>
         <option value="rental" <?php echo ($filterType === 'rental') ? 'selected' : ''; ?>>Rental</option>
+        <option value="loan_repayment" <?php echo ($filterType === 'loan_repayment') ? 'selected' : ''; ?>>Loan Repayment</option>
     </select>
 </div>
 
@@ -255,6 +261,7 @@ renderHeader('Payments');
                     <option value="registration">Registration fee (₱150)</option>
                     <option value="investment">Investment</option>
                     <option value="rental">Rental</option>
+                    <option value="loan_repayment">Loan Repayment</option>
                 </select>
             </div>
 
@@ -312,9 +319,10 @@ renderHeader('Payments');
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
 
     const TYPE_META = {
-        registration: { label: 'Registration', bg: '#d4edda', text: '#155724' },
-        investment:   { label: 'Investment',   bg: '#cce5ff', text: '#004085' },
-        rental:       { label: 'Rental',        bg: '#eeedfe', text: '#3c3489' }
+        registration:   { label: 'Registration',   bg: '#d4edda', text: '#155724' },
+        investment:     { label: 'Investment',     bg: '#cce5ff', text: '#004085' },
+        rental:         { label: 'Rental',          bg: '#eeedfe', text: '#3c3489' },
+        loan_repayment: { label: 'Loan Repayment', bg: '#faeeda', text: '#633806' }
     };
 
     const AVATAR_PALETTE = [
@@ -402,8 +410,6 @@ renderHeader('Payments');
 
         try {
             const formData = new FormData(form);
-            // NOTE: save-payment.php now lives under app/manager/payments/api/
-            // instead of app/payments/api/.
             const response = await fetch('<?php echo BASE_URL; ?>/app/manager/payments/api/save-payment.php', {
                 method: 'POST',
                 body: formData
@@ -457,8 +463,6 @@ renderHeader('Payments');
             formData.append('payment_id', paymentId);
             formData.append('action', action);
 
-            // NOTE: update-payment-status.php now lives under
-            // app/manager/payments/api/ instead of app/payments/api/.
             const response = await fetch('<?php echo BASE_URL; ?>/app/manager/payments/api/update-payment-status.php', {
                 method: 'POST',
                 body: formData

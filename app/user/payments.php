@@ -70,7 +70,6 @@ renderHeader('Payments');
 .stat-card { min-height: 100px; padding: 20px 22px; box-sizing: border-box; border-radius: 10px; color: white; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; justify-content: center; }
 .stat-number { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
 .stat-label { font-size: 14px; opacity: 0.95; }
-.payment-status { margin-top: 10px; padding: 10px 14px; background: #d4edda; color: #155724; border-radius: 6px; }
 .payment-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 .payment-table th { padding: 10px 12px; background: #f5f5f5; text-align: left; }
 .payment-table td { padding: 10px 12px; border-top: 1px solid #eee; }
@@ -130,25 +129,18 @@ renderHeader('Payments');
             </div>
         </div>
 
-        <?php if ($eligibility['eligible_for_associate']): ?>
-            <p class="payment-status">✓ You've met the requirements to become an Associate. Talk to your manager for the upgrade.</p>
-        <?php endif; ?>
-        <?php if ($eligibility['eligible_for_regular']): ?>
-            <p class="payment-status">✓ You've reached the ₱1,500 investment target to become a Regular member. Talk to your manager for the upgrade.</p>
-        <?php endif; ?>
-
         <h3 style="margin-top: 20px;">Payment History</h3>
         <?php if (empty($paymentHistory)): ?>
             <p style="color: #666;">Wala pang payment history.</p>
         <?php else: ?>
             <?php
                 // Same type badge colors as the manager-side Payments page,
-                // so a "Rental" or "Utang" entry looks consistent everywhere.
+                // so a "Rental" or "Loan Repayment" entry looks consistent everywhere.
                 $typeBadgeMeta = [
-                    'registration' => ['label' => 'Registration', 'bg' => '#d4edda', 'text' => '#155724'],
-                    'investment'   => ['label' => 'Investment',   'bg' => '#cce5ff', 'text' => '#004085'],
-                    'rental'       => ['label' => 'Rental',        'bg' => '#eeedfe', 'text' => '#3c3489'],
-                    'utang'        => ['label' => 'Utang',         'bg' => '#faeeda', 'text' => '#633806'],
+                    'registration'   => ['label' => 'Registration',   'bg' => '#d4edda', 'text' => '#155724'],
+                    'investment'     => ['label' => 'Investment',     'bg' => '#cce5ff', 'text' => '#004085'],
+                    'rental'         => ['label' => 'Rental',          'bg' => '#eeedfe', 'text' => '#3c3489'],
+                    'loan_repayment' => ['label' => 'Loan Repayment', 'bg' => '#faeeda', 'text' => '#633806'],
                 ];
             ?>
             <div style="overflow-x:auto;">
@@ -212,7 +204,7 @@ renderHeader('Payments');
                 <option value="registration">Registration Fee (₱150)</option>
                 <option value="investment">Investment</option>
                 <option value="rental">Rental</option>
-                <option value="utang">Utang</option>
+                <option value="loan_repayment">Loan Repayment</option>
             </select>
 
             <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Amount (₱)</label>
