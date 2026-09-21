@@ -167,6 +167,252 @@ function getBookingsForMonth($pdo, $year, $month) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+/* ============================================================
+   COOPERATIVE SERVICES: LOANS
+   ============================================================ */
+
+// Members need at least this much in confirmed investment payments
+// before they're allowed to request a loan at all.
+define('LOAN_ELIGIBILITY_THRESHOLD', 1500.00);
+
+// Simple interest, fixed rate for all loans, set by the manager at
+// release time via the term (months). E.g. 2% per month x 3 months = 6%.
+define('LOAN_INTEREST_RATE_MONTHLY', 10.00);
+
+/**
+ * Total confirmed 'investment'-type payments a member has made.
+ * This is also, by the coop's current rule, their loanable amount
+ * once they clear LOAN_ELIGIBILITY_THRESHOLD.
+ */
+function getMemberInvestment($pdo, $memberId) {
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM payments
+        WHERE member_id = :member_id
+          AND payment_type = 'investment'
+          AND status = 'confirmed'
+    ");
+    $stmt->execute([':member_id' => $memberId]);
+    return (float) $stmt->fetchColumn();
+}
+
+/**
+ * Loanable amount = the member's total investment, but only once
+ * they've crossed LOAN_ELIGIBILITY_THRESHOLD. Below that, it's 0
+ * (not eligible to request a loan yet).
+ */
+function getLoanableAmount($pdo, $memberId) {
+    $investment = getMemberInvestment($pdo, $memberId);
+    return $investment >= LOAN_ELIGIBILITY_THRESHOLD ? $investment : 0.0;
+}
+
+/**
+ * Outstanding loan balance = sum of released loans' TOTAL DUE (principal
+ * + interest; falls back to the bare principal for loans released before
+ * interest tracking existed) minus confirmed loan_repayment payments,
+ * floored at 0.
+ */
+function getMemberLoanBalance($pdo, $memberId) {
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(SUM(COALESCE(total_due, amount)), 0) FROM loans
+        WHERE member_id = :member_id AND status = 'released'
+    ");
+    $stmt->execute([':member_id' => $memberId]);
+    $released = (float) $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(SUM(amount), 0) FROM payments
+        WHERE member_id = :member_id AND payment_type = 'loan_repayment' AND status = 'confirmed'
+    ");
+    $stmt->execute([':member_id' => $memberId]);
+    $repaid = (float) $stmt->fetchColumn();
+
+    return max(0.0, $released - $repaid);
+}
+
+/**
+ * How much more a member can still borrow right now.
+ */
+function getAvailableCredit($pdo, $memberId) {
+    return max(0.0, getLoanableAmount($pdo, $memberId) - getMemberLoanBalance($pdo, $memberId));
+}
+
+/**
+ * A member's own loan request history, newest first.
+ */
+function getMemberLoans($pdo, $memberId) {
+    $stmt = $pdo->prepare("
+        SELECT * FROM loans WHERE member_id = :member_id ORDER BY created_at DESC
+    ");
+    $stmt->execute([':member_id' => $memberId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * All loan requests, for the manager's review queue (with member info joined in).
+ */
+function getAllLoans($pdo) {
+    $stmt = $pdo->query("
+        SELECT l.*, m.first_name, m.last_name, m.membership_id
+        FROM loans l
+        INNER JOIN members m ON m.id = l.member_id
+        ORDER BY (l.status = 'pending') DESC, l.created_at DESC
+    ");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Coop-wide loan portfolio numbers for the manager's summary cards:
+ * how many members still owe money, how many requests are pending,
+ * and how much is out vs. repaid.
+ */
+function getLoanPortfolioStats($pdo) {
+    $stmt = $pdo->query("SELECT COUNT(*) FROM loans WHERE status = 'pending'");
+    $pending = (int) $stmt->fetchColumn();
+
+    // Distinct members whose released loans, minus their confirmed
+    // repayments, still add up to more than zero (i.e. still owing).
+    $stmt = $pdo->query("
+        SELECT COUNT(*) FROM (
+            SELECT l.member_id,
+                   SUM(COALESCE(l.total_due, l.amount)) AS released,
+                   COALESCE(r.repaid, 0) AS repaid
+            FROM loans l
+            LEFT JOIN (
+                SELECT member_id, SUM(amount) AS repaid
+                FROM payments
+                WHERE payment_type = 'loan_repayment' AND status = 'confirmed'
+                GROUP BY member_id
+            ) r ON r.member_id = l.member_id
+            WHERE l.status = 'released'
+            GROUP BY l.member_id
+            HAVING released - repaid > 0
+        ) AS active_members
+    ");
+    $activeMembers = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->query("SELECT COALESCE(SUM(COALESCE(total_due, amount)), 0) FROM loans WHERE status = 'released'");
+    $totalReleased = (float) $stmt->fetchColumn();
+
+    $stmt = $pdo->query("
+        SELECT COALESCE(SUM(amount), 0) FROM payments
+        WHERE payment_type = 'loan_repayment' AND status = 'confirmed'
+    ");
+    $totalRepaid = (float) $stmt->fetchColumn();
+
+    return [
+        'pending'           => $pending,
+        'active_members'    => $activeMembers,
+        'total_outstanding' => max(0.0, $totalReleased - $totalRepaid),
+        'total_repaid'      => $totalRepaid,
+    ];
+}
+
+/**
+ * A released loan is overdue once its due_date has passed and the
+ * member still has an outstanding balance. (Balance is tracked per
+ * member, not per individual loan, so this uses the member's overall
+ * balance as the best available signal for "still unpaid".)
+ */
+function isLoanOverdue($loan, $memberBalance) {
+    return $loan['status'] === 'released'
+        && !empty($loan['due_date'])
+        && strtotime($loan['due_date']) < strtotime('today')
+        && $memberBalance > 0;
+}
+
+function loanStatusBadge($status) {
+    $map = [
+        'pending'  => ['label' => 'Pending',  'bg' => '#fff3cd', 'text' => '#856404'],
+        'approved' => ['label' => 'Approved', 'bg' => '#cce5ff', 'text' => '#004085'],
+        'released' => ['label' => 'Released', 'bg' => '#d4edda', 'text' => '#155724'],
+        'rejected' => ['label' => 'Rejected', 'bg' => '#fdecea', 'text' => '#c62828'],
+    ];
+    $m = $map[$status] ?? ['label' => ucfirst($status), 'bg' => '#eee', 'text' => '#555'];
+    return '<span style="padding:2px 10px;border-radius:4px;font-size:12px;background:' . $m['bg'] . ';color:' . $m['text'] . ';white-space:nowrap;">' . htmlspecialchars($m['label']) . '</span>';
+}
+
+/* ============================================================
+   COOPERATIVE SERVICES: PRODUCTS
+   ============================================================ */
+
+function getAllProducts($pdo) {
+    $stmt = $pdo->query("SELECT * FROM products ORDER BY category, name");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * A member's own product requests, newest first (joins the product
+ * name when it's a listed product; falls back to the free-text
+ * requested_product_name for "we don't carry this yet" requests).
+ */
+function getMemberProductRequests($pdo, $memberId) {
+    $stmt = $pdo->prepare("
+        SELECT r.*, p.name AS product_name, p.unit AS product_unit
+        FROM product_requests r
+        LEFT JOIN products p ON p.id = r.product_id
+        WHERE r.member_id = :member_id
+        ORDER BY r.created_at DESC
+    ");
+    $stmt->execute([':member_id' => $memberId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Product + request counts for the manager's summary cards.
+ */
+function getProductPortfolioStats($pdo) {
+    $stmt = $pdo->query("SELECT COUNT(*) FROM products");
+    $total = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->query("SELECT COUNT(*) FROM products WHERE status = 'available'");
+    $available = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->query("SELECT COUNT(*) FROM products WHERE status = 'out_of_stock'");
+    $outOfStock = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->query("SELECT COUNT(*) FROM product_requests WHERE status IN ('pending', 'under_review')");
+    $pendingRequests = (int) $stmt->fetchColumn();
+
+    return [
+        'total'            => $total,
+        'available'        => $available,
+        'out_of_stock'     => $outOfStock,
+        'pending_requests' => $pendingRequests,
+    ];
+}
+
+
+/**
+ * All product requests, for the manager's queue, with member + product info joined in.
+ */
+function getAllProductRequests($pdo) {
+    $stmt = $pdo->query("
+        SELECT r.*, p.name AS product_name, p.unit AS product_unit,
+               m.first_name, m.last_name, m.membership_id
+        FROM product_requests r
+        LEFT JOIN products p ON p.id = r.product_id
+        INNER JOIN members m ON m.id = r.member_id
+        ORDER BY (r.status = 'pending') DESC, r.created_at DESC
+    ");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function productRequestStatusBadge($status) {
+    $map = [
+        'pending'          => ['label' => 'Pending',          'bg' => '#fff3cd', 'text' => '#856404'],
+        'under_review'     => ['label' => 'Under Review',     'bg' => '#eeedfe', 'text' => '#3c3489'],
+        'approved'         => ['label' => 'Approved',         'bg' => '#cce5ff', 'text' => '#004085'],
+        'processing'       => ['label' => 'Processing',       'bg' => '#faeeda', 'text' => '#633806'],
+        'ready_for_pickup' => ['label' => 'Ready for Pickup', 'bg' => '#d4edda', 'text' => '#155724'],
+        'claimed'          => ['label' => 'Claimed',          'bg' => '#e2e0d5', 'text' => '#444'],
+        'rejected'         => ['label' => 'Rejected',         'bg' => '#fdecea', 'text' => '#c62828'],
+    ];
+    $m = $map[$status] ?? ['label' => ucfirst($status), 'bg' => '#eee', 'text' => '#555'];
+    return '<span style="padding:2px 10px;border-radius:4px;font-size:12px;background:' . $m['bg'] . ';color:' . $m['text'] . ';white-space:nowrap;">' . htmlspecialchars($m['label']) . '</span>';
+}
+
+
 /**
  * The current user's own active bookings (pending approval, ongoing, or
  * overdue) with the equipment name joined in. Returned/rejected/cancelled
@@ -496,12 +742,16 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/manager/payments/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/manager/meetings/meeting.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/meetings/meeting.php">Meetings</a>
                             <a class="<?php echo navActive('/app/manager/equipment/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.php">Equipment</a>
+                            <a class="<?php echo navActive('/app/manager/loans/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/loans/loans.php">Loans</a>
+                            <a class="<?php echo navActive('/app/manager/products/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/products/products.php">Products</a>
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/user/profile.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/profile.php">My Account</a>
                             <a class="<?php echo navActive('/app/user/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/user/checkins.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/checkins.php">Meetings</a>
                             <a class="<?php echo navActive('/app/user/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/equipment.php">Equipment</a>
+                            <a class="<?php echo navActive('/app/user/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/loans.php">Loans</a>
+                            <a class="<?php echo navActive('/app/user/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/products.php">Products</a>
                         <?php endif; ?>
                     </div>
                     <div style="margin-top: auto;">

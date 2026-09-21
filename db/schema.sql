@@ -198,3 +198,63 @@ MODIFY COLUMN payment_type ENUM('registration','investment','rental') NOT NULL;
 ALTER TABLE members ADD COLUMN farmer_type ENUM('Livestock', 'Crops', 'Both') NULL AFTER date_joined;
 ALTER TABLE members ADD COLUMN livestock_details VARCHAR(255) NULL AFTER farmer_type;
 ALTER TABLE members ADD COLUMN crops_details VARCHAR(255) NULL AFTER livestock_details;
+
+
+--Equipment Page--
+
+
+CREATE TABLE IF NOT EXISTS equipment (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(100) NOT NULL,
+    rate_member     DECIMAL(10,2) NOT NULL DEFAULT 0,
+    rate_nonmember  DECIMAL(10,2) NOT NULL DEFAULT 0,
+    unit_type       VARCHAR(20) NOT NULL DEFAULT 'day',
+    status          ENUM('available', 'unavailable') NOT NULL DEFAULT 'available',
+    photo_path      VARCHAR(255) NULL,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS equipment_bookings (
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    equipment_id      INT NOT NULL,
+    user_id           INT NULL,
+    renter_name       VARCHAR(150) NOT NULL,
+    membership_type   ENUM('member', 'nonmember') NOT NULL DEFAULT 'member',
+    quantity          DECIMAL(10,2) NOT NULL DEFAULT 1,
+    start_date        DATE NOT NULL,
+    end_date          DATE NOT NULL,
+    status            ENUM('pending', 'ongoing', 'overdue', 'returned', 'rejected') NOT NULL DEFAULT 'pending',
+    total_cost        DECIMAL(10,2) NOT NULL DEFAULT 0,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+
+    INDEX idx_equipment_bookings_dates (start_date, end_date),
+    INDEX idx_equipment_bookings_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--loan Page--
+
+CREATE TABLE loans (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    purpose VARCHAR(255) DEFAULT NULL,
+    status ENUM('pending', 'approved', 'rejected', 'released') NOT NULL DEFAULT 'pending',
+    approved_by INT DEFAULT NULL,
+    manager_note VARCHAR(255) DEFAULT NULL,
+    released_at DATETIME DEFAULT NULL,
+    term_months INT NULL,
+    due_date DATE NULL,
+    interest_rate DECIMAL(5,2) NULL,
+    total_due DECIMAL(10,2) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+    FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL,
+
+    INDEX idx_member_status (member_id, status)
+);
