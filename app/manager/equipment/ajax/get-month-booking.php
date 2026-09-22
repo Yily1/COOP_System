@@ -20,12 +20,16 @@ if ($month < 1 || $month > 12) {
 }
 
 try {
+    // NOTE: getBookingsForMonth() lives in functions.php. Make sure its
+    // SELECT statement includes the `location` column so $b['location']
+    // below is populated (e.g. "SELECT ..., equipment_bookings.location, ...").
     $bookings = getBookingsForMonth($pdo, $year, $month);
 
     $data = array_map(function ($b) {
         return [
             'equipment_name' => $b['equipment_name'],
             'renter_name'    => $b['renter_name'],
+            'location'       => $b['location'] ?? '',
             'start_date'     => $b['start_date'],
             'end_date'       => $b['end_date'],
         ];

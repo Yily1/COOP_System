@@ -671,8 +671,8 @@ renderHeader($title);
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
             </div>
             <div>
-                <p class="nav-card-title">Payments</p>
-                <p class="nav-card-sub">View your transactions</p>
+                <p class="nav-card-title">Transactions</p>
+                <p class="nav-card-sub">View your payments</p>
             </div>
         </a>
 

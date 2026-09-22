@@ -60,7 +60,7 @@ renderHeader('Equipment Rental');
     color: var(--eq-ink);
     width: 100%;
     max-width: 100%;
-    padding: 28px 32px 60px;
+    padding: 0 0 40px;
     text-transform: none;
     letter-spacing: normal;
 }
@@ -650,7 +650,7 @@ renderHeader('Equipment Rental');
    ========================= */
 
 @media (max-width: 560px) {
-    .eq-page { padding: 20px 16px 40px; }
+    .eq-page { padding: 0 0 40px; }
     .eq-header { flex-direction: column; gap: 12px; }
     .eq-header > div:first-child { width: 100%; }
     .eq-header .eq-btn { width: 100%; }
@@ -778,6 +778,7 @@ renderHeader('Equipment Rental');
                         <th>Qty</th>
                         <th>Start</th>
                         <th>Return</th>
+                        <th>Location</th>
                         <th>Status</th>
                         <th class="eq-text-right">Total</th>
                         <?php if (($_SESSION['role'] ?? '') === 'manager'): ?>
@@ -787,7 +788,7 @@ renderHeader('Equipment Rental');
                 </thead>
                 <tbody>
                     <?php if (empty($currentBookings)): ?>
-                        <tr><td colspan="9" class="eq-muted eq-text-center">No active bookings.</td></tr>
+                        <tr><td colspan="10" class="eq-muted eq-text-center">No active bookings.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($currentBookings as $b): ?>
                         <tr>
@@ -797,6 +798,7 @@ renderHeader('Equipment Rental');
                             <td><?php echo htmlspecialchars(rtrim(rtrim(number_format($b['quantity'], 2), '0'), '.')); ?></td>
                             <td><?php echo date('M j', strtotime($b['start_date'])); ?></td>
                             <td><?php echo date('M j', strtotime($b['end_date'])); ?></td>
+                            <td><?php echo htmlspecialchars($b['location'] ?? ''); ?></td>
                             <td><?php echo equipmentStatusBadge($b['status']); ?></td>
                             <td class="eq-text-right">₱<?php echo number_format($b['total_cost'], 0); ?></td>
                             <?php if (($_SESSION['role'] ?? '') === 'manager'): ?>
@@ -870,6 +872,9 @@ renderHeader('Equipment Rental');
 
             <label id="qty-label">Quantity</label>
             <input type="number" id="quantity" name="quantity" min="0.5" step="0.5" required>
+
+            <label>Farm location</label>
+            <input type="text" id="location" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
 
             <div class="eq-form-row">
                 <div>

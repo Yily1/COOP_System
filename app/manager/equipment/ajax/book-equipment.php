@@ -19,10 +19,11 @@ $endDate        = $_POST['end_date'] ?? '';
 $renterName     = trim($_POST['renter_name'] ?? '');
 $quantity       = $_POST['quantity'] ?? null;
 $membershipType = $_POST['membership_type'] ?? '';
+$location       = trim($_POST['location'] ?? '');
 
-if (!$equipmentId || $startDate === '' || $endDate === '' || $renterName === '' || $quantity === null || $quantity === '') {
+if (!$equipmentId || $startDate === '' || $endDate === '' || $renterName === '' || $quantity === null || $quantity === '' || $location === '') {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'All fields are required']);
+    echo json_encode(['success' => false, 'message' => 'All fields, including farm location, are required']);
     exit;
 }
 
@@ -59,10 +60,10 @@ try {
     $totalCost = $quantity * $rate;
 
     $insert = $pdo->prepare("
-        INSERT INTO equipment_bookings (equipment_id, start_date, end_date, renter_name, membership_type, quantity, total_cost, status, recorded_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO equipment_bookings (equipment_id, start_date, end_date, renter_name, membership_type, quantity, location, total_cost, status, recorded_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
-    $insert->execute([$equipmentId, $startDate, $endDate, $renterName, $membershipType, $quantity, $totalCost, $bookingStatus, $_SESSION['user_id']]);
+    $insert->execute([$equipmentId, $startDate, $endDate, $renterName, $membershipType, $quantity, $location, $totalCost, $bookingStatus, $_SESSION['user_id']]);
 
     $message = $bookingStatus === 'ongoing'
         ? 'Booking submitted.'

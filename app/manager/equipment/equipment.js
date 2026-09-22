@@ -144,11 +144,13 @@ document.addEventListener('DOMContentLoaded', function () {
             var panel = getDayDetailPanel();
             if (!panel) return;
 
-            // Clear the previously-selected cell's highlight.
+            // Clear the previously-selected cell's highlight (both the
+            // class and the inline outline style it was given below).
             var grid = document.getElementById('cal-grid');
             if (grid) {
                 grid.querySelectorAll('.eq-cal-day.eq-selected').forEach(function (el) {
                     el.classList.remove('eq-selected');
+                    el.style.outline = 'none';
                 });
             }
             cell.classList.add('eq-selected');
@@ -161,9 +163,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             var rows = dayBookings.map(function (b) {
+                var locationLine = b.location
+                    ? ' <span style="color:#5B6B57;">&middot; ' + b.location + '</span>'
+                    : '';
                 return '<div style="margin-top:4px;">' +
                     '<span style="font-weight:600;color:#223A20;">' + b.renter_name + '</span>' +
                     ' <span style="color:#5B6B57;">(' + b.equipment_name + ')</span>' +
+                    locationLine +
                     '</div>';
             }).join('');
 
@@ -322,7 +328,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 var endVal = endDateInput ? endDateInput.value : '';
                 var renterVal = document.getElementById('renter-name')?.value.trim();
                 var qtyVal = quantityInput ? parseFloat(quantityInput.value) : 0;
+                var locationVal = document.getElementById('location')?.value.trim();
 
+                if (!locationVal) {
+                    if (errorBox) {
+                        errorBox.textContent = 'Please enter the farm location.';
+                        errorBox.classList.add('eq-show');
+                    }
+                    return;
+                }
                 if (!startVal || !endVal || new Date(endVal) < new Date(startVal)) {
                     if (errorBox) {
                         errorBox.textContent = 'Please choose a valid date range.';

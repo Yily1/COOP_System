@@ -258,3 +258,9 @@ CREATE TABLE loans (
 
     INDEX idx_member_status (member_id, status)
 );
+
+
+ALTER TABLE equipment_bookings
+ADD COLUMN location VARCHAR(150) NULL AFTER quantity;
+
+

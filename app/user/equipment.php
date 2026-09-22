@@ -219,8 +219,10 @@ renderHeader('Equipment Rental');
     .eq-cell-qty::after { content: '\00a0\00b7\00a0'; }
     .eq-cell-start, .eq-cell-return { order: 3; font-size: 12.5px; color: #5B6B57; }
     .eq-cell-start::after { content: '\00a0\2013\00a0'; }
-    .eq-cell-status { order: 4; width: auto; margin-top: 2px; }
-    .eq-cell-total { order: 5; width: auto; margin-left: auto; margin-top: 2px; font-weight: 700; font-size: 14px; color: #223A20; }
+    .eq-cell-location { order: 4; width: 100%; font-size: 12px; color: #5B6B57; }
+    .eq-cell-location:not(:empty)::before { content: '\1F4CD\00a0'; }
+    .eq-cell-status { order: 5; width: auto; margin-top: 2px; }
+    .eq-cell-total { order: 6; width: auto; margin-left: auto; margin-top: 2px; font-weight: 700; font-size: 14px; color: #223A20; }
 }
 @media (max-width: 640px) {
     .eq-cal-grid .eq-cal-day { min-height: 52px; font-size: 10.5px; }
@@ -341,13 +343,14 @@ renderHeader('Equipment Rental');
                         <th>Qty</th>
                         <th>Start</th>
                         <th>Return</th>
+                        <th>Location</th>
                         <th>Status</th>
                         <th class="eq-text-right">Total</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($myBookings)): ?>
-                        <tr><td colspan="6" class="eq-muted eq-text-center">You have no active bookings.</td></tr>
+                        <tr><td colspan="7" class="eq-muted eq-text-center">You have no active bookings.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($myBookings as $b): ?>
                         <tr>
@@ -355,6 +358,7 @@ renderHeader('Equipment Rental');
                             <td data-label="Qty" class="eq-cell-qty"><?php echo htmlspecialchars(rtrim(rtrim(number_format($b['quantity'], 2), '0'), '.')); ?></td>
                             <td data-label="Start" class="eq-cell-start"><?php echo date('M j', strtotime($b['start_date'])); ?></td>
                             <td data-label="Return" class="eq-cell-return"><?php echo date('M j', strtotime($b['end_date'])); ?></td>
+                            <td data-label="Location" class="eq-cell-location"><?php echo htmlspecialchars($b['location'] ?? ''); ?></td>
                             <td data-label="Status" class="eq-cell-status"><?php echo equipmentStatusBadge($b['status']); ?></td>
                             <td data-label="Total" class="eq-text-right eq-cell-total">₱<?php echo number_format($b['total_cost'], 0); ?></td>
                         </tr>
@@ -410,6 +414,9 @@ renderHeader('Equipment Rental');
 
             <label id="qty-label">Quantity</label>
             <input type="number" id="quantity" name="quantity" min="0.5" step="0.5" required>
+
+            <label>Farm location</label>
+            <input type="text" id="location" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
 
             <div class="eq-form-row">
                 <div>
