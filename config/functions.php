@@ -412,6 +412,153 @@ function productRequestStatusBadge($status) {
     return '<span style="padding:2px 10px;border-radius:4px;font-size:12px;background:' . $m['bg'] . ';color:' . $m['text'] . ';white-space:nowrap;">' . htmlspecialchars($m['label']) . '</span>';
 }
 
+/* ============================================================
+   COOPERATIVE SERVICES: CROPS MANAGEMENT
+   ============================================================ */
+
+/**
+ * Only manager and user (member) roles may view the Crops Management page.
+ */
+function canAccessCrops($role) {
+    return in_array($role, ['manager', 'user'], true);
+}
+
+/**
+ * A single member's own crop plantings (used on the user's own view).
+ */
+function getCropsForMember($pdo, $memberId) {
+    $stmt = $pdo->prepare("
+        SELECT c.*, m.first_name, m.last_name, m.membership_id
+        FROM crops c
+        INNER JOIN members m ON m.id = c.member_id
+        WHERE c.member_id = :member_id
+        ORDER BY c.created_at DESC
+    ");
+    $stmt->execute([':member_id' => $memberId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * All crop plantings across every member, for the manager's table
+ * (same join pattern as getAllLoans() / getAllProductRequests()).
+ */
+function getAllCrops($pdo) {
+    $stmt = $pdo->query("
+        SELECT c.*, m.first_name, m.last_name, m.membership_id
+        FROM crops c
+        INNER JOIN members m ON m.id = c.member_id
+        ORDER BY (c.status = 'pending') DESC, c.created_at DESC
+    ");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Summary counts for the top cards. Pass $memberId to scope the
+ * stats to one member; omit for coop-wide stats.
+ */
+function getCropStats($pdo, $memberId = null) {
+    $sql = "SELECT status, COUNT(*) AS cnt FROM crops";
+    $params = [];
+    if ($memberId !== null) {
+        $sql .= " WHERE member_id = :member_id";
+        $params[':member_id'] = $memberId;
+    }
+    $sql .= " GROUP BY status";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $stats = [
+        'total'            => 0,
+        'pending'          => 0,
+        'rejected'         => 0,
+        'growing'          => 0,
+        'ready_to_harvest' => 0,
+        'harvested'        => 0,
+    ];
+
+    foreach ($rows as $row) {
+        $stats[$row['status']] = (int) $row['cnt'];
+        $stats['total'] += (int) $row['cnt'];
+    }
+
+    return $stats;
+}
+
+function getCropById($pdo, $id) {
+    $stmt = $pdo->prepare("SELECT * FROM crops WHERE id = ?");
+    $stmt->execute([$id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
+function addCropPlanting($pdo, $memberId, $cropName, $location, $areaHectares, $plantingDate, $expectedHarvestDate) {
+    $stmt = $pdo->prepare("
+        INSERT INTO crops (member_id, crop_name, location, area_hectares, planting_date, expected_harvest_date, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    ");
+    return $stmt->execute([$memberId, $cropName, $location, $areaHectares, $plantingDate, $expectedHarvestDate]);
+}
+
+/**
+ * Owner can only edit their own entry while it is still pending.
+ * Manager can edit any entry regardless of status.
+ */
+function updateCropDetails($pdo, $id, $cropName, $location, $areaHectares, $plantingDate, $expectedHarvestDate) {
+    $stmt = $pdo->prepare("
+        UPDATE crops SET crop_name = ?, location = ?, area_hectares = ?, planting_date = ?, expected_harvest_date = ?
+        WHERE id = ?
+    ");
+    return $stmt->execute([$cropName, $location, $areaHectares, $plantingDate, $expectedHarvestDate, $id]);
+}
+
+function approveCropPlanting($pdo, $id) {
+    $stmt = $pdo->prepare("UPDATE crops SET status = 'growing' WHERE id = ? AND status = 'pending'");
+    return $stmt->execute([$id]);
+}
+
+function rejectCropPlanting($pdo, $id, $reason = null) {
+    $stmt = $pdo->prepare("UPDATE crops SET status = 'rejected', rejection_reason = ? WHERE id = ? AND status = 'pending'");
+    return $stmt->execute([$reason, $id]);
+}
+
+/**
+ * Moves a growing crop forward: growing -> ready_to_harvest -> harvested.
+ * Sets actual_harvest_date automatically when marked harvested.
+ */
+function advanceCropStatus($pdo, $id, $newStatus) {
+    $allowed = ['ready_to_harvest', 'harvested'];
+    if (!in_array($newStatus, $allowed, true)) {
+        return false;
+    }
+
+    if ($newStatus === 'harvested') {
+        $stmt = $pdo->prepare("UPDATE crops SET status = ?, actual_harvest_date = CURDATE() WHERE id = ?");
+    } else {
+        $stmt = $pdo->prepare("UPDATE crops SET status = ? WHERE id = ?");
+    }
+
+    return $stmt->execute([$newStatus, $id]);
+}
+
+/**
+ * HTML status badge, same visual pattern as equipmentStatusBadge() / loanStatusBadge().
+ */
+function cropStatusBadge($status) {
+    $map = [
+        'pending'          => ['label' => 'Pending approval', 'class' => 'cm-pending'],
+        'rejected'         => ['label' => 'Rejected',         'class' => 'cm-rejected'],
+        'growing'          => ['label' => 'Growing',           'class' => 'cm-growing'],
+        'ready_to_harvest' => ['label' => 'Ready to harvest',  'class' => 'cm-ready'],
+        'harvested'        => ['label' => 'Harvested',         'class' => 'cm-harvested'],
+    ];
+
+    $m = $map[$status] ?? ['label' => ucfirst($status), 'class' => ''];
+
+    return '<span class="cm-status-badge ' . $m['class'] . '">' . htmlspecialchars($m['label']) . '</span>';
+}
+
 
 /**
  * The current user's own active bookings (pending approval, ongoing, or
@@ -742,6 +889,7 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/manager/payments/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/manager/meetings/meeting.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/meetings/meeting.php">Meetings</a>
                             <a class="<?php echo navActive('/app/manager/equipment/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.php">Equipment</a>
+                            <a class="<?php echo navActive('/app/manager/crops/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/crops/crops.php">Crops</a>
                             <a class="<?php echo navActive('/app/manager/loans/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/loans/loans.php">Loans</a>
                             <a class="<?php echo navActive('/app/manager/products/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/products/products.php">Products</a>
                         <?php elseif ($currentRole === 'user'): ?>
@@ -750,6 +898,7 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/user/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/user/checkins.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/checkins.php">Meetings</a>
                             <a class="<?php echo navActive('/app/user/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/equipment.php">Equipment</a>
+                            <a class="<?php echo navActive('/app/user/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/crops.php">Crops</a>
                             <a class="<?php echo navActive('/app/user/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/loans.php">Loans</a>
                             <a class="<?php echo navActive('/app/user/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/products.php">Products</a>
                         <?php endif; ?>
