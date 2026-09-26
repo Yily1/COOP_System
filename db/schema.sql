@@ -236,6 +236,9 @@ CREATE TABLE IF NOT EXISTS equipment_bookings (
     INDEX idx_equipment_bookings_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+ALTER TABLE equipment_bookings
+ADD COLUMN location VARCHAR(150) NULL AFTER quantity;
+
 --loan Page--
 
 CREATE TABLE loans (
@@ -262,5 +265,64 @@ CREATE TABLE loans (
 
 ALTER TABLE equipment_bookings
 ADD COLUMN location VARCHAR(150) NULL AFTER quantity;
+
+ 
+--Crops page--
+
+CREATE TABLE IF NOT EXISTS crops (
+    id                      INT AUTO_INCREMENT PRIMARY KEY,
+    member_id               INT NOT NULL,
+    crop_name               VARCHAR(100) NOT NULL,
+    location                VARCHAR(150) NOT NULL,
+    area_hectares           DECIMAL(6,2) NOT NULL,
+    planting_date           DATE NOT NULL,
+    expected_harvest_date   DATE NOT NULL,
+    actual_harvest_date     DATE DEFAULT NULL,
+    status                  ENUM('pending', 'rejected', 'growing', 'ready_to_harvest', 'harvested')
+                                NOT NULL DEFAULT 'pending',
+    rejection_reason        VARCHAR(255) DEFAULT NULL,
+    created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_crops_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+
+
+--Products Page--
+
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    unit VARCHAR(50) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    stock_quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
+    status ENUM('available', 'out_of_stock', 'discontinued') NOT NULL DEFAULT 'available',
+    photo_path VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE product_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id INT NOT NULL,
+    product_id INT NULL,
+    requested_product_name VARCHAR(150) DEFAULT NULL,
+    quantity DECIMAL(10,2) NOT NULL,
+    pickup_date DATE NOT NULL,
+    notes VARCHAR(255) DEFAULT NULL,
+    manager_note VARCHAR(255) DEFAULT NULL,
+    status ENUM('pending', 'under_review', 'approved', 'processing', 'ready_for_pickup', 'claimed', 'rejected')
+        NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+
+    INDEX idx_member_status (member_id, status)
+);
+
 
 
