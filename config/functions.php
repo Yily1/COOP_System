@@ -559,6 +559,95 @@ function cropStatusBadge($status) {
     return '<span class="cm-status-badge ' . $m['class'] . '">' . htmlspecialchars($m['label']) . '</span>';
 }
 
+/* ============================================================
+   COOPERATIVE SERVICES: DA RESOURCE DISTRIBUTION
+   ============================================================ */
+
+/**
+ * Only managers use this page (giving out DA resources to eligible members).
+ */
+function canAccessResourceDistribution($role) {
+    return $role === 'manager';
+}
+
+/**
+ * Members who currently have an active crop planting (growing or
+ * ready_to_harvest — approved and not yet harvested), for the
+ * "Add distribution" member dropdown. A member with more than one
+ * active planting still appears once.
+ */
+function getEligibleMembersForDistribution($pdo) {
+    $stmt = $pdo->query("
+        SELECT DISTINCT m.id, m.first_name, m.last_name, m.membership_id
+        FROM members m
+        INNER JOIN crops c ON c.member_id = m.id
+        WHERE c.status IN ('growing', 'ready_to_harvest')
+        ORDER BY m.last_name, m.first_name
+    ");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * All distribution records, newest first, with member info joined in
+ * (same join pattern as getAllLoans() / getAllCrops()).
+ */
+function getAllDistributions($pdo) {
+    $stmt = $pdo->query("
+        SELECT d.*, m.first_name, m.last_name, m.membership_id
+        FROM resource_distributions d
+        INNER JOIN members m ON m.id = d.member_id
+        ORDER BY d.distribution_date DESC, d.created_at DESC
+    ");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function getDistributionById($pdo, $id) {
+    $stmt = $pdo->prepare("SELECT * FROM resource_distributions WHERE id = ?");
+    $stmt->execute([$id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
+/**
+ * Records a new distribution. Always starts as 'not_released' —
+ * the manager confirms it once the resource is actually handed over.
+ */
+function addDistribution($pdo, $memberId, $resourceName, $quantity, $distributionDate, $notes) {
+    $stmt = $pdo->prepare("
+        INSERT INTO resource_distributions (member_id, resource_name, quantity, distribution_date, notes, status)
+        VALUES (?, ?, ?, ?, ?, 'not_released')
+    ");
+    return $stmt->execute([$memberId, $resourceName, $quantity, $distributionDate, $notes]);
+}
+
+/**
+ * Confirms a distribution — marks it as actually handed over.
+ */
+function confirmDistribution($pdo, $id) {
+    $stmt = $pdo->prepare("UPDATE resource_distributions SET status = 'released' WHERE id = ?");
+    return $stmt->execute([$id]);
+}
+
+/**
+ * Declines a distribution — puts it back to 'not_released' (can
+ * still be confirmed later; this does not delete the record).
+ */
+function declineDistribution($pdo, $id) {
+    $stmt = $pdo->prepare("UPDATE resource_distributions SET status = 'not_released' WHERE id = ?");
+    return $stmt->execute([$id]);
+}
+
+/**
+ * HTML status badge for a distribution record — same visual pattern
+ * as cropStatusBadge().
+ */
+function distributionStatusBadge($status) {
+    if ($status === 'released') {
+        return '<span class="rd-status-badge rd-released">Released</span>';
+    }
+    return '<span class="rd-status-badge rd-not-released">Not released</span>';
+}
+
 
 /**
  * The current user's own active bookings (pending approval, ongoing, or
@@ -998,60 +1087,5 @@ function renderFooter() {
     </body>
     </html>
     <?php
-}
-
-/**
- * All members, with a comma-separated list of their eligible crop names
- * (growing, ready_to_harvest, or harvested). eligible_crops is null/empty
- * for members with no qualifying planting.
- */
-function getMembersWithEligibility(PDO $pdo): array {
-    $stmt = $pdo->query("
-        SELECT
-            m.id,
-            m.membership_id,
-            m.last_name,
-            m.first_name,
-            (
-                SELECT GROUP_CONCAT(DISTINCT c.crop_name ORDER BY c.crop_name SEPARATOR ', ')
-                FROM crops c
-                WHERE c.member_id = m.id
-                  AND c.status IN ('growing', 'ready_to_harvest', 'harvested')
-            ) AS eligible_crops
-        FROM members m
-        ORDER BY m.last_name, m.first_name
-    ");
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-/**
- * Server-side re-check: true only if this member has at least one crop
- * that is growing, ready_to_harvest, or harvested.
- */
-function memberIsEligibleForResources(PDO $pdo, int $memberId): bool {
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) FROM crops
-        WHERE member_id = ? AND status IN ('growing', 'ready_to_harvest', 'harvested')
-    ");
-    $stmt->execute([$memberId]);
-    return (int) $stmt->fetchColumn() > 0;
-}
-
-function distributeResource(PDO $pdo, int $memberId, string $resourceName, string $quantity, int $distributedBy, ?string $notes = null): bool {
-    $stmt = $pdo->prepare("
-        INSERT INTO resource_distributions (member_id, resource_name, quantity, distributed_by, notes)
-        VALUES (?, ?, ?, ?, ?)
-    ");
-    return $stmt->execute([$memberId, $resourceName, $quantity, $distributedBy, $notes]);
-}
-
-function getResourceDistributions(PDO $pdo): array {
-    $stmt = $pdo->query("
-        SELECT rd.*, m.last_name, m.first_name
-        FROM resource_distributions rd
-        JOIN members m ON m.id = rd.member_id
-        ORDER BY rd.created_at DESC
-    ");
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>

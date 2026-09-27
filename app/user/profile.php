@@ -74,6 +74,50 @@ renderHeader($pageTitle);
 ?>
 
 <style>
+    .page-shell {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .page-header-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #e3edfb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .page-header-icon svg {
+        width: 22px;
+        height: 22px;
+        stroke: #274b81;
+    }
+
+    .page-title {
+        margin: 0;
+        color: #1b3a24;
+        font-size: 19px;
+        font-weight: 600;
+    }
+
+    .page-sub {
+        margin: 2px 0 0 0;
+        color: #667066;
+        font-size: 13.5px;
+    }
+
     .card-columns {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -89,11 +133,10 @@ renderHeader($pageTitle);
 
     .card-box {
         box-sizing: border-box;
-        border: 1px solid #d5d2c7;
+        border: 1px solid #eceae4;
         border-radius: 14px;
         background: #fff;
         padding: 20px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
 
     .card-box-header {
@@ -109,6 +152,7 @@ renderHeader($pageTitle);
         margin: 0;
         flex: 1 1 auto;
         min-width: 140px;
+        color: #1b3a24;
     }
 
     /* ===== Info rows (replaces the plain <table> look) =====
@@ -136,13 +180,13 @@ renderHeader($pageTitle);
     .info-row .info-label {
         font-size: 13px;
         font-weight: 600;
-        color: #6b7280;
+        color: #667066;
         flex-shrink: 0;
     }
 
     .info-row .info-value {
         font-size: 13.5px;
-        color: #1a1a1a;
+        color: #1b3a24;
         text-align: right;
         word-break: break-word;
     }
@@ -174,7 +218,7 @@ renderHeader($pageTitle);
         height: 68px;
         border-radius: 12px;
         object-fit: cover;
-        border: 1px solid #e4e2d8;
+        border: 1px solid #eceae4;
         flex-shrink: 0;
     }
 
@@ -230,41 +274,6 @@ renderHeader($pageTitle);
         font-size: 16px;
     }
 
-    /* ===== Page header (title + back link) ===== */
-    .account-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 4px;
-    }
-
-    .account-back {
-        flex-shrink: 0;
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        background: none;
-        border: none;
-        color: #2e7d32;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 13px;
-        padding: 4px 0;
-        white-space: nowrap;
-        margin-top: 8px;
-    }
-
-    .account-back svg {
-        width: 15px;
-        height: 15px;
-        stroke: #2e7d32;
-    }
-
-    .account-back:hover {
-        text-decoration: underline;
-    }
-
     /* ===== Modal ===== */
     .modal-overlay {
         display: none;
@@ -297,7 +306,7 @@ renderHeader($pageTitle);
        title looks like plain text again. */
     .modal-box h2 {
         background: none !important;
-        color: #1a1a1a !important;
+        color: #1b3a24 !important;
         margin: 0 0 16px 0 !important;
         padding: 0 40px 0 0 !important;
         font-size: 20px !important;
@@ -348,269 +357,278 @@ renderHeader($pageTitle);
     }
 </style>
 
-<div class="account-header">
-    <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
+<div class="page-shell">
 
-</div>
-
-<div class="info-box">
-    <strong>Your Role: <span class="badge badge-user">User</span></strong><br>
-    This is your account and membership profile.
-</div>
-
-<?php if ($user): ?>
-    <div class="card-columns">
-
-        <!-- ==================== ACCOUNT INFORMATION (editable) ==================== -->
-        <div class="card-box">
-            <div class="card-box-header">
-                <h3>Account Information</h3>
-            </div>
-            <div class="info-rows">
-                <div class="info-row">
-                    <span class="info-label">Email</span>
-                    <span class="info-value" id="acctEmail"><?php echo htmlspecialchars($user['email']); ?></span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Role</span>
-                    <span class="info-pill" style="background: #274b81;">
-                        <?php echo ucfirst($user['role']); ?>
-                    </span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Account Status</span>
-                    <span class="info-pill" id="acctStatusBadge" style="background: <?php echo $user['account_status'] === 'Active' ? '#28a745' : '#6c757d'; ?>;">
-                        <?php echo htmlspecialchars($user['account_status']); ?>
-                    </span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Verified</span>
-                    <span class="info-value">
-                        <span class="info-pill" style="background: <?php echo $user['is_verified'] ? '#2e7d32' : '#6c757d'; ?>;">
-                            <?php echo $user['is_verified'] ? 'Yes' : 'No'; ?>
-                        </span>
-                        <?php if (!$user['is_verified'] && $verificationExpired): ?>
-                            <span class="info-pill" style="background: #f44336; margin-left: 6px;">Expired</span>
-                        <?php endif; ?>
-                    </span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Member Since</span>
-                    <span class="info-value"><?php echo date('F j, Y', strtotime($user['created_at'])); ?></span>
-                </div>
-            </div>
-            <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
-                <button type="button" id="editBtn" class="edit-icon-btn" onclick="openEditModal()" style="display:inline-flex!important;width:auto!important;max-width:100px!important;min-width:0!important;flex:none!important;align-items:center!important;justify-content:center!important;gap:4px!important;background:#fff!important;border:1px solid #cfd8e3!important;border-radius:8px!important;padding:6px 12px!important;font-size:13px!important;color:#274b81!important;cursor:pointer!important;white-space:nowrap!important;margin:0!important;box-shadow:none!important;text-transform:none!important;">
-                    <span class="material-icons">edit</span> Edit
-                </button>
-            </div>
+    <div class="page-header">
+        <div class="page-header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
         </div>
+        <div>
+            <p class="page-title"><?php echo htmlspecialchars($pageTitle); ?></p>
+            <p class="page-sub">Your profile and membership info</p>
+        </div>
+    </div>
 
-        <!-- ==================== PERSONAL & MEMBERSHIP INFO (read-only here) ==================== -->
-        <div class="card-box">
-            <?php if ($user['membership_id']): ?>
+    <div class="info-box">
+        <strong>Your Role: <span class="badge badge-user">User</span></strong><br>
+        This is your account and membership profile.
+    </div>
+
+    <?php if ($user): ?>
+        <div class="card-columns" style="margin-top: 18px;">
+
+            <!-- ==================== ACCOUNT INFORMATION (editable) ==================== -->
+            <div class="card-box">
                 <div class="card-box-header">
-                    <h3>Personal & Membership Information</h3>
+                    <h3>Account Information</h3>
                 </div>
                 <div class="info-rows">
                     <div class="info-row">
-                        <span class="info-label">Membership ID</span>
-                        <span class="info-value"><?php echo htmlspecialchars($user['membership_id']); ?></span>
+                        <span class="info-label">Email</span>
+                        <span class="info-value" id="acctEmail"><?php echo htmlspecialchars($user['email']); ?></span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Full Name</span>
-                        <span class="info-value"><?php echo htmlspecialchars($user['last_name'] . ', ' . $user['first_name'] . ' ' . $user['middle_name']); ?></span>
+                        <span class="info-label">Role</span>
+                        <span class="info-pill" style="background: #274b81;">
+                            <?php echo ucfirst($user['role']); ?>
+                        </span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Gender</span>
-                        <span class="info-value"><?php echo htmlspecialchars($user['gender'] ?? '-'); ?></span>
+                        <span class="info-label">Account Status</span>
+                        <span class="info-pill" id="acctStatusBadge" style="background: <?php echo $user['account_status'] === 'Active' ? '#2e7d32' : '#a9a79f'; ?>;">
+                            <?php echo htmlspecialchars($user['account_status']); ?>
+                        </span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Date of Birth</span>
-                        <span class="info-value"><?php echo !empty($user['date_of_birth']) ? date('F j, Y', strtotime($user['date_of_birth'])) : '-'; ?></span>
+                        <span class="info-label">Verified</span>
+                        <span class="info-value">
+                            <span class="info-pill" style="background: <?php echo $user['is_verified'] ? '#2e7d32' : '#a9a79f'; ?>;">
+                                <?php echo $user['is_verified'] ? 'Yes' : 'No'; ?>
+                            </span>
+                            <?php if (!$user['is_verified'] && $verificationExpired): ?>
+                                <span class="info-pill" style="background: #a6322f; margin-left: 6px;">Expired</span>
+                            <?php endif; ?>
+                        </span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Occupation</span>
-                        <span class="info-value"><?php echo htmlspecialchars($user['occupation'] ?? '-'); ?></span>
+                        <span class="info-label">Member Since</span>
+                        <span class="info-value"><?php echo date('F j, Y', strtotime($user['created_at'])); ?></span>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">Address</span>
-                        <span class="info-value"><?php echo htmlspecialchars($user['address'] ?? '-'); ?></span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Contact Number</span>
-                        <span class="info-value"><?php echo htmlspecialchars($user['contact_number'] ?? '-'); ?></span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Membership Type</span>
-                        <span class="info-value"><?php echo htmlspecialchars($user['membership_type'] ?? '-'); ?></span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Date Joined</span>
-                        <span class="info-value"><?php echo !empty($user['date_joined']) ? date('F j, Y', strtotime($user['date_joined'])) : '-'; ?></span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Hectares Cultivated</span>
-                        <span class="info-value"><?php echo !empty($user['hectares_cultivated']) ? htmlspecialchars($user['hectares_cultivated']) . ' hectare' . ($user['hectares_cultivated'] !== '1' ? 's' : '') : '-'; ?></span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Type of Farmer</span>
-                        <span class="info-value"><?php echo htmlspecialchars($user['farmer_type'] ?? '-'); ?></span>
-                    </div>
-                    <?php if (!empty($user['livestock_details'])): ?>
-                    <div class="info-row info-row-cards">
-                        <span class="info-label">Livestock Raised</span>
-                        <div class="info-value profile-card-group">
-                            <?php foreach (array_filter(array_map('trim', explode(',', $user['livestock_details']))) as $item): ?>
-                                <div class="profile-crop-card">
-                                    <img src="<?php echo livestockImageUrl($item); ?>" alt="<?php echo htmlspecialchars($item); ?>">
-                                    <span><?php echo htmlspecialchars($item); ?></span>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                    <?php if (!empty($user['crops_details'])): ?>
-                    <div class="info-row info-row-cards">
-                        <span class="info-label">Crops Grown</span>
-                        <div class="info-value profile-card-group">
-                            <?php foreach (array_filter(array_map('trim', explode(',', $user['crops_details']))) as $item): ?>
-                                <div class="profile-crop-card">
-                                    <img src="<?php echo cropImageUrl($item); ?>" alt="<?php echo htmlspecialchars($item); ?>">
-                                    <span><?php echo htmlspecialchars($item); ?></span>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    <?php endif; ?>
                 </div>
-            <?php else: ?>
-                <h3>Personal & Membership Information</h3>
-                <div class="info-box" style="margin-top: 10px;">
-                    No member profile linked to this account yet.
+                <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+                    <button type="button" id="editBtn" class="edit-icon-btn" onclick="openEditModal()" style="display:inline-flex!important;width:auto!important;max-width:100px!important;min-width:0!important;flex:none!important;align-items:center!important;justify-content:center!important;gap:4px!important;background:#fff!important;border:1px solid #cfd8e3!important;border-radius:8px!important;padding:6px 12px!important;font-size:13px!important;color:#274b81!important;cursor:pointer!important;white-space:nowrap!important;margin:0!important;box-shadow:none!important;text-transform:none!important;">
+                        <span class="material-icons">edit</span> Edit
+                    </button>
                 </div>
-            <?php endif; ?>
+            </div>
+
+            <!-- ==================== PERSONAL & MEMBERSHIP INFO (read-only here) ==================== -->
+            <div class="card-box">
+                <?php if ($user['membership_id']): ?>
+                    <div class="card-box-header">
+                        <h3>Personal & Membership Information</h3>
+                    </div>
+                    <div class="info-rows">
+                        <div class="info-row">
+                            <span class="info-label">Membership ID</span>
+                            <span class="info-value"><?php echo htmlspecialchars($user['membership_id']); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Full Name</span>
+                            <span class="info-value"><?php echo htmlspecialchars($user['last_name'] . ', ' . $user['first_name'] . ' ' . $user['middle_name']); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Gender</span>
+                            <span class="info-value"><?php echo htmlspecialchars($user['gender'] ?? '-'); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Date of Birth</span>
+                            <span class="info-value"><?php echo !empty($user['date_of_birth']) ? date('F j, Y', strtotime($user['date_of_birth'])) : '-'; ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Occupation</span>
+                            <span class="info-value"><?php echo htmlspecialchars($user['occupation'] ?? '-'); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Address</span>
+                            <span class="info-value"><?php echo htmlspecialchars($user['address'] ?? '-'); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Contact Number</span>
+                            <span class="info-value"><?php echo htmlspecialchars($user['contact_number'] ?? '-'); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Membership Type</span>
+                            <span class="info-value"><?php echo htmlspecialchars($user['membership_type'] ?? '-'); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Date Joined</span>
+                            <span class="info-value"><?php echo !empty($user['date_joined']) ? date('F j, Y', strtotime($user['date_joined'])) : '-'; ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Hectares Cultivated</span>
+                            <span class="info-value"><?php echo !empty($user['hectares_cultivated']) ? htmlspecialchars($user['hectares_cultivated']) . ' hectare' . ($user['hectares_cultivated'] !== '1' ? 's' : '') : '-'; ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Type of Farmer</span>
+                            <span class="info-value"><?php echo htmlspecialchars($user['farmer_type'] ?? '-'); ?></span>
+                        </div>
+                        <?php if (!empty($user['livestock_details'])): ?>
+                        <div class="info-row info-row-cards">
+                            <span class="info-label">Livestock Raised</span>
+                            <div class="info-value profile-card-group">
+                                <?php foreach (array_filter(array_map('trim', explode(',', $user['livestock_details']))) as $item): ?>
+                                    <div class="profile-crop-card">
+                                        <img src="<?php echo livestockImageUrl($item); ?>" alt="<?php echo htmlspecialchars($item); ?>">
+                                        <span><?php echo htmlspecialchars($item); ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                        <?php if (!empty($user['crops_details'])): ?>
+                        <div class="info-row info-row-cards">
+                            <span class="info-label">Crops Grown</span>
+                            <div class="info-value profile-card-group">
+                                <?php foreach (array_filter(array_map('trim', explode(',', $user['crops_details']))) as $item): ?>
+                                    <div class="profile-crop-card">
+                                        <img src="<?php echo cropImageUrl($item); ?>" alt="<?php echo htmlspecialchars($item); ?>">
+                                        <span><?php echo htmlspecialchars($item); ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <h3>Personal & Membership Information</h3>
+                    <div class="info-box" style="margin-top: 10px;">
+                        No member profile linked to this account yet.
+                    </div>
+                <?php endif; ?>
+            </div>
+
         </div>
 
-    </div>
+        <!-- ==================== EDIT MODAL (Account Info only) ==================== -->
+        <div class="modal-overlay" id="editModalOverlay">
+            <div class="modal-box">
+                <span id="closeBtn" class="modal-close" onclick="closeEditModal()" role="button" tabindex="0" aria-label="Close" style="position:absolute!important;top:16px!important;right:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;width:28px!important;height:28px!important;min-width:0!important;max-width:28px!important;padding:0!important;margin:0!important;background:#fff!important;border:1px solid #cfd8e3!important;border-radius:50%!important;font-size:16px!important;line-height:1!important;cursor:pointer!important;color:#274b81!important;box-shadow:none!important;z-index:10;">&times;</span>
+                <h2>Update Account</h2>
 
-    <!-- ==================== EDIT MODAL (Account Info only) ==================== -->
-    <div class="modal-overlay" id="editModalOverlay">
-        <div class="modal-box">
-            <span id="closeBtn" class="modal-close" onclick="closeEditModal()" role="button" tabindex="0" aria-label="Close" style="position:absolute!important;top:16px!important;right:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;width:28px!important;height:28px!important;min-width:0!important;max-width:28px!important;padding:0!important;margin:0!important;background:#fff!important;border:1px solid #cfd8e3!important;border-radius:50%!important;font-size:16px!important;line-height:1!important;cursor:pointer!important;color:#274b81!important;box-shadow:none!important;z-index:10;">&times;</span>
-            <h2>Update Account</h2>
+                <div id="modalMessage"></div>
 
-            <div id="modalMessage"></div>
+                <form id="editAccountForm">
+                    <div class="form-group">
+                        <label for="modal_email">Email:</label>
+                        <input type="email" id="modal_email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>">
+                    </div>
 
-            <form id="editAccountForm">
-                <div class="form-group">
-                    <label for="modal_email">Email:</label>
-                    <input type="email" id="modal_email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>">
-                </div>
+                    <div class="form-group">
+                        <label for="modal_password">Password (leave empty to keep current):</label>
+                        <input type="password" id="modal_password" name="password">
+                    </div>
 
-                <div class="form-group">
-                    <label for="modal_password">Password (leave empty to keep current):</label>
-                    <input type="password" id="modal_password" name="password">
-                </div>
+                    <div class="form-group">
+                        <label for="modal_role">Role:</label>
+                        <select id="modal_role" name="role" <?php echo $canChangeThisRole ? '' : 'disabled'; ?>>
+                            <option value="user" selected>User</option>
+                        </select>
+                        <?php if (!$canChangeThisRole): ?>
+                            <input type="hidden" name="role" value="<?php echo htmlspecialchars($user['role']); ?>">
+                            <small style="color: #666;">Only admins can change roles, and not their own.</small>
+                        <?php endif; ?>
+                    </div>
 
-                <div class="form-group">
-                    <label for="modal_role">Role:</label>
-                    <select id="modal_role" name="role" <?php echo $canChangeThisRole ? '' : 'disabled'; ?>>
-                        <option value="user" selected>User</option>
-                    </select>
-                    <?php if (!$canChangeThisRole): ?>
-                        <input type="hidden" name="role" value="<?php echo htmlspecialchars($user['role']); ?>">
-                        <small style="color: #666;">Only admins can change roles, and not their own.</small>
-                    <?php endif; ?>
-                </div>
+                    <div class="form-group">
+                        <label for="modal_account_status">Account Status:</label>
+                        <select id="modal_account_status" name="account_status">
+                            <option value="Active" <?php echo $user['account_status'] === 'Active' ? 'selected' : ''; ?>>Active</option>
+                            <option value="Inactive" <?php echo $user['account_status'] === 'Inactive' ? 'selected' : ''; ?>>Inactive</option>
+                        </select>
+                    </div>
 
-                <div class="form-group">
-                    <label for="modal_account_status">Account Status:</label>
-                    <select id="modal_account_status" name="account_status">
-                        <option value="Active" <?php echo $user['account_status'] === 'Active' ? 'selected' : ''; ?>>Active</option>
-                        <option value="Inactive" <?php echo $user['account_status'] === 'Inactive' ? 'selected' : ''; ?>>Inactive</option>
-                    </select>
-                </div>
-
-                <button type="submit">Update User</button>
-            </form>
+                    <button type="submit">Update User</button>
+                </form>
+            </div>
         </div>
-    </div>
 
-    <script>
-    function openEditModal() {
-        document.getElementById('editModalOverlay').classList.add('open');
-    }
-    function closeEditModal() {
-        document.getElementById('editModalOverlay').classList.remove('open');
-        document.getElementById('modalMessage').style.display = 'none';
-    }
-
-    // Close modal when clicking outside the box
-    document.getElementById('editModalOverlay').addEventListener('click', function (e) {
-        if (e.target === this) closeEditModal();
-    });
-
-    // The close (x) is a <span role="button">, not a real <button>,
-    // so it needs a manual keyboard handler for accessibility (Enter/Space).
-    document.getElementById('closeBtn').addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            closeEditModal();
+        <script>
+        function openEditModal() {
+            document.getElementById('editModalOverlay').classList.add('open');
         }
-    });
+        function closeEditModal() {
+            document.getElementById('editModalOverlay').classList.remove('open');
+            document.getElementById('modalMessage').style.display = 'none';
+        }
 
-    document.getElementById('editAccountForm').addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const form = e.target;
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const formData = new FormData(form);
-        formData.append('ajax', '1');
-
-        submitBtn.disabled = true;
-
-        // NOTE: user-update.php is now a shared handler under
-        // app/includes/handlers/ instead of app/users/.
-        fetch('<?php echo BASE_URL; ?>/app/includes/handlers/user-update.php?user_id=<?php echo $user['id']; ?>', {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            const msgBox = document.getElementById('modalMessage');
-            msgBox.style.display = 'block';
-            msgBox.className = data.success ? 'success' : 'error';
-            msgBox.textContent = data.message;
-
-            if (data.success && data.user) {
-                // Update the Account Information card in place - no reload
-                document.getElementById('acctEmail').textContent = data.user.email;
-
-                const statusBadge = document.getElementById('acctStatusBadge');
-                statusBadge.textContent = data.user.account_status;
-                statusBadge.style.background = data.user.account_status === 'Active' ? '#28a745' : '#6c757d';
-
-                document.getElementById('modal_password').value = '';
-
-                setTimeout(closeEditModal, 1200);
-            }
-        })
-        .catch(() => {
-            const msgBox = document.getElementById('modalMessage');
-            msgBox.style.display = 'block';
-            msgBox.className = 'error';
-            msgBox.textContent = 'Something went wrong. Please try again.';
-        })
-        .finally(() => {
-            submitBtn.disabled = false;
+        // Close modal when clicking outside the box
+        document.getElementById('editModalOverlay').addEventListener('click', function (e) {
+            if (e.target === this) closeEditModal();
         });
-    });
-    </script>
 
-<?php else: ?>
-    <div class="error">Account not found.</div>
-<?php endif; ?>
+        // The close (x) is a <span role="button">, not a real <button>,
+        // so it needs a manual keyboard handler for accessibility (Enter/Space).
+        document.getElementById('closeBtn').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                closeEditModal();
+            }
+        });
+
+        document.getElementById('editAccountForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const formData = new FormData(form);
+            formData.append('ajax', '1');
+
+            submitBtn.disabled = true;
+
+            // NOTE: user-update.php is now a shared handler under
+            // app/includes/handlers/ instead of app/users/.
+            fetch('<?php echo BASE_URL; ?>/app/includes/handlers/user-update.php?user_id=<?php echo $user['id']; ?>', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                const msgBox = document.getElementById('modalMessage');
+                msgBox.style.display = 'block';
+                msgBox.className = data.success ? 'success' : 'error';
+                msgBox.textContent = data.message;
+
+                if (data.success && data.user) {
+                    // Update the Account Information card in place - no reload
+                    document.getElementById('acctEmail').textContent = data.user.email;
+
+                    const statusBadge = document.getElementById('acctStatusBadge');
+                    statusBadge.textContent = data.user.account_status;
+                    statusBadge.style.background = data.user.account_status === 'Active' ? '#2e7d32' : '#a9a79f';
+
+                    document.getElementById('modal_password').value = '';
+
+                    setTimeout(closeEditModal, 1200);
+                }
+            })
+            .catch(() => {
+                const msgBox = document.getElementById('modalMessage');
+                msgBox.style.display = 'block';
+                msgBox.className = 'error';
+                msgBox.textContent = 'Something went wrong. Please try again.';
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+            });
+        });
+        </script>
+
+    <?php else: ?>
+        <div class="error">Account not found.</div>
+    <?php endif; ?>
+
+</div>
 
 <?php renderFooter(); ?>

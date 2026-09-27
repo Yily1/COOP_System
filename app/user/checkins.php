@@ -54,23 +54,53 @@ renderHeader($pageTitle);
 ?>
 
 <style>
-    .account-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 4px;
-    }
-
-    .checkins-wrap {
+    .page-shell {
         width: 100%;
         max-width: 480px;
-        margin: 20px auto 0;
+        margin: 0 auto;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+
+    .page-header-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #eae6fb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .page-header-icon svg {
+        width: 22px;
+        height: 22px;
+        stroke: #4b2f9c;
+    }
+
+    .page-title {
+        margin: 0;
+        color: #1b3a24;
+        font-size: 19px;
+        font-weight: 600;
+    }
+
+    .page-sub {
+        margin: 2px 0 0 0;
+        color: #667066;
+        font-size: 13.5px;
     }
 
     /* ============================================================
        3-CARD SUMMARY: Total meetings / Checked in / Not checked in
-       Flat solid colors, same palette as the payments stat cards.
+       Flat solid colors, same palette used across every user page.
        ============================================================ */
     .checkins-stat-grid {
         display: grid;
@@ -80,7 +110,7 @@ renderHeader($pageTitle);
     }
 
     .checkins-stat-card {
-        border-radius: 12px;
+        border-radius: 14px;
         padding: 16px 8px;
         box-sizing: border-box;
         display: flex;
@@ -93,7 +123,7 @@ renderHeader($pageTitle);
     .checkins-stat-count {
         margin: 0;
         font-size: 22px;
-        font-weight: 600;
+        font-weight: 700;
         line-height: 1.1;
         color: #fff;
     }
@@ -104,14 +134,14 @@ renderHeader($pageTitle);
         line-height: 1.3;
     }
 
-    .checkins-stat-card.total { background: #185FA5; }
-    .checkins-stat-card.total .checkins-stat-label { color: #E6F1FB; }
+    .checkins-stat-card.total { background: #274b81; }
+    .checkins-stat-card.total .checkins-stat-label { color: #dce8f7; }
 
-    .checkins-stat-card.checked-in { background: #3B6D11; }
-    .checkins-stat-card.checked-in .checkins-stat-label { color: #EAF3DE; }
+    .checkins-stat-card.checked-in { background: #2e7d32; }
+    .checkins-stat-card.checked-in .checkins-stat-label { color: #d6ecd8; }
 
-    .checkins-stat-card.not-checked-in { background: #A32D2D; }
-    .checkins-stat-card.not-checked-in .checkins-stat-label { color: #FCEBEB; }
+    .checkins-stat-card.not-checked-in { background: #a6322f; }
+    .checkins-stat-card.not-checked-in .checkins-stat-label { color: #f5dcdb; }
 
     @media (max-width: 420px) {
         .checkins-stat-grid { grid-template-columns: 1fr; }
@@ -146,7 +176,7 @@ renderHeader($pageTitle);
         flex-shrink: 0;
         width: 46px;
         text-align: center;
-        background: #3B6D11;
+        background: #2e7d32;
         border-radius: 8px;
         padding: 6px 4px;
     }
@@ -154,7 +184,7 @@ renderHeader($pageTitle);
     .meeting-preview-date .month {
         font-size: 10px;
         font-weight: 700;
-        color: #EAF3DE;
+        color: #d6ecd8;
         text-transform: uppercase;
         letter-spacing: .03em;
     }
@@ -194,7 +224,7 @@ renderHeader($pageTitle);
         font-size: 11px;
         font-weight: 700;
         color: #fff;
-        background: #3B6D11;
+        background: #2e7d32;
         padding: 4px 10px;
         border-radius: 20px;
         white-space: nowrap;
@@ -210,11 +240,17 @@ renderHeader($pageTitle);
     }
 </style>
 
-<div class="account-header">
-    <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
-</div>
+<div class="page-shell">
 
-<div class="checkins-wrap">
+    <div class="page-header">
+        <div class="page-header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div>
+            <p class="page-title"><?php echo htmlspecialchars($pageTitle); ?></p>
+            <p class="page-sub">Your check-in records attendance </p>
+        </div>
+    </div>
 
     <div class="checkins-stat-grid">
         <div class="checkins-stat-card total">

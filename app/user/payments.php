@@ -35,29 +35,75 @@ renderHeader('Payments');
 ?>
 
 <style>
-.payment-card {
+
+.page-shell {
     width: 100%;
-    max-width: 1000px;
+    max-width: 420px;
     margin: 0 auto;
-    background: #ffffff;
-    padding: 25px 28px;
-    box-sizing: border-box;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-.payment-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px; flex-wrap: wrap; }
-.payment-card-header-right { display: flex; align-items: center; gap: 14px; }
-.payment-card-header h1 { margin: 0; color: #2e7d32; font-size: 25px; font-weight: 500; }
-.payment-card h3 { color: #333; font-size: 18px; font-weight: 500; }
-.add-payment-btn {
+
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.page-header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #e8f5e9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.page-header-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: #2e7d32;
+}
+
+.page-title {
+    margin: 0;
+    color: #1b3a24;
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.page-sub {
+    margin: 2px 0 0 0;
+    color: #667066;
+    font-size: 13.5px;
+}
+
+.section-intro {
+    margin: 0 0 14px 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.section-intro h2 {
+    margin: 0;
+    color: #1b3a24;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.btn-primary {
     background: #2e7d32 !important;
     color: #fff !important;
     border: none !important;
     padding: 9px 16px !important;
-    border-radius: 6px !important;
+    border-radius: 10px !important;
     cursor: pointer !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
     text-transform: none !important;
     letter-spacing: normal !important;
     line-height: 1.4 !important;
@@ -66,119 +112,174 @@ renderHeader('Payments');
     flex: 0 0 auto !important;
     box-sizing: border-box !important;
 }
-.stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-bottom: 20px; }
-.stat-card { min-height: 100px; padding: 20px 22px; box-sizing: border-box; border-radius: 10px; color: white; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; justify-content: center; }
-.stat-number { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
-.stat-label { font-size: 14px; opacity: 0.95; }
-.payment-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.payment-table th { padding: 10px 12px; background: #f5f5f5; text-align: left; }
-.payment-table td { padding: 10px 12px; border-top: 1px solid #eee; }
-.payment-table .amount { font-weight: 600; }
-.status-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
-.status-pending { background: #fff3cd; color: #856404; }
-.status-confirmed { background: #d4edda; color: #155724; }
-.type-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
 
-@media (max-width: 768px) {
-    .stat-grid { grid-template-columns: 1fr; }
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 22px;
 }
 
+.stat-card {
+    min-height: 88px;
+    padding: 16px;
+    box-sizing: border-box;
+    border-radius: 14px;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.stat-card.green { background: #2e7d32; }
+.stat-card.blue { background: #274b81; }
+.stat-card.muted { background: #a9a79f; }
+
+.stat-number {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 2px;
+}
+
+.stat-number .stat-number-sub {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.75);
+}
+
+.stat-label {
+    font-size: 12.5px;
+    color: rgba(255,255,255,0.85);
+}
+
+.data-card {
+    background: #ffffff;
+    border: 1px solid #eceae4;
+    border-radius: 14px;
+    padding: 6px 16px 4px;
+}
+
+.payment-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.payment-table th {
+    text-align: left;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #667066;
+    padding: 12px 6px;
+    border-bottom: 1px solid #eceae4;
+}
+.payment-table td { padding: 12px 6px; border-bottom: 1px solid #eceae4; }
+.payment-table tr:last-child td { border-bottom: none; }
+.payment-table .amount { font-weight: 700; color: #1b3a24; }
+
+.status-badge { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+.status-pending { background: #fdf1de; color: #a06b16; }
+.status-confirmed { background: #e8f5e9; color: #2e7d32; }
+
+.type-badge { font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+
+.empty-note { color: #667066; font-size: 13px; padding: 16px 4px; }
+
 @media (max-width: 480px) {
-    .payment-card-header {
-        flex-wrap: nowrap !important;
-        gap: 8px !important;
-    }
-    .payment-card-header h1 {
-        font-size: 18px !important;
-        white-space: nowrap;
-    }
-    .add-payment-btn {
-        padding: 8px 14px !important;
-        font-size: 13px !important;
-    }
+    .page-title { font-size: 17px; }
+    .btn-primary { padding: 8px 14px !important; font-size: 13px !important; }
 }
 </style>
 
-<div class="payment-card">
-    <div class="payment-card-header">
-        <h1>Payments</h1>
-        <div class="payment-card-header-right">
-            <?php if (!empty($memberDbId)): ?>
-                <button id="openPayModalBtn" class="add-payment-btn">+ Add payment</button>
-            <?php endif; ?>
+<div class="page-shell">
+
+    <div class="page-header">
+        <div class="page-header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+        </div>
+        <div style="flex:1;">
+            <p class="page-title">Payments</p>
+            <p class="page-sub">Track your registration and investment payments</p>
         </div>
     </div>
 
     <?php if (empty($memberDbId)): ?>
-        <p style="color: #666;">No member profile is linked to your account yet.</p>
+        <p class="empty-note">No member profile is linked to your account yet.</p>
     <?php else: ?>
 
-        <div class="stat-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
-            <div class="stat-card" style="background: <?php echo $eligibility['registration_paid'] ? 'linear-gradient(135deg, #66bb6a 0%, #43a047 100%)' : 'linear-gradient(135deg, #bdbdbd 0%, #9e9e9e 100%)'; ?>;">
+        <div class="section-intro" style="justify-content: flex-end; margin-bottom: 10px;">
+            <?php if (!empty($memberDbId)): ?>
+                <button id="openPayModalBtn" class="btn-primary">+ Add payment</button>
+            <?php endif; ?>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-card <?php echo $eligibility['registration_paid'] ? 'green' : 'muted'; ?>">
                 <div class="stat-number">
                     <?php echo $eligibility['registration_paid'] ? 'Paid ₱' . number_format($eligibility['registration_amount'], 0) : 'Not yet paid'; ?>
                 </div>
                 <div class="stat-label">Registration Fee</div>
             </div>
-            <div class="stat-card" style="background: linear-gradient(135deg, #42a5f5 0%, #1976d2 100%);">
+            <div class="stat-card blue">
                 <div class="stat-number">
                     ₱<?php echo number_format($eligibility['total_investment'], 0); ?>
-                    <span style="font-size: 13px; opacity: .85;">/ ₱<?php echo number_format($eligibility['investment_target'], 0); ?></span>
+                    <span class="stat-number-sub">/ ₱<?php echo number_format($eligibility['investment_target'], 0); ?></span>
                 </div>
                 <div class="stat-label">Total Investment</div>
             </div>
         </div>
 
-        <h3 style="margin-top: 20px;">Payment History</h3>
-        <?php if (empty($paymentHistory)): ?>
-            <p style="color: #666;">Wala pang payment history.</p>
-        <?php else: ?>
-            <?php
-                // Same type badge colors as the manager-side Payments page,
-                // so a "Rental" or "Loan Repayment" entry looks consistent everywhere.
-                $typeBadgeMeta = [
-                    'registration'   => ['label' => 'Registration',   'bg' => '#d4edda', 'text' => '#155724'],
-                    'investment'     => ['label' => 'Investment',     'bg' => '#cce5ff', 'text' => '#004085'],
-                    'rental'         => ['label' => 'Rental',          'bg' => '#eeedfe', 'text' => '#3c3489'],
-                    'loan_repayment' => ['label' => 'Loan Repayment', 'bg' => '#faeeda', 'text' => '#633806'],
-                ];
-            ?>
-            <div style="overflow-x:auto;">
-                <table class="payment-table">
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Amount</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($paymentHistory as $payment): ?>
-                            <?php
-                                $tMeta = $typeBadgeMeta[$payment['payment_type']] ?? ['label' => ucfirst($payment['payment_type']), 'bg' => '#eee', 'text' => '#555'];
-                            ?>
+        <div class="section-intro">
+            <h2>Payment History</h2>
+        </div>
+
+        <div class="data-card">
+            <?php if (empty($paymentHistory)): ?>
+                <p class="empty-note">Wala pang payment history.</p>
+            <?php else: ?>
+                <?php
+                    $typeBadgeMeta = [
+                        'registration'   => ['label' => 'Registration',   'bg' => '#e8f5e9', 'text' => '#2e7d32'],
+                        'investment'     => ['label' => 'Investment',     'bg' => '#e3edfb', 'text' => '#274b81'],
+                        'rental'         => ['label' => 'Rental',         'bg' => '#eae6fb', 'text' => '#4b2f9c'],
+                        'loan_repayment' => ['label' => 'Loan Repayment', 'bg' => '#fdf1de', 'text' => '#a06b16'],
+                    ];
+                ?>
+                <div style="overflow-x:auto;">
+                    <table class="payment-table">
+                        <thead>
                             <tr>
-                                <td>
-                                    <span class="type-badge" style="background: <?php echo $tMeta['bg']; ?>; color: <?php echo $tMeta['text']; ?>;">
-                                        <?php echo htmlspecialchars($tMeta['label']); ?>
-                                    </span>
-                                </td>
-                                <td class="amount">₱<?php echo number_format($payment['amount'], 2); ?></td>
-                                <td><?php echo date('M d, Y', strtotime($payment['payment_date'])); ?></td>
-                                <td>
-                                    <?php if ($payment['status'] === 'pending'): ?>
-                                        <span class="status-badge status-pending">Pending</span>
-                                    <?php else: ?>
-                                        <span class="status-badge status-confirmed">Confirmed</span>
-                                    <?php endif; ?>
-                                </td>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Status</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($paymentHistory as $payment): ?>
+                                <?php
+                                    $tMeta = $typeBadgeMeta[$payment['payment_type']] ?? ['label' => ucfirst($payment['payment_type']), 'bg' => '#f0efe9', 'text' => '#667066'];
+                                ?>
+                                <tr>
+                                    <td>
+                                        <span class="type-badge" style="background: <?php echo $tMeta['bg']; ?>; color: <?php echo $tMeta['text']; ?>;">
+                                            <?php echo htmlspecialchars($tMeta['label']); ?>
+                                        </span>
+                                    </td>
+                                    <td class="amount">₱<?php echo number_format($payment['amount'], 2); ?></td>
+                                    <td><?php echo date('M d, Y', strtotime($payment['payment_date'])); ?></td>
+                                    <td>
+                                        <?php if ($payment['status'] === 'pending'): ?>
+                                            <span class="status-badge status-pending">Pending</span>
+                                        <?php else: ?>
+                                            <span class="status-badge status-confirmed">Confirmed</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
 
     <?php endif; ?>
 </div>
@@ -187,19 +288,19 @@ renderHeader('Payments');
      MODAL - Add payment
      ============================================================ -->
 <div id="payModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
-    <div style="background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 400px; box-sizing: border-box; position: relative;">
-        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Add payment</h2>
+    <div style="background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 400px; box-sizing: border-box; position: relative;">
+        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center; color: #1b3a24;">Add payment</h2>
         <button id="closePayModalBtn"
-                style="position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important; font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important; max-width: 28px !important; flex: 0 0 auto !important; color: #333 !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;">&times;</button>
+                style="position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important; font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important; max-width: 28px !important; flex: 0 0 auto !important; color: #667066 !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;">&times;</button>
 
-        <div id="payModalErrors" style="display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; text-align: left;"></div>
-        <div id="payModalSuccess" style="display: none; background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; text-align: left;">
+        <div id="payModalErrors" style="display: none; background: #fbe6e6; color: #a6322f; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; text-align: left;"></div>
+        <div id="payModalSuccess" style="display: none; background: #e8f5e9; color: #2e7d32; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; text-align: left;">
             Na-submit na para sa confirmation ng manager.
         </div>
 
         <form id="payForm" style="text-align: left;">
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payment type</label>
-            <select name="payment_type" id="payTypeSelect" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px;">
+            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066;">Payment type</label>
+            <select name="payment_type" id="payTypeSelect" required style="width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 14px; font-family: inherit; font-size: 14px;">
                 <option value="">-- Piliin --</option>
                 <option value="registration">Registration Fee (₱150)</option>
                 <option value="investment">Investment</option>
@@ -207,28 +308,27 @@ renderHeader('Payments');
                 <option value="loan_repayment">Loan Repayment</option>
             </select>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Amount (₱)</label>
+            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066;">Amount (₱)</label>
             <input type="number" name="amount" id="payAmountInput" step="0.01" min="0" required
-                   style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px;">
+                   style="width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 14px; font-family: inherit; font-size: 14px;">
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payment date</label>
+            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066;">Payment date</label>
             <input type="date" name="payment_date" required value="<?php echo date('Y-m-d'); ?>"
-                   style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px;">
+                   style="width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 14px; font-family: inherit; font-size: 14px;">
 
-            <div style="background: #e3f2fd; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                <span style="font-size: 13px; color: #0d47a1;">Pay via GCash, then submit this form.</span>
+            <div style="background: #e3edfb; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <span style="font-size: 12.5px; color: #274b81;">Pay via GCash, then submit this form.</span>
                 <a href="https://gcash.com" target="_blank" rel="noopener"
-                   style="flex-shrink: 0; font-size: 13px; font-weight: 600; color: #0d47a1; white-space: nowrap; text-decoration: none;">
+                   style="flex-shrink: 0; font-size: 12.5px; font-weight: 600; color: #274b81; white-space: nowrap; text-decoration: none;">
                     Pay via GCash &rarr;
                 </a>
             </div>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Notes (optional)</label>
+            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066;">Notes (optional)</label>
             <input type="text" name="notes" placeholder="e.g. paid via GCash"
-                   style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 20px;">
+                   style="width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 20px; font-family: inherit; font-size: 14px;">
 
-            <button type="submit" id="paySubmitBtn"
-                    style="width: 100%; box-sizing: border-box; background: #1976d2 !important; color: #fff !important; border: none !important; padding: 10px !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important;">
+            <button type="submit" id="paySubmitBtn" class="btn-primary" style="width: 100% !important; padding: 11px !important; font-size: 14px !important;">
                 Submit for confirmation
             </button>
         </form>
@@ -247,7 +347,7 @@ renderHeader('Payments');
     const typeSelect = document.getElementById('payTypeSelect');
     const amountInput = document.getElementById('payAmountInput');
 
-    if (!openBtn) return; // walang member profile, wala ring button
+    if (!openBtn) return;
 
     function openModal() { backdrop.style.display = 'flex'; }
     function closeModal() {
@@ -261,7 +361,6 @@ renderHeader('Payments');
     closeBtn.addEventListener('click', closeModal);
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
 
-    // Auto-fill ng ₱150 kapag "Registration Fee" ang pinili
     typeSelect.addEventListener('change', function() {
         if (typeSelect.value === 'registration') {
             amountInput.value = '150';

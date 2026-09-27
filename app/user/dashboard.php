@@ -666,7 +666,7 @@ renderHeader($title);
     <div class="nav-card-grid">
 
         <!-- MY ACCOUNT + PROFILE INFO -->
-        <a class="nav-card blue" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">
+        <a class="nav-card blue" href="<?php echo BASE_URL; ?>/app/user/profile.php">
             <div class="nav-card-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
             </div>

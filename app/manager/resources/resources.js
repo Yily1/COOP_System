@@ -5,7 +5,6 @@
 
     function openModal(id) { document.getElementById(id).classList.add('rd-open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('rd-open'); }
-
     function showError(boxId, message) {
         const box = document.getElementById(boxId);
         if (!box) return;
@@ -37,41 +36,63 @@
         return payload;
     }
 
-    const modalWrap = document.getElementById('distribute-modal-wrap');
-    const memberIdInput = document.getElementById('distribute-member-id');
-    const memberLabel = document.getElementById('distribute-member-label');
-    const form = document.getElementById('distribute-form');
-    const closeBtn = document.getElementById('close-distribute');
-
-    document.querySelectorAll('.rd-distribute-btn').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            memberIdInput.value = btn.dataset.id;
-            memberLabel.textContent = 'For: ' + btn.dataset.name;
-            clearError('distribute-error');
-            form.reset();
-            memberIdInput.value = btn.dataset.id;
-            openModal('distribute-modal-wrap');
-        });
-    });
-
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => closeModal('distribute-modal-wrap'));
+    // ---------- ADD DISTRIBUTION ----------
+    const addBtn = document.getElementById('add-distribution-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => openModal('add-distribution-modal-wrap'));
     }
 
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            clearError('distribute-error');
+    const closeAdd = document.getElementById('close-add-distribution');
+    if (closeAdd) {
+        closeAdd.addEventListener('click', () => closeModal('add-distribution-modal-wrap'));
+    }
 
-            const formData = new FormData(form);
+    const addForm = document.getElementById('add-distribution-form');
+    if (addForm) {
+        addForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearError('add-distribution-error');
+
+            const formData = new FormData(addForm);
             const data = Object.fromEntries(formData.entries());
+            data.action = 'add';
+
+            if (!data.member_id) {
+                showError('add-distribution-error', 'Please select a member.');
+                return;
+            }
 
             try {
                 await postJSON(AJAX_BASE + 'distribute.php', data);
                 window.location.reload();
             } catch (err) {
-                showError('distribute-error', err.message);
+                showError('add-distribution-error', err.message);
             }
         });
     }
+
+    // ---------- CONFIRM / DECLINE ----------
+    document.querySelectorAll('.rd-confirm-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('Confirm this distribution as released?')) return;
+            try {
+                await postJSON(AJAX_BASE + 'distribute.php', { id: btn.dataset.id, action: 'confirm' });
+                window.location.reload();
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+    });
+
+    document.querySelectorAll('.rd-decline-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('Decline this distribution? It will stay marked as not released.')) return;
+            try {
+                await postJSON(AJAX_BASE + 'distribute.php', { id: btn.dataset.id, action: 'decline' });
+                window.location.reload();
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+    });
 })();
