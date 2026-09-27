@@ -1,5 +1,6 @@
 <?php
 session_start();
+date_default_timezone_set('Asia/Manila');
 
 // Email configuration (for verification)
 define('MAIL_FROM', 'noreply@yourdomain.com');

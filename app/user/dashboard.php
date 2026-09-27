@@ -665,17 +665,6 @@ renderHeader($title);
 
     <div class="nav-card-grid">
 
-        <!-- PAYMENTS -->
-        <a class="nav-card green" href="<?php echo BASE_URL; ?>/app/user/payments.php">
-            <div class="nav-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
-            </div>
-            <div>
-                <p class="nav-card-title">Transactions</p>
-                <p class="nav-card-sub">View your payments</p>
-            </div>
-        </a>
-
         <!-- MY ACCOUNT + PROFILE INFO -->
         <a class="nav-card blue" href="<?php echo BASE_URL; ?>/app/users/dashboard.php">
             <div class="nav-card-icon">
@@ -695,6 +684,17 @@ renderHeader($title);
             </div>
         </a>
 
+        <!-- PAYMENTS -->
+        <a class="nav-card green" href="<?php echo BASE_URL; ?>/app/user/payments.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Transactions</p>
+                <p class="nav-card-sub">View your payments</p>
+            </div>
+        </a>
+
         <!-- MY CHECK-INS -->
         <a class="nav-card purple" href="<?php echo BASE_URL; ?>/app/user/checkins.php">
             <div class="nav-card-icon">
@@ -703,6 +703,50 @@ renderHeader($title);
             <div>
                 <p class="nav-card-title">Meetings</p>
                 <p class="nav-card-sub">View meeting history</p>
+            </div>
+        </a>
+
+        <!-- EQUIPMENT -->
+        <a class="nav-card amber" href="<?php echo BASE_URL; ?>/app/user/equipment.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L2 19l3 3 7.3-7.3a4 4 0 0 0 5.4-5.4l-2.1 2.1-2.7-2.7z"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Equipment</p>
+                <p class="nav-card-sub">Borrow or reserve tools</p>
+            </div>
+        </a>
+
+        <!-- CROPS -->
+        <a class="nav-card green" href="<?php echo BASE_URL; ?>/app/user/crops.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 6 6 5 4 5c0 6 2 9 8 7z"/><path d="M12 12c0-6 6-7 8-7 0 6-2 9-8 7z"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Crops</p>
+                <p class="nav-card-sub">My crop plantings</p>
+            </div>
+        </a>
+
+        <!-- LOANS -->
+        <a class="nav-card blue" href="<?php echo BASE_URL; ?>/app/user/loans.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9 9.5c0-1.4 1.3-2.5 3-2.5s3 1.1 3 2.5-1.3 2-3 2.5-3 1.1-3 2.5 1.3 2.5 3 2.5 3-1.1 3-2.5"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Loans</p>
+                <p class="nav-card-sub">View loan status</p>
+            </div>
+        </a>
+
+        <!-- PRODUCTS -->
+        <a class="nav-card purple" href="<?php echo BASE_URL; ?>/app/user/products.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Products</p>
+                <p class="nav-card-sub">Browse co-op products</p>
             </div>
         </a>
 
