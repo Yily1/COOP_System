@@ -21,36 +21,41 @@ $iconMap = [
 renderHeader('Equipment Rental');
 ?>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
 <style>
 .eq-page, .eq-page *, .eq-modal, .eq-modal * { box-sizing: border-box; }
 
 .eq-page {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    color: #2B3A2A;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #1b3a24;
     width: 100%;
-    max-width: 100%;
-    padding: 28px 32px 60px;
+    max-width: 960px;
+    margin: 0 auto;
 }
 
 .eq-page h1, .eq-page h2 {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: inherit;
     font-weight: 600;
-    color: #2c2c2a;
+    color: #1b3a24;
     margin: 0;
 }
 
-.eq-muted { color: #5B6B57; font-size: 14px; margin: 4px 0 0; }
+.eq-muted { color: #667066; font-size: 14px; margin: 4px 0 0; }
 .eq-text-center { text-align: center; }
 .eq-text-right { text-align: right; }
 
-.eq-header {
-    margin-bottom: 24px;
-    padding-bottom: 20px;
-    border-bottom: 2px solid #E4DCC8;
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
 }
-.eq-header h1 { font-size: 24px; }
+.page-header-icon {
+    width: 48px; height: 48px; border-radius: 50%; background: #fdf1de;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.page-header-icon svg { width: 22px; height: 22px; stroke: #a06b16; }
+.page-title { margin: 0; color: #1b3a24; font-size: 19px; font-weight: 600; }
+.page-sub { margin: 2px 0 0 0; color: #667066; font-size: 13.5px; }
 
 .eq-btn {
     box-sizing: border-box;
@@ -65,80 +70,80 @@ renderHeader('Equipment Rental');
     font-weight: 600;
     padding: 9px 16px;
     border-radius: 10px;
-    border: 1.5px solid #33502F;
+    border: 1.5px solid #2e7d32;
     background: transparent;
-    color: #33502F;
+    color: #2e7d32;
     cursor: pointer;
     transition: transform 0.12s ease, background 0.12s ease;
 }
 .eq-btn .material-icons { font-size: 17px; flex-shrink: 0; }
-.eq-btn:hover { background: #F4E4C1; }
+.eq-btn:hover { background: #e8f5e9; }
 .eq-btn:active { transform: scale(0.97); }
-.eq-btn-outline { border-color: #E4DCC8; color: #2B3A2A; background: #fff; }
-.eq-btn-outline:hover { border-color: #33502F; }
-.eq-btn-primary { background: #33502F; border-color: #33502F; color: #fff; }
-.eq-btn-primary:hover { background: #223A20; }
+.eq-btn-outline { border-color: #eceae4; color: #1b3a24; background: #fff; }
+.eq-btn-outline:hover { border-color: #2e7d32; }
+.eq-btn-primary { background: #2e7d32; border-color: #2e7d32; color: #fff; }
+.eq-btn-primary:hover { background: #256b28; }
 .eq-btn-full { width: 100%; justify-content: center; padding: 11px; }
 .eq-btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .eq-summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 14px;
-    margin-bottom: 28px;
+    gap: 10px;
+    margin-bottom: 22px;
 }
-.eq-metric-card { background: #fff; border: 1px solid #E4DCC8; border-radius: 10px; padding: 16px 18px; }
-.eq-metric-label { font-size: 12.5px; color: #5B6B57; margin: 0 0 6px; }
-.eq-metric-value { font-size: 28px; font-weight: 700; color: #223A20; margin: 0; }
+.eq-metric-card { background: #fff; border: 1px solid #eceae4; border-radius: 14px; padding: 16px 18px; }
+.eq-metric-label { font-size: 12px; color: #667066; margin: 0 0 6px; }
+.eq-metric-value { font-size: 24px; font-weight: 700; color: #1b3a24; margin: 0; }
 
 .eq-equipment-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 14px;
-    margin-bottom: 32px;
+    gap: 10px;
+    margin-bottom: 28px;
 }
 .eq-card {
     background: #fff;
-    border: 1px solid #E4DCC8;
-    border-radius: 10px;
+    border: 1px solid #eceae4;
+    border-radius: 14px;
     padding: 0 0 16px;
     overflow: hidden;
     transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.eq-card:hover { border-color: #33502F; box-shadow: 0 12px 28px rgba(43, 58, 42, 0.14); }
+.eq-card:hover { border-color: #2e7d32; box-shadow: 0 2px 8px rgba(46,125,50,0.08); }
 .eq-card-body { padding: 16px; }
 .eq-photo {
-    width: 100%; height: 160px; background: #FAF7EF;
+    width: 100%; height: 160px; background: #f7f8f5;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .eq-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.eq-photo .material-icons { color: #C1892B; font-size: 40px; }
-.eq-name { font-weight: 600; font-size: 15px; margin: 12px 0 2px; }
-.eq-price { font-size: 13px; color: #5B6B57; margin: 0 0 12px; }
+.eq-photo .material-icons { color: #a06b16; font-size: 40px; }
+.eq-name { font-weight: 600; font-size: 14.5px; margin: 12px 0 2px; color: #1b3a24; }
+.eq-price { font-size: 12.5px; color: #667066; margin: 0 0 12px; }
 .eq-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
-.eq-dot-success { background: #3E7A4B; }
-.eq-dot-danger { background: #B54A3C; }
+.eq-dot-success { background: #2e7d32; }
+.eq-dot-danger { background: #a6322f; }
 .eq-status-readonly {
     width: auto !important; display: inline-flex !important; align-items: center; gap: 6px;
-    font-size: 12px; font-weight: 600; background: #fff; border: 1px solid #E4DCC8;
-    border-radius: 20px; padding: 4px 10px; color: #2B3A2A; font-family: inherit;
+    font-size: 11.5px; font-weight: 600; background: #fff; border: 1px solid #eceae4;
+    border-radius: 20px; padding: 4px 10px; color: #1b3a24; font-family: inherit;
 }
 
-.eq-section { background: #fff; border: 1px solid #E4DCC8; border-radius: 10px; padding: 22px 22px 8px; }
+.eq-section { background: #fff; border: 1px solid #eceae4; border-radius: 14px; padding: 20px 20px 8px; }
 .eq-section-header {
     display: flex; justify-content: space-between; align-items: center;
-    flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+    flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
 }
-.eq-section-header h2 { font-size: 18px; }
+.eq-section-header h2 { font-size: 16px; }
 
 .eq-modal {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    display: none; position: fixed; inset: 0; background: rgba(43, 58, 42, 0.45);
+    font-family: inherit;
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
     align-items: center; justify-content: center; z-index: 1000; padding: 20px;
 }
 .eq-modal.eq-open { display: flex; }
 .eq-modal-card {
-    background: #fff; border-radius: 14px; box-shadow: 0 12px 28px rgba(43, 58, 42, 0.14);
+    background: #fff; border-radius: 14px;
     width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; padding: 22px 24px 24px;
 }
 .eq-modal-card-wide { max-width: 720px; }
@@ -147,60 +152,60 @@ renderHeader('Equipment Rental');
 .eq-modal-header h2.eq-modal-title-center { text-align: center; }
 .eq-icon-btn {
     flex: 0 0 32px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
-    margin: 0; padding: 0; background: transparent; border: none; color: #5B6B57; cursor: pointer; border-radius: 6px;
+    margin: 0; padding: 0; background: transparent; border: none; color: #667066; cursor: pointer; border-radius: 6px;
 }
 .eq-icon-btn svg { width: 20px; height: 20px; display: block; }
-.eq-icon-btn:hover { background: #FAF7EF; color: #2B3A2A; }
+.eq-icon-btn:hover { background: #f7f8f5; color: #1b3a24; }
 
-.eq-modal-card label { display: block; font-size: 12.5px; font-weight: 600; color: #5B6B57; margin: 12px 0 5px; }
+.eq-modal-card label { display: block; font-size: 12.5px; font-weight: 600; color: #667066; margin: 12px 0 5px; }
 .eq-modal-card label:first-of-type { margin-top: 0; }
 .eq-modal-card input, .eq-modal-card select {
     width: 100%; font-family: inherit; font-size: 14px; padding: 9px 11px;
-    border: 1.5px solid #E4DCC8; border-radius: 8px; background: #FAF7EF; color: #2B3A2A; box-sizing: border-box;
+    border: 1.5px solid #eceae4; border-radius: 8px; background: #f7f8f5; color: #1b3a24; box-sizing: border-box;
 }
-.eq-modal-card input:focus, .eq-modal-card select:focus { outline: none; border-color: #33502F; background: #fff; }
+.eq-modal-card input:focus, .eq-modal-card select:focus { outline: none; border-color: #2e7d32; background: #fff; }
 
 .eq-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.eq-cost-summary { background: #FAF7EF; border-radius: 8px; padding: 12px 14px; margin: 16px 0; }
-.eq-cost-row { display: flex; justify-content: space-between; font-size: 13.5px; color: #5B6B57; padding: 3px 0; }
+.eq-cost-summary { background: #f7f8f5; border-radius: 10px; padding: 12px 14px; margin: 16px 0; }
+.eq-cost-row { display: flex; justify-content: space-between; font-size: 13.5px; color: #667066; padding: 3px 0; }
 .eq-cost-row.eq-cost-total {
-    color: #223A20; font-weight: 700; font-size: 15px; border-top: 1px solid #E4DCC8; margin-top: 4px; padding-top: 8px;
+    color: #1b3a24; font-weight: 700; font-size: 15px; border-top: 1px solid #eceae4; margin-top: 4px; padding-top: 8px;
 }
 
 .eq-error-box, .eq-success-box { display: none; font-size: 13px; padding: 9px 12px; border-radius: 8px; margin-bottom: 12px; }
-.eq-error-box.eq-show { display: block; background: #F6E1DC; color: #B54A3C; }
-.eq-success-box.eq-show { display: block; background: #E1EFDE; color: #3E7A4B; }
+.eq-error-box.eq-show { display: block; background: #fbe6e6; color: #a6322f; }
+.eq-success-box.eq-show { display: block; background: #e8f5e9; color: #2e7d32; }
 
 .eq-table-wrap { overflow-x: auto; }
 .eq-page table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-.eq-page thead th { text-align: left; font-size: 12px; font-weight: 600; color: #5B6B57; padding: 10px 8px; border-bottom: 1.5px solid #E4DCC8; }
+.eq-page thead th { text-align: left; font-size: 12px; font-weight: 600; color: #667066; padding: 10px 8px; border-bottom: 1.5px solid #eceae4; }
 .eq-page thead th.eq-text-right { text-align: right; }
-.eq-page tbody td { padding: 12px 8px; border-bottom: 1px solid #E4DCC8; }
+.eq-page tbody td { padding: 12px 8px; border-bottom: 1px solid #eceae4; }
 .eq-page tbody tr:last-child td { border-bottom: none; }
 
-.eq-status-badge { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
-.eq-status-badge.eq-rented { background: #F4E4C1; color: #C1892B; }
-.eq-status-badge.eq-overdue { background: #F6E1DC; color: #B54A3C; }
-.eq-status-badge.eq-returned { background: #E1EFDE; color: #3E7A4B; }
+.eq-status-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.eq-status-badge.eq-rented { background: #fdf1de; color: #a06b16; }
+.eq-status-badge.eq-overdue { background: #fbe6e6; color: #a6322f; }
+.eq-status-badge.eq-returned { background: #e8f5e9; color: #2e7d32; }
 
 .eq-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .eq-cal-nav-btn {
     width: auto !important; background: none !important; border: none !important; padding: 6px; border-radius: 6px;
-    cursor: pointer; color: #5B6B57; display: inline-flex !important; align-items: center; justify-content: center;
+    cursor: pointer; color: #667066; display: inline-flex !important; align-items: center; justify-content: center;
 }
-.eq-cal-nav-btn:hover { background: #FAF7EF !important; color: #2B3A2A; }
+.eq-cal-nav-btn:hover { background: #f7f8f5 !important; color: #1b3a24; }
 .eq-cal-nav-btn .material-icons { font-size: 20px; }
 .eq-cal-month { font-weight: 600; font-size: 16px; }
 .eq-cal-weekdays, .eq-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.eq-cal-weekdays div { text-align: center; font-size: 11.5px; color: #5B6B57; font-weight: 600; padding-bottom: 6px; }
-.eq-cal-grid .eq-cal-day { min-height: 64px; padding: 4px; border-radius: 6px; background: #FAF7EF; color: #5B6B57; font-size: 11.5px; overflow: hidden; }
+.eq-cal-weekdays div { text-align: center; font-size: 11.5px; color: #667066; font-weight: 600; padding-bottom: 6px; }
+.eq-cal-grid .eq-cal-day { min-height: 64px; padding: 4px; border-radius: 8px; background: #f7f8f5; color: #667066; font-size: 11.5px; overflow: hidden; }
 .eq-cal-grid .eq-cal-day.eq-empty { background: transparent; }
-.eq-cal-grid .eq-cal-day.eq-booked { background: #F4E4C1; }
+.eq-cal-grid .eq-cal-day.eq-booked { background: #fdf1de; }
 .eq-cal-day-num { font-size: 11.5px; }
 .eq-cal-booking { margin-top: 2px; line-height: 1.2; }
-.eq-cal-booking-name { font-size: 10px; font-weight: 600; color: #223A20; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.eq-cal-booking-equipment { font-size: 9.5px; color: #5B6B57; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.eq-cal-empty-msg { text-align: center; color: #5B6B57; font-size: 13px; padding: 24px 0; }
+.eq-cal-booking-name { font-size: 10px; font-weight: 600; color: #1b3a24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eq-cal-booking-equipment { font-size: 9.5px; color: #667066; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eq-cal-empty-msg { text-align: center; color: #667066; font-size: 13px; padding: 24px 0; }
 
 @media (max-width: 700px) {
     .eq-page table thead { display: none; }
@@ -208,33 +213,32 @@ renderHeader('Equipment Rental');
     .eq-page table tr {
         display: flex; flex-wrap: wrap; align-items: baseline;
         column-gap: 8px; row-gap: 4px;
-        border-bottom: 1px solid #E4DCC8; padding: 12px 0;
+        border-bottom: 1px solid #eceae4; padding: 12px 0;
     }
     .eq-page table tbody tr:last-child { border-bottom: none; }
     .eq-page table td { display: block; padding: 0; border-bottom: none !important; }
     .eq-page table td::before { content: none; }
 
-    .eq-cell-equipment { width: 100%; order: 1; font-weight: 600; font-size: 14px; color: #2B3A2A; }
-    .eq-cell-qty { order: 2; font-size: 12.5px; color: #5B6B57; }
+    .eq-cell-equipment { width: 100%; order: 1; font-weight: 600; font-size: 14px; color: #1b3a24; }
+    .eq-cell-qty { order: 2; font-size: 12.5px; color: #667066; }
     .eq-cell-qty::after { content: '\00a0\00b7\00a0'; }
-    .eq-cell-start, .eq-cell-return { order: 3; font-size: 12.5px; color: #5B6B57; }
+    .eq-cell-start, .eq-cell-return { order: 3; font-size: 12.5px; color: #667066; }
     .eq-cell-start::after { content: '\00a0\2013\00a0'; }
-    .eq-cell-location { order: 4; width: 100%; font-size: 12px; color: #5B6B57; }
+    .eq-cell-location { order: 4; width: 100%; font-size: 12px; color: #667066; }
     .eq-cell-location:not(:empty)::before { content: '\1F4CD\00a0'; }
     .eq-cell-status { order: 5; width: auto; margin-top: 2px; }
-    .eq-cell-total { order: 6; width: auto; margin-left: auto; margin-top: 2px; font-weight: 700; font-size: 14px; color: #223A20; }
+    .eq-cell-total { order: 6; width: auto; margin-left: auto; margin-top: 2px; font-weight: 700; font-size: 14px; color: #1b3a24; }
 }
 @media (max-width: 640px) {
     .eq-cal-grid .eq-cal-day { min-height: 52px; font-size: 10.5px; }
     .eq-cal-booking-name, .eq-cal-booking-equipment { font-size: 9px; }
 }
 @media (max-width: 560px) {
-    .eq-page { padding: 20px 16px 40px; }
     .eq-form-row { grid-template-columns: 1fr; }
     .eq-summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     .eq-metric-card { padding: 12px 14px; }
     .eq-metric-label { font-size: 11.5px; }
-    .eq-metric-value { font-size: 22px; }
+    .eq-metric-value { font-size: 20px; }
     .eq-equipment-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     .eq-photo { height: 100px; }
     .eq-card-body { padding: 12px; }
@@ -247,7 +251,7 @@ renderHeader('Equipment Rental');
         justify-content: space-between;
         flex-wrap: nowrap;
     }
-    .eq-section-header h2 { font-size: 16px; }
+    .eq-section-header h2 { font-size: 15px; }
     .eq-btn-group { width: auto; gap: 8px; flex-wrap: nowrap; }
     .eq-btn-group .eq-btn {
         width: 38px;
@@ -259,7 +263,7 @@ renderHeader('Equipment Rental');
     .eq-btn-group .eq-btn span:not(.material-icons) { display: none; }
     .eq-btn-group .eq-btn .material-icons { font-size: 18px; }
     .eq-modal { padding: 20px 16px; align-items: center; }
-    .eq-modal-card { max-width: 92%; max-height: 82vh; width: 92%; margin: 0 auto; padding: 14px 14px 14px; border-radius: 12px; }
+    .eq-modal-card { max-width: 92%; max-height: 82vh; width: 92%; margin: 0 auto; padding: 14px 14px 14px; border-radius: 14px; }
     .eq-modal-header { margin-bottom: 10px; }
     .eq-modal-header h2 { font-size: 16px; }
     .eq-modal-card label { font-size: 11.5px; margin: 8px 0 4px; }
@@ -276,9 +280,14 @@ renderHeader('Equipment Rental');
 
 <div class="eq-page">
 
-    <div class="eq-header">
-        <h1>Equipment rental</h1>
-        <p class="eq-muted">Browse and book coop equipment</p>
+    <div class="page-header">
+        <div class="page-header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L2 19l3 3 7.3-7.3a4 4 0 0 0 5.4-5.4l-2.1 2.1-2.7-2.7z"/></svg>
+        </div>
+        <div>
+            <p class="page-title">Equipment rental</p>
+            <p class="page-sub">Browse and book coop equipment</p>
+        </div>
     </div>
 
     <div class="eq-summary-grid">

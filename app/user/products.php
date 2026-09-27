@@ -22,47 +22,84 @@ renderHeader('Products');
 ?>
 
 <style>
-.svc-page-head {
-    display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-    margin-bottom: 20px; padding-bottom: 18px; border-bottom: 2px solid #E4DCC8;
+.page-shell {
+    width: 100%;
+    max-width: 780px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-.svc-page-head h1 { font-size: 24px; color: #2c2c2a; margin: 0 0 4px; font-weight: 600; }
-.svc-page-head p { font-size: 13px; color: #6b7280; margin: 0; }
 
-.svc-section-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 28px 0 14px; }
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.page-header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #eae6fb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.page-header-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: #4b2f9c;
+}
+
+.page-title {
+    margin: 0;
+    color: #1b3a24;
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.page-sub {
+    margin: 2px 0 0 0;
+    color: #667066;
+    font-size: 13.5px;
+}
+
+.svc-section-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 26px 0 14px; }
 .svc-section-head:first-of-type { margin-top: 0; }
-.svc-section-head h2 { font-size: 17px; margin: 0; color: #2c2c2a; }
+.svc-section-head h2 { font-size: 16px; margin: 0; color: #1b3a24; font-weight: 600; }
 
 .svc-btn {
     display: inline-flex !important; align-items: center; gap: 6px; width: auto !important; flex: 0 0 auto !important;
-    border-radius: 6px !important; padding: 9px 16px !important; font-size: 13px !important; font-weight: 600 !important;
+    border-radius: 10px !important; padding: 9px 16px !important; font-size: 13px !important; font-weight: 600 !important;
     cursor: pointer !important; border: none !important; text-transform: none !important; letter-spacing: normal !important;
 }
-.svc-btn-outline { background: #fff !important; color: #444 !important; border: 1px solid #d8d2c4 !important; }
-.svc-btn-primary { background: #3B6D11 !important; color: #fff !important; }
+.svc-btn-outline { background: #fff !important; color: #1b3a24 !important; border: 1px solid #eceae4 !important; }
+.svc-btn-primary { background: #2e7d32 !important; color: #fff !important; }
 
-.svc-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 8px; }
+.svc-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 8px; }
 @media (max-width: 560px) { .svc-product-grid { grid-template-columns: 1fr; } }
-.svc-product-card { background: #fff; border: 1px solid #e2e0d5; border-radius: 10px; overflow: hidden; }
-.svc-product-photo { height: 110px; background: #f3f1e8; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px; }
+.svc-product-card { background: #fff; border: 1px solid #eceae4; border-radius: 14px; overflow: hidden; }
+.svc-product-photo { height: 110px; background: #f7f8f5; display: flex; align-items: center; justify-content: center; color: #a9a79f; font-size: 12px; }
 .svc-product-photo img { width: 100%; height: 100%; object-fit: cover; }
 .svc-product-body { padding: 12px 14px; }
-.svc-product-name { font-weight: 600; font-size: 14px; margin: 0 0 4px; }
-.svc-product-meta { font-size: 12.5px; color: #6b7280; margin: 0 0 10px; }
+.svc-product-name { font-weight: 600; font-size: 14px; margin: 0 0 4px; color: #1b3a24; }
+.svc-product-meta { font-size: 12.5px; color: #667066; margin: 0 0 10px; }
 
 .svc-request-btn {
     display: inline-flex !important; width: auto !important; align-items: center; justify-content: center;
-    background: #3B6D11 !important; color: #fff !important; border: none !important; border-radius: 6px !important;
+    background: #2e7d32 !important; color: #fff !important; border: none !important; border-radius: 8px !important;
     padding: 7px 12px !important; font-size: 12px !important; font-weight: 600 !important; cursor: pointer !important; white-space: nowrap !important;
 }
 .svc-request-btn:disabled { background: #cbd5c8 !important; cursor: not-allowed !important; }
 
-.svc-table-wrap { overflow-x: auto; border: 1px solid #e2e0d5; border-radius: 10px; margin-bottom: 8px; }
+.svc-table-wrap { overflow-x: auto; border: 1px solid #eceae4; border-radius: 14px; margin-bottom: 8px; }
 .svc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.svc-table th { text-align: left; padding: 12px 14px; background: #fff; border-bottom: 1px solid #e2e0d5; color: #6b7280; font-weight: 600; }
-.svc-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0ea; color: #2c2c2a; vertical-align: top; }
+.svc-table th { text-align: left; padding: 12px 14px; background: #fff; border-bottom: 1px solid #eceae4; color: #667066; font-weight: 600; }
+.svc-table td { padding: 12px 14px; border-bottom: 1px solid #f0efe9; color: #1b3a24; vertical-align: top; }
 .svc-table tbody tr:last-child td { border-bottom: none; }
-.svc-empty { padding: 20px; text-align: center; color: #6b7280; font-size: 13px; }
+.svc-empty { padding: 20px; text-align: center; color: #667066; font-size: 13px; }
 
 /* Available Products: real <table> on wider screens, a plain div-based
    card grid on narrow screens (CSS Grid inside <table>/<tbody> renders
@@ -72,38 +109,38 @@ renderHeader('Products');
 .svc-mobile-only { display: none; }
 
 .svc-mobile-product-card {
-    background: #fff; border: 1px solid #e2e0d5; border-radius: 8px; padding: 10px 12px;
+    background: #fff; border: 1px solid #eceae4; border-radius: 12px; padding: 10px 12px;
 }
-.svc-mobile-product-name { font-weight: 600; font-size: 12.5px; margin: 0 0 4px; color: #2c2c2a; }
-.svc-mobile-product-meta { font-size: 11px; color: #6b7280; margin: 0 0 8px; line-height: 1.5; }
+.svc-mobile-product-name { font-weight: 600; font-size: 12.5px; margin: 0 0 4px; color: #1b3a24; }
+.svc-mobile-product-meta { font-size: 11px; color: #667066; margin: 0 0 8px; line-height: 1.5; }
 
 /* My Requests: a proper card design (name + status up top, quantity /
    pickup date side by side, manager note called out at the bottom)
    instead of a plain stacked label/value list. */
-.svc-request-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.svc-request-card { background: #fff; border: 1px solid #e2e0d5; border-radius: 10px; padding: 14px 16px; }
+.svc-request-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.svc-request-card { background: #fff; border: 1px solid #eceae4; border-radius: 14px; padding: 14px 16px; }
 .svc-request-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-.svc-request-card-name { font-weight: 600; font-size: 14px; color: #2c2c2a; margin: 0; }
+.svc-request-card-name { font-weight: 600; font-size: 14px; color: #1b3a24; margin: 0; }
 .svc-request-card-meta { display: flex; gap: 20px; margin-bottom: 8px; }
-.svc-request-card-meta div p:first-child { font-size: 11px; color: #9ca3af; text-transform: uppercase; margin: 0 0 2px; }
-.svc-request-card-meta div p:last-child { font-size: 13px; color: #2c2c2a; margin: 0; font-weight: 500; }
-.svc-request-card-note { font-size: 12.5px; color: #6b7280; background: #f7f6f0; border-radius: 6px; padding: 8px 10px; margin-top: 4px; }
-.svc-request-card-note strong { color: #2c2c2a; }
+.svc-request-card-meta div p:first-child { font-size: 11px; color: #a9a79f; text-transform: uppercase; margin: 0 0 2px; }
+.svc-request-card-meta div p:last-child { font-size: 13px; color: #1b3a24; margin: 0; font-weight: 500; }
+.svc-request-card-note { font-size: 12.5px; color: #667066; background: #f7f8f5; border-radius: 8px; padding: 8px 10px; margin-top: 4px; }
+.svc-request-card-note strong { color: #1b3a24; }
 
 #svcProductReqModalBackdrop, #svcNewProductModalBackdrop {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5);
     z-index: 100; align-items: center; justify-content: center; padding: 16px;
 }
-.svc-modal-box { background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 420px; box-sizing: border-box; position: relative; max-height: 90vh; overflow-y: auto; }
-.svc-form-label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
-.svc-form-input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px; font-size: 14px; font-family: inherit; }
-.svc-modal-errors, .svc-modal-success { display: none; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
-.svc-modal-errors { background: #f8d7da; color: #721c24; }
-.svc-modal-success { background: #d4edda; color: #155724; }
+.svc-modal-box { background: #fff; border-radius: 14px; padding: 24px; width: 100%; max-width: 420px; box-sizing: border-box; position: relative; max-height: 90vh; overflow-y: auto; }
+.svc-form-label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066; }
+.svc-form-input { width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 14px; font-size: 14px; font-family: inherit; }
+.svc-modal-errors, .svc-modal-success { display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
+.svc-modal-errors { background: #fbe6e6; color: #a6322f; }
+.svc-modal-success { background: #e8f5e9; color: #2e7d32; }
 .svc-close-btn {
     position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important;
     font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important;
-    color: #333 !important; line-height: 1 !important;
+    color: #667066 !important; line-height: 1 !important;
 }
 
 @media (max-width: 700px) {
@@ -116,119 +153,126 @@ renderHeader('Products');
 }
 </style>
 
-<div class="svc-page-head">
-    <div>
-        <h1>Products</h1>
-        <p>Browse cooperative products and track your requests.</p>
+<div class="page-shell">
+
+    <div class="page-header">
+        <div class="page-header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+        </div>
+        <div>
+            <p class="page-title">Products</p>
+            <p class="page-sub">Browse and request coop products</p>
+        </div>
     </div>
-</div>
 
-<!-- ============================================================
-     AVAILABLE PRODUCTS
-     ============================================================ -->
-<div class="svc-section-head">
-    <h2>Available Products</h2>
-</div>
+    <!-- ============================================================
+         AVAILABLE PRODUCTS
+         ============================================================ -->
+    <div class="svc-section-head">
+        <h2>Available Products</h2>
+    </div>
 
-<?php if (empty($products)): ?>
-    <p class="svc-empty">No products available right now.</p>
-<?php else: ?>
-    <div class="svc-table-wrap svc-desktop-only">
-        <table class="svc-table">
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Price / Unit</th>
-                    <th>Availability</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($products as $p): ?>
-                    <?php $isAvailable = $p['status'] === 'available' && (float)$p['stock_quantity'] > 0; ?>
+    <?php if (empty($products)): ?>
+        <p class="svc-empty">No products available right now.</p>
+    <?php else: ?>
+        <div class="svc-table-wrap svc-desktop-only">
+            <table class="svc-table">
+                <thead>
                     <tr>
-                        <td data-label="Product" style="font-weight:600;"><?php echo htmlspecialchars($p['name']); ?></td>
-                        <td data-label="Price / Unit">₱<?php echo number_format($p['price'], 2); ?> / <?php echo htmlspecialchars($p['unit']); ?></td>
-                        <td data-label="Availability"><?php echo $isAvailable ? number_format($p['stock_quantity'], 0) . ' ' . htmlspecialchars($p['unit']) . ' available' : 'Out of stock'; ?></td>
-                        <td data-label="Action">
-                            <button type="button" class="svc-request-btn request-product-btn"
-                                    data-id="<?php echo $p['id']; ?>" data-name="<?php echo htmlspecialchars($p['name']); ?>"
-                                    data-unit="<?php echo htmlspecialchars($p['unit']); ?>" data-stock="<?php echo $p['stock_quantity']; ?>"
-                                    <?php echo $isAvailable ? '' : 'disabled'; ?>>
-                                <?php echo $isAvailable ? 'Avail' : 'Unavailable'; ?>
-                            </button>
-                        </td>
+                        <th>Product</th>
+                        <th>Price / Unit</th>
+                        <th>Availability</th>
+                        <th>Action</th>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    <?php foreach ($products as $p): ?>
+                        <?php $isAvailable = $p['status'] === 'available' && (float)$p['stock_quantity'] > 0; ?>
+                        <tr>
+                            <td data-label="Product" style="font-weight:600;"><?php echo htmlspecialchars($p['name']); ?></td>
+                            <td data-label="Price / Unit">₱<?php echo number_format($p['price'], 2); ?> / <?php echo htmlspecialchars($p['unit']); ?></td>
+                            <td data-label="Availability"><?php echo $isAvailable ? number_format($p['stock_quantity'], 0) . ' ' . htmlspecialchars($p['unit']) . ' available' : 'Out of stock'; ?></td>
+                            <td data-label="Action">
+                                <button type="button" class="svc-request-btn request-product-btn"
+                                        data-id="<?php echo $p['id']; ?>" data-name="<?php echo htmlspecialchars($p['name']); ?>"
+                                        data-unit="<?php echo htmlspecialchars($p['unit']); ?>" data-stock="<?php echo $p['stock_quantity']; ?>"
+                                        <?php echo $isAvailable ? '' : 'disabled'; ?>>
+                                    <?php echo $isAvailable ? 'Avail' : 'Unavailable'; ?>
+                                </button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
 
-    <div class="svc-mobile-only">
-        <?php foreach ($products as $p): ?>
-            <?php $isAvailable = $p['status'] === 'available' && (float)$p['stock_quantity'] > 0; ?>
-            <div class="svc-mobile-product-card">
-                <p class="svc-mobile-product-name"><?php echo htmlspecialchars($p['name']); ?></p>
-                <p class="svc-mobile-product-meta">
-                    ₱<?php echo number_format($p['price'], 2); ?> / <?php echo htmlspecialchars($p['unit']); ?><br>
-                    <?php echo $isAvailable ? number_format($p['stock_quantity'], 0) . ' ' . htmlspecialchars($p['unit']) . ' avail.' : 'Out of stock'; ?>
-                </p>
-                <button type="button" class="svc-request-btn request-product-btn" style="width:100%;"
-                        data-id="<?php echo $p['id']; ?>" data-name="<?php echo htmlspecialchars($p['name']); ?>"
-                        data-unit="<?php echo htmlspecialchars($p['unit']); ?>" data-stock="<?php echo $p['stock_quantity']; ?>"
-                        <?php echo $isAvailable ? '' : 'disabled'; ?>>
-                    <?php echo $isAvailable ? 'Avail' : 'Unavailable'; ?>
-                </button>
-            </div>
-        <?php endforeach; ?>
-    </div>
-<?php endif; ?>
+        <div class="svc-mobile-only">
+            <?php foreach ($products as $p): ?>
+                <?php $isAvailable = $p['status'] === 'available' && (float)$p['stock_quantity'] > 0; ?>
+                <div class="svc-mobile-product-card">
+                    <p class="svc-mobile-product-name"><?php echo htmlspecialchars($p['name']); ?></p>
+                    <p class="svc-mobile-product-meta">
+                        ₱<?php echo number_format($p['price'], 2); ?> / <?php echo htmlspecialchars($p['unit']); ?><br>
+                        <?php echo $isAvailable ? number_format($p['stock_quantity'], 0) . ' ' . htmlspecialchars($p['unit']) . ' avail.' : 'Out of stock'; ?>
+                    </p>
+                    <button type="button" class="svc-request-btn request-product-btn" style="width:100%;"
+                            data-id="<?php echo $p['id']; ?>" data-name="<?php echo htmlspecialchars($p['name']); ?>"
+                            data-unit="<?php echo htmlspecialchars($p['unit']); ?>" data-stock="<?php echo $p['stock_quantity']; ?>"
+                            <?php echo $isAvailable ? '' : 'disabled'; ?>>
+                        <?php echo $isAvailable ? 'Avail' : 'Unavailable'; ?>
+                    </button>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 
-<!-- ============================================================
-     MY REQUESTS
-     ============================================================ -->
-<div class="svc-section-head">
-    <h2>My Requests</h2>
-    <button type="button" class="svc-btn svc-btn-outline" id="openNewProductBtn">+ Request a Product</button>
+    <!-- ============================================================
+         MY REQUESTS
+         ============================================================ -->
+    <div class="svc-section-head">
+        <h2>My Requests</h2>
+        <button type="button" class="svc-btn svc-btn-outline" id="openNewProductBtn">+ Request a Product</button>
+    </div>
+    <?php if (empty($myProductRequests)): ?>
+        <p class="svc-empty">You haven't requested any products yet.</p>
+    <?php else: ?>
+        <div class="svc-request-grid">
+            <?php foreach ($myProductRequests as $r): ?>
+                <?php
+                    $productLabel = $r['product_name'] ?? ($r['requested_product_name'] . ' (not yet carried)');
+                    $qtyDisplay = rtrim(rtrim(number_format($r['quantity'], 2), '0'), '.') . ' ' . ($r['product_unit'] ?? '');
+                ?>
+                <div class="svc-request-card">
+                    <div class="svc-request-card-head">
+                        <p class="svc-request-card-name"><?php echo htmlspecialchars($productLabel); ?></p>
+                        <?php echo productRequestStatusBadge($r['status']); ?>
+                    </div>
+                    <div class="svc-request-card-meta">
+                        <div>
+                            <p>Quantity</p>
+                            <p><?php echo htmlspecialchars($qtyDisplay); ?></p>
+                        </div>
+                        <div>
+                            <p>Pickup Date</p>
+                            <p><?php echo date('M j, Y', strtotime($r['pickup_date'])); ?></p>
+                        </div>
+                    </div>
+                    <?php if (!empty($r['manager_note'])): ?>
+                        <div class="svc-request-card-note"><strong>Manager note:</strong> <?php echo htmlspecialchars($r['manager_note']); ?></div>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
 </div>
-<?php if (empty($myProductRequests)): ?>
-    <p class="svc-empty">You haven't requested any products yet.</p>
-<?php else: ?>
-    <div class="svc-request-grid">
-        <?php foreach ($myProductRequests as $r): ?>
-            <?php
-                $productLabel = $r['product_name'] ?? ($r['requested_product_name'] . ' (not yet carried)');
-                $qtyDisplay = rtrim(rtrim(number_format($r['quantity'], 2), '0'), '.') . ' ' . ($r['product_unit'] ?? '');
-            ?>
-            <div class="svc-request-card">
-                <div class="svc-request-card-head">
-                    <p class="svc-request-card-name"><?php echo htmlspecialchars($productLabel); ?></p>
-                    <?php echo productRequestStatusBadge($r['status']); ?>
-                </div>
-                <div class="svc-request-card-meta">
-                    <div>
-                        <p>Quantity</p>
-                        <p><?php echo htmlspecialchars($qtyDisplay); ?></p>
-                    </div>
-                    <div>
-                        <p>Pickup Date</p>
-                        <p><?php echo date('M j, Y', strtotime($r['pickup_date'])); ?></p>
-                    </div>
-                </div>
-                <?php if (!empty($r['manager_note'])): ?>
-                    <div class="svc-request-card-note"><strong>Manager note:</strong> <?php echo htmlspecialchars($r['manager_note']); ?></div>
-                <?php endif; ?>
-            </div>
-        <?php endforeach; ?>
-    </div>
-<?php endif; ?>
 
 <!-- ============================================================
      MODAL - Request Product (listed product)
      ============================================================ -->
 <div id="svcProductReqModalBackdrop">
     <div class="svc-modal-box">
-        <h2 id="productReqTitle" style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Request Product</h2>
+        <h2 id="productReqTitle" style="margin: 0 0 16px 0; font-size: 18px; text-align: center; color: #1b3a24;">Request Product</h2>
         <button type="button" id="closeProductReqModalBtn" class="svc-close-btn">&times;</button>
         <div id="productReqErrors" class="svc-modal-errors"></div>
         <div id="productReqSuccess" class="svc-modal-success">Request submitted. The manager will review it shortly.</div>
@@ -255,7 +299,7 @@ renderHeader('Products');
      ============================================================ -->
 <div id="svcNewProductModalBackdrop">
     <div class="svc-modal-box">
-        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Request a Product</h2>
+        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center; color: #1b3a24;">Request a Product</h2>
         <button type="button" id="closeNewProductModalBtn" class="svc-close-btn">&times;</button>
         <div id="newProductErrors" class="svc-modal-errors"></div>
         <div id="newProductSuccess" class="svc-modal-success">Request submitted. The manager will review it shortly.</div>
