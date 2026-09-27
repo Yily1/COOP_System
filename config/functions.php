@@ -892,6 +892,7 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/manager/crops/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/crops/crops.php">Crops</a>
                             <a class="<?php echo navActive('/app/manager/loans/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/loans/loans.php">Loans</a>
                             <a class="<?php echo navActive('/app/manager/products/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/products/products.php">Products</a>
+                            <a class="<?php echo navActive('/app/manager/resources/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/resources/resources.php">Resources Distribution</a>
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/user/profile.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/profile.php">My Account</a>
@@ -997,5 +998,60 @@ function renderFooter() {
     </body>
     </html>
     <?php
+}
+
+/**
+ * All members, with a comma-separated list of their eligible crop names
+ * (growing, ready_to_harvest, or harvested). eligible_crops is null/empty
+ * for members with no qualifying planting.
+ */
+function getMembersWithEligibility(PDO $pdo): array {
+    $stmt = $pdo->query("
+        SELECT
+            m.id,
+            m.membership_id,
+            m.last_name,
+            m.first_name,
+            (
+                SELECT GROUP_CONCAT(DISTINCT c.crop_name ORDER BY c.crop_name SEPARATOR ', ')
+                FROM crops c
+                WHERE c.member_id = m.id
+                  AND c.status IN ('growing', 'ready_to_harvest', 'harvested')
+            ) AS eligible_crops
+        FROM members m
+        ORDER BY m.last_name, m.first_name
+    ");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Server-side re-check: true only if this member has at least one crop
+ * that is growing, ready_to_harvest, or harvested.
+ */
+function memberIsEligibleForResources(PDO $pdo, int $memberId): bool {
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) FROM crops
+        WHERE member_id = ? AND status IN ('growing', 'ready_to_harvest', 'harvested')
+    ");
+    $stmt->execute([$memberId]);
+    return (int) $stmt->fetchColumn() > 0;
+}
+
+function distributeResource(PDO $pdo, int $memberId, string $resourceName, string $quantity, int $distributedBy, ?string $notes = null): bool {
+    $stmt = $pdo->prepare("
+        INSERT INTO resource_distributions (member_id, resource_name, quantity, distributed_by, notes)
+        VALUES (?, ?, ?, ?, ?)
+    ");
+    return $stmt->execute([$memberId, $resourceName, $quantity, $distributedBy, $notes]);
+}
+
+function getResourceDistributions(PDO $pdo): array {
+    $stmt = $pdo->query("
+        SELECT rd.*, m.last_name, m.first_name
+        FROM resource_distributions rd
+        JOIN members m ON m.id = rd.member_id
+        ORDER BY rd.created_at DESC
+    ");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
