@@ -6,6 +6,8 @@
  *
  * - No ?id in URL  -> list view: search, create meeting, upcoming list, calendar
  * - ?id=<number>   -> detail view: meeting info + member search/check-in
+ *
+ * Uses the JSON API in ./api/ (checkins.php, members.php).
  */
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/functions.php';
@@ -173,14 +175,24 @@ if ($viewingId) {
     let currentMember = null;
     let debounceTimer = null;
 
+    async function apiFetch(url, options) {
+        const r = await fetch(url, options);
+        if (r.status === 401) {
+            window.location.href = '<?= BASE_URL ?>/index.php';
+            throw new Error('Session expired');
+        }
+        return r;
+    }
+
     function initials(name) {
         return name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
     }
 
     function loadAttendance() {
-        fetch('ajax/list_checkins.php?meeting_id=' + meetingId)
+        apiFetch('api/checkins.php?meeting_id=' + meetingId)
             .then(r => r.json())
-            .then(data => {
+            .then(res => {
+                const data = res.data || [];
                 attendanceCount.textContent = '(' + data.length + ')';
                 if (!data.length) {
                     attendanceList.innerHTML = '';
@@ -208,9 +220,10 @@ if ($viewingId) {
         if (!q) { suggestions.style.display = 'none'; return; }
 
         debounceTimer = setTimeout(() => {
-            fetch('ajax/search_member.php?q=' + encodeURIComponent(q))
+            apiFetch('api/members.php?q=' + encodeURIComponent(q))
                 .then(r => r.json())
-                .then(data => {
+                .then(res => {
+                    const data = res.data || [];
                     if (!data.length) { suggestions.style.display = 'none'; return; }
                     suggestions.innerHTML = '';
                     data.forEach(m => {
@@ -237,15 +250,15 @@ if ($viewingId) {
     checkinBtn.addEventListener('click', () => {
         if (!currentMember) return;
         checkinBtn.disabled = true;
-        fetch('ajax/checkin.php', {
+        apiFetch('api/checkins.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'meeting_id=' + meetingId + '&member_id=' + currentMember.id
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meeting_id: meetingId, member_id: currentMember.id })
         })
-            .then(r => r.json())
-            .then(data => {
+            .then(async r => ({ ok: r.ok, body: await r.json() }))
+            .then(({ ok, body }) => {
                 checkinBtn.disabled = false;
-                if (data.success) {
+                if (ok) {
                     checkinMsg.textContent = currentMember.name + ' checked in.';
                     checkinMsg.style.display = 'block';
                     checkinError.style.display = 'none';
@@ -254,7 +267,7 @@ if ($viewingId) {
                     currentMember = null;
                     loadAttendance();
                 } else {
-                    checkinError.textContent = data.message || 'Check-in failed.';
+                    checkinError.textContent = body.error || 'Check-in failed.';
                     checkinError.style.display = 'block';
                 }
             });
@@ -300,13 +313,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $query   = trim($_GET['q'] ?? '');
 $showAll = isset($_GET['all']);
 
+// Sort by MEETING DATE:
+//  1) upcoming (today onwards) first, nearest date on top
+//  2) then past meetings, most recent first
+//  3) same date -> earlier time first
+// Used by the default view, View All, and Search.
+$orderBy = "ORDER BY (meeting_date < CURDATE()) ASC,
+                     CASE WHEN meeting_date >= CURDATE() THEN meeting_date END ASC,
+                     CASE WHEN meeting_date <  CURDATE() THEN meeting_date END DESC,
+                     `time` ASC";
+
 if ($query !== '') {
-    $stmt = $pdo->prepare('SELECT * FROM meetings WHERE title LIKE :q ORDER BY meeting_date DESC, `time` DESC');
-    $stmt->execute([':q' => '%' . $query . '%']);
+    // Search by title OR date (e.g. "kani", "2026-09-29", "Sep 29", "September 29, 2026")
+    $stmt = $pdo->prepare(
+        "SELECT * FROM meetings
+         WHERE title LIKE :q1
+            OR meeting_date LIKE :q2
+            OR DATE_FORMAT(meeting_date, '%b %e, %Y') LIKE :q3
+            OR DATE_FORMAT(meeting_date, '%M %e, %Y') LIKE :q4
+         $orderBy"
+    );
+    $like = '%' . $query . '%';
+    $stmt->execute([':q1' => $like, ':q2' => $like, ':q3' => $like, ':q4' => $like]);
 } elseif ($showAll) {
-    $stmt = $pdo->query('SELECT * FROM meetings ORDER BY meeting_date DESC, `time` DESC');
+    // View All: every meeting, same date-based order
+    $stmt = $pdo->query("SELECT * FROM meetings $orderBy");
 } else {
-    $stmt = $pdo->query('SELECT * FROM meetings ORDER BY meeting_date DESC, `time` DESC LIMIT 10');
+    // Default: only the first 5
+    $stmt = $pdo->query("SELECT * FROM meetings $orderBy LIMIT 5");
 }
 $meetings = $stmt->fetchAll();
 
@@ -489,10 +523,27 @@ renderHeader('Meetings');
 
 <div class="mtg-layout">
     <div>
-        <form method="get" class="mtg-search-wrap">
+        <form method="get" class="mtg-search-wrap" id="mtg-search-form">
             <span class="mtg-search-icon">&#128269;</span>
-            <input type="text" name="q" placeholder="Search meetings..." value="<?= htmlspecialchars($query) ?>" />
+            <input type="text" name="q" placeholder="Search by title or date..." value="<?= htmlspecialchars($query) ?>" autocomplete="off" />
         </form>
+        <script>
+        // Live search: auto-submit shortly after the user stops typing (Enter still works).
+        (function () {
+            const form = document.getElementById('mtg-search-form');
+            const box  = form.querySelector('input[name="q"]');
+            let timer = null;
+            box.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => form.submit(), 400);
+            });
+            // Keep the cursor in the box (at the end) after the page reloads with results.
+            if (box.value) {
+                box.focus();
+                box.setSelectionRange(box.value.length, box.value.length);
+            }
+        })();
+        </script>
 
         <div class="mtg-section-row">
             <p class="mtg-section-label">Upcoming meetings</p>
@@ -640,6 +691,15 @@ let ilMeetingId = null;
 let ilCurrentMember = null;
 let ilDebounce = null;
 
+async function apiFetch(url, options) {
+    const r = await fetch(url, options);
+    if (r.status === 401) {
+        window.location.href = '<?= BASE_URL ?>/index.php';
+        throw new Error('Session expired');
+    }
+    return r;
+}
+
 function ilInitials(name) {
     return name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
 }
@@ -705,9 +765,10 @@ function mtgViewAttendance(meetingId) {
     vaEmpty.style.display = 'none';
     vaOverlay.style.display = 'flex';
 
-    fetch('ajax/list_checkins.php?meeting_id=' + meetingId)
+    apiFetch('api/checkins.php?meeting_id=' + meetingId)
         .then(r => r.json())
-        .then(data => {
+        .then(res => {
+            const data = res.data || [];
             vaCount.textContent = '(' + data.length + ')';
             if (!data.length) {
                 vaEmpty.style.display = 'block';
@@ -739,9 +800,10 @@ ilInput.addEventListener('input', () => {
     if (!q) { ilSuggestions.style.display = 'none'; return; }
 
     ilDebounce = setTimeout(() => {
-        fetch('ajax/search_member.php?q=' + encodeURIComponent(q))
+        apiFetch('api/members.php?q=' + encodeURIComponent(q))
             .then(r => r.json())
-            .then(data => {
+            .then(res => {
+                const data = res.data || [];
                 if (!data.length) { ilSuggestions.style.display = 'none'; return; }
                 ilSuggestions.innerHTML = '';
                 data.forEach(m => {
@@ -768,15 +830,15 @@ ilInput.addEventListener('input', () => {
 ilCheckinBtn.addEventListener('click', () => {
     if (!ilCurrentMember || !ilMeetingId) return;
     ilCheckinBtn.disabled = true;
-    fetch('ajax/checkin.php', {
+    apiFetch('api/checkins.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'meeting_id=' + ilMeetingId + '&member_id=' + ilCurrentMember.id
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meeting_id: ilMeetingId, member_id: ilCurrentMember.id })
     })
-        .then(r => r.json())
-        .then(data => {
+        .then(async r => ({ ok: r.ok, body: await r.json() }))
+        .then(({ ok, body }) => {
             ilCheckinBtn.disabled = false;
-            if (data.success) {
+            if (ok) {
                 ilMsg.textContent = ilCurrentMember.name + ' checked in.';
                 ilMsg.style.display = 'block';
                 ilError.style.display = 'none';
@@ -784,7 +846,7 @@ ilCheckinBtn.addEventListener('click', () => {
                 ilInput.value = '';
                 ilCurrentMember = null;
             } else {
-                ilError.textContent = data.message || 'Check-in failed.';
+                ilError.textContent = body.error || 'Check-in failed.';
                 ilError.style.display = 'block';
             }
         });

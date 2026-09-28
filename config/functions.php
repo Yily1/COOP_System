@@ -27,6 +27,25 @@ function requireRole($role) {
 }
 
 /**
+ * API versions of requireLogin()/requireRole().
+ * Imbes na redirect o die(), JSON + tamang status code ang sagot.
+ */
+function apiRequireRole($role) {
+    if (!isLoggedIn()) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Unauthorized. Please log in.']);
+        exit;
+    }
+    if (!hasRole($role)) {
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => "Forbidden. Required role: $role"]);
+        exit;
+    }
+}
+
+/**
  * Central permission rules for editing/deleting a target user.
  * Used by BOTH the UI (to show/hide links) and the actual
  * update/delete scripts (to actually enforce it). Previously
