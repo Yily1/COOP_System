@@ -503,7 +503,7 @@ renderHeader('Equipment Rental');
 
 
 <script>
-    window.EQUIPMENT_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/equipment/ajax/";
+    window.EQUIPMENT_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/equipment/api/";
 </script>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js"></script>
