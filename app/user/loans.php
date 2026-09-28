@@ -269,7 +269,7 @@ renderHeader('Loans');
 
 <script>
 (function() {
-    const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/loans/ajax/';
+    const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/loans/api/';
 
     const backdrop = document.getElementById('svcLoanModalBackdrop');
     const form = document.getElementById('loanForm');

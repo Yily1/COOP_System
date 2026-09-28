@@ -154,7 +154,7 @@ renderHeader('Loans');
 
 <script>
 (function() {
-    const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/loans/ajax/';
+    const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/loans/api/';
 
     document.querySelectorAll('.loan-action-btn').forEach(function(btn) {
         btn.addEventListener('click', async function() {
