@@ -324,7 +324,7 @@ renderHeader('Products');
 
 <script>
 (function() {
-    const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/products/ajax/';
+    const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/products/api/';
     const today = new Date().toISOString().slice(0, 10);
 
     /* ---------- Request listed product modal ---------- */

@@ -301,7 +301,7 @@ renderHeader('Products');
 
 <script>
 (function() {
-    const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/products/ajax/';
+    const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/products/api/';
 
     /* ---------- Product modal (add / edit) ---------- */
     const productBackdrop = document.getElementById('svcModalBackdrop');
