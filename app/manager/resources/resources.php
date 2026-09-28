@@ -393,7 +393,8 @@ renderHeader('Resource Distribution');
 
 
 <script>
-    window.RESOURCES_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/resources/ajax/";
+    window.RESOURCES_API_URL = "<?php echo BASE_URL; ?>/app/manager/resources/api/distributions.php";
+    window.RESOURCES_LOGIN_URL = "<?php echo BASE_URL; ?>/index.php";
 </script>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/resources/resources.js"></script>
