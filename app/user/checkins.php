@@ -238,6 +238,128 @@ renderHeader($pageTitle);
         color: #667066;
         font-size: 13px;
     }
+
+    /* ============================================================
+       MEETING DETAILS MODAL (compact + narrow)
+       ============================================================ */
+    .md-backdrop {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 100;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        box-sizing: border-box;
+    }
+
+    .md-modal {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        width: 78%;
+        max-width: 280px;
+        max-height: 80vh;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+
+    .md-header {
+        flex-shrink: 0;
+        background: #2e7d32;
+        padding: 12px 40px 10px 14px;
+    }
+
+    .md-eyebrow {
+        margin: 0 0 2px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .06em;
+        color: rgba(255, 255, 255, 0.8);
+        text-transform: uppercase;
+        line-height: 1.4;
+    }
+
+    .md-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        line-height: 1.3;
+        word-break: break-word;
+    }
+
+    button.md-close {
+        position: absolute !important;
+        top: 8px !important;
+        right: 8px !important;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 22px !important;
+        height: 22px !important;
+        max-width: 22px !important;
+        flex: 0 0 auto !important;
+        padding: 0 !important;
+        background: rgba(255, 255, 255, 0.22) !important;
+        border: none !important;
+        border-radius: 50% !important;
+        color: #fff !important;
+        font-size: 16px !important;
+        line-height: 1 !important;
+        cursor: pointer;
+        box-shadow: none !important;
+    }
+
+    .md-body {
+        padding: 10px 14px 14px;
+        overflow-y: auto;
+    }
+
+    .md-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+
+    .md-box {
+        background: #f7f8f5;
+        border-radius: 8px;
+        padding: 6px 8px;
+        min-width: 0;
+    }
+
+    .md-label {
+        margin: 0 0 1px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        color: #7c877c;
+        text-transform: uppercase;
+        line-height: 1.4;
+    }
+
+    .md-value {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: #1b1b1b;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+
+    .md-desc-text {
+        margin: 0;
+        font-size: 12px;
+        color: #1b1b1b;
+        line-height: 1.5;
+        white-space: pre-line;
+        word-break: break-word;
+    }
 </style>
 
 <div class="page-shell">
@@ -248,7 +370,7 @@ renderHeader($pageTitle);
         </div>
         <div>
             <p class="page-title"><?php echo htmlspecialchars($pageTitle); ?></p>
-            <p class="page-sub">Your check-in records attendance </p>
+            <p class="page-sub">Your meeting attendance records</p>
         </div>
     </div>
 
@@ -312,41 +434,38 @@ renderHeader($pageTitle);
 </div>
 
 <!-- ============================================================
-     MODAL - Meeting Details (same pattern as dashboard.php)
+     MODAL - Meeting Details (compact + narrow)
 ============================================================ -->
-<div id="meetingDetailsBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
-    <div style="background: #fff; border-radius: 14px; width: 100%; max-width: 400px; max-height: 80vh; overflow-y: auto; box-sizing: border-box; position: relative;">
-        <button id="closeMeetingDetailsBtn"
-                style="position: absolute !important; top: 14px !important; right: 14px !important; background: rgba(255,255,255,0.2) !important; border: none !important; font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important; max-width: 28px !important; flex: 0 0 auto !important; color: #fff !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center; border-radius: 50% !important;">&times;</button>
+<div id="meetingDetailsBackdrop" class="md-backdrop">
+    <div class="md-modal">
+        <button id="closeMeetingDetailsBtn" type="button" class="md-close" aria-label="Close">&times;</button>
 
-        <div style="background: #2e7d32; padding: 28px 28px 20px;">
-            <p style="margin: 0 0 4px; font-size: 11px; font-weight: 700; letter-spacing: .06em; color: rgba(255,255,255,0.75); text-transform: uppercase;">Meeting details</p>
-            <h2 id="mdTitle" style="margin: 0; font-size: 21px; font-weight: 700; color: #fff;"></h2>
+        <div class="md-header">
+            <p class="md-eyebrow">Meeting details</p>
+            <h2 id="mdTitle" class="md-title"></h2>
         </div>
 
-        <div style="padding: 24px 28px 28px;">
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                <div style="background: #f7f8f5; border-radius: 10px; padding: 12px;">
-                    <p style="margin: 0 0 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: #98a498; text-transform: uppercase;">Date</p>
-                    <p id="mdDate" style="margin: 0; font-size: 15px; font-weight: 600; color: #000;"></p>
+        <div class="md-body">
+            <div class="md-grid">
+                <div class="md-box">
+                    <p class="md-label">Date</p>
+                    <p id="mdDate" class="md-value"></p>
                 </div>
-                <div style="background: #f7f8f5; border-radius: 10px; padding: 12px;">
-                    <p style="margin: 0 0 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: #98a498; text-transform: uppercase;">Time</p>
-                    <p id="mdTime" style="margin: 0; font-size: 15px; font-weight: 600; color: #000;"></p>
+                <div class="md-box">
+                    <p class="md-label">Time</p>
+                    <p id="mdTime" class="md-value"></p>
                 </div>
             </div>
 
-            <div style="background: #f7f8f5; border-radius: 10px; padding: 12px; margin-bottom: 18px;">
-                <p style="margin: 0 0 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: #98a498; text-transform: uppercase;">Location</p>
-                <p id="mdLocation" style="margin: 0; font-size: 15px; font-weight: 600; color: #000;"></p>
+            <div id="mdLocationWrap" class="md-box" style="margin-bottom: 10px;">
+                <p class="md-label">Location</p>
+                <p id="mdLocation" class="md-value"></p>
             </div>
 
-            <div>
-                <p style="margin: 0 0 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: #98a498; text-transform: uppercase;">Description</p>
-                <p id="mdAgenda" style="margin: 0; font-size: 14px; color: #000; line-height: 1.65; white-space: pre-line;"></p>
+            <div id="mdDescWrap">
+                <p class="md-label" style="margin-bottom: 3px;">Description</p>
+                <p id="mdAgenda" class="md-desc-text"></p>
             </div>
-
         </div>
     </div>
 </div>
@@ -359,7 +478,9 @@ renderHeader($pageTitle);
     const mdDate = document.getElementById('mdDate');
     const mdTime = document.getElementById('mdTime');
     const mdLocation = document.getElementById('mdLocation');
+    const mdLocationWrap = document.getElementById('mdLocationWrap');
     const mdAgenda = document.getElementById('mdAgenda');
+    const mdDescWrap = document.getElementById('mdDescWrap');
 
     function closeModal() { backdrop.style.display = 'none'; }
     closeBtn.addEventListener('click', closeModal);
@@ -370,8 +491,22 @@ renderHeader($pageTitle);
             mdTitle.textContent = card.dataset.title;
             mdDate.textContent = card.dataset.date;
             mdTime.textContent = card.dataset.time || 'Not set';
-            mdLocation.textContent = card.dataset.location || 'No location set';
-            mdAgenda.textContent = card.dataset.agenda || 'No description provided.';
+
+            // Hide Location / Description when empty
+            if (card.dataset.location) {
+                mdLocation.textContent = card.dataset.location;
+                mdLocationWrap.style.display = 'block';
+            } else {
+                mdLocationWrap.style.display = 'none';
+            }
+
+            if (card.dataset.agenda) {
+                mdAgenda.textContent = card.dataset.agenda;
+                mdDescWrap.style.display = 'block';
+            } else {
+                mdDescWrap.style.display = 'none';
+            }
+
             backdrop.style.display = 'flex';
         });
     });
