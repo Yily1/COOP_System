@@ -565,7 +565,7 @@ renderHeader('Crops Management');
 
 
 <script>
-    window.CROPS_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/crops/ajax/";
+    window.CROPS_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/crops/api/";
 </script>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/crops/crops.js"></script>
