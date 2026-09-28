@@ -28,8 +28,7 @@ renderHeader('Equipment Rental');
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     color: #1b3a24;
     width: 100%;
-    max-width: 960px;
-    margin: 0 auto;
+    max-width: 100%;
 }
 
 .eq-page h1, .eq-page h2 {
@@ -43,19 +42,32 @@ renderHeader('Equipment Rental');
 .eq-text-center { text-align: center; }
 .eq-text-right { text-align: right; }
 
-.page-header {
+.eq-header {
     display: flex;
     align-items: center;
     gap: 14px;
     margin-bottom: 22px;
 }
-.page-header-icon {
-    width: 48px; height: 48px; border-radius: 50%; background: #fdf1de;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+
+.eq-header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #fdf1de;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
-.page-header-icon svg { width: 22px; height: 22px; stroke: #a06b16; }
-.page-title { margin: 0; color: #1b3a24; font-size: 19px; font-weight: 600; }
-.page-sub { margin: 2px 0 0 0; color: #667066; font-size: 13.5px; }
+
+.eq-header-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: #a06b16;
+}
+
+.eq-header h1 { font-size: 19px; }
+.eq-header .eq-muted { margin: 2px 0 0; font-size: 13.5px; }
 
 .eq-btn {
     box-sizing: border-box;
@@ -66,41 +78,48 @@ renderHeader('Equipment Rental');
     gap: 6px;
     white-space: nowrap;
     font-family: inherit;
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
     padding: 9px 16px;
     border-radius: 10px;
-    border: 1.5px solid #2e7d32;
-    background: transparent;
-    color: #2e7d32;
+    border: none;
+    background: #f7f8f5;
+    color: #1b3a24;
     cursor: pointer;
     transition: transform 0.12s ease, background 0.12s ease;
 }
 .eq-btn .material-icons { font-size: 17px; flex-shrink: 0; }
-.eq-btn:hover { background: #e8f5e9; }
+.eq-btn:hover { background: #eceae4; }
 .eq-btn:active { transform: scale(0.97); }
-.eq-btn-outline { border-color: #eceae4; color: #1b3a24; background: #fff; }
-.eq-btn-outline:hover { border-color: #2e7d32; }
+.eq-btn-outline { border: 1px solid #eceae4; color: #1b3a24; background: #fff; }
+.eq-btn-outline:hover { border-color: #2e7d32; background: #f7f8f5; }
 .eq-btn-primary { background: #2e7d32; border-color: #2e7d32; color: #fff; }
 .eq-btn-primary:hover { background: #256b28; }
 .eq-btn-full { width: 100%; justify-content: center; padding: 11px; }
 .eq-btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .eq-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 22px;
 }
-.eq-metric-card { background: #fff; border: 1px solid #eceae4; border-radius: 14px; padding: 16px 18px; }
-.eq-metric-label { font-size: 12px; color: #667066; margin: 0 0 6px; }
-.eq-metric-value { font-size: 24px; font-weight: 700; color: #1b3a24; margin: 0; }
+.eq-metric-card {
+    background: #2e7d32;
+    border-radius: 14px;
+    padding: 14px 20px;
+    flex: 0 0 auto;
+    text-align: center;
+}
+.eq-metric-card.eq-tone-blue { background: #274b81; }
+.eq-metric-label { font-size: 11px; color: rgba(255,255,255,0.85); margin: 0 0 4px; }
+.eq-metric-value { font-size: 20px; font-weight: 700; color: #fff; margin: 0; }
 
 .eq-equipment-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 10px;
-    margin-bottom: 28px;
+    gap: 12px;
+    margin-bottom: 26px;
 }
 .eq-card {
     background: #fff;
@@ -110,14 +129,14 @@ renderHeader('Equipment Rental');
     overflow: hidden;
     transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.eq-card:hover { border-color: #2e7d32; box-shadow: 0 2px 8px rgba(46,125,50,0.08); }
+.eq-card:hover { border-color: #cfe8d1; box-shadow: 0 2px 8px rgba(46, 125, 50, 0.08); }
 .eq-card-body { padding: 16px; }
 .eq-photo {
-    width: 100%; height: 160px; background: #f7f8f5;
+    width: 100%; height: 150px; background: #f7f8f5;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .eq-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.eq-photo .material-icons { color: #a06b16; font-size: 40px; }
+.eq-photo .material-icons { color: #a06b16; font-size: 38px; }
 .eq-name { font-weight: 600; font-size: 14.5px; margin: 12px 0 2px; color: #1b3a24; }
 .eq-price { font-size: 12.5px; color: #667066; margin: 0 0 12px; }
 .eq-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
@@ -125,7 +144,7 @@ renderHeader('Equipment Rental');
 .eq-dot-danger { background: #a6322f; }
 .eq-status-readonly {
     width: auto !important; display: inline-flex !important; align-items: center; gap: 6px;
-    font-size: 11.5px; font-weight: 600; background: #fff; border: 1px solid #eceae4;
+    font-size: 11.5px; font-weight: 600; background: #f7f8f5; border: none;
     border-radius: 20px; padding: 4px 10px; color: #1b3a24; font-family: inherit;
 }
 
@@ -138,7 +157,7 @@ renderHeader('Equipment Rental');
 
 .eq-modal {
     font-family: inherit;
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
     align-items: center; justify-content: center; z-index: 1000; padding: 20px;
 }
 .eq-modal.eq-open { display: flex; }
@@ -148,7 +167,7 @@ renderHeader('Equipment Rental');
 }
 .eq-modal-card-wide { max-width: 720px; }
 .eq-modal-header { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 16px; margin-bottom: 16px; }
-.eq-modal-header h2 { flex: 1; min-width: 0; margin: 0; font-size: 18px; line-height: 1.2; }
+.eq-modal-header h2 { flex: 1; min-width: 0; margin: 0; font-size: 18px; line-height: 1.2; color: #1b3a24; }
 .eq-modal-header h2.eq-modal-title-center { text-align: center; }
 .eq-icon-btn {
     flex: 0 0 32px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
@@ -161,15 +180,15 @@ renderHeader('Equipment Rental');
 .eq-modal-card label:first-of-type { margin-top: 0; }
 .eq-modal-card input, .eq-modal-card select {
     width: 100%; font-family: inherit; font-size: 14px; padding: 9px 11px;
-    border: 1.5px solid #eceae4; border-radius: 8px; background: #f7f8f5; color: #1b3a24; box-sizing: border-box;
+    border: 1px solid #eceae4; border-radius: 8px; background: #f7f8f5; color: #1b3a24; box-sizing: border-box;
 }
 .eq-modal-card input:focus, .eq-modal-card select:focus { outline: none; border-color: #2e7d32; background: #fff; }
 
 .eq-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .eq-cost-summary { background: #f7f8f5; border-radius: 10px; padding: 12px 14px; margin: 16px 0; }
-.eq-cost-row { display: flex; justify-content: space-between; font-size: 13.5px; color: #667066; padding: 3px 0; }
+.eq-cost-row { display: flex; justify-content: space-between; font-size: 13px; color: #667066; padding: 3px 0; }
 .eq-cost-row.eq-cost-total {
-    color: #1b3a24; font-weight: 700; font-size: 15px; border-top: 1px solid #eceae4; margin-top: 4px; padding-top: 8px;
+    color: #1b3a24; font-weight: 700; font-size: 15px; border-top: 1px dashed #eceae4; margin-top: 4px; padding-top: 8px;
 }
 
 .eq-error-box, .eq-success-box { display: none; font-size: 13px; padding: 9px 12px; border-radius: 8px; margin-bottom: 12px; }
@@ -177,10 +196,10 @@ renderHeader('Equipment Rental');
 .eq-success-box.eq-show { display: block; background: #e8f5e9; color: #2e7d32; }
 
 .eq-table-wrap { overflow-x: auto; }
-.eq-page table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-.eq-page thead th { text-align: left; font-size: 12px; font-weight: 600; color: #667066; padding: 10px 8px; border-bottom: 1.5px solid #eceae4; }
+.eq-page table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.eq-page thead th { text-align: left; font-size: 11.5px; font-weight: 600; color: #667066; padding: 10px 8px; border-bottom: 1px solid #eceae4; }
 .eq-page thead th.eq-text-right { text-align: right; }
-.eq-page tbody td { padding: 12px 8px; border-bottom: 1px solid #eceae4; }
+.eq-page tbody td { padding: 12px 8px; border-bottom: 1px solid #f0efe9; }
 .eq-page tbody tr:last-child td { border-bottom: none; }
 
 .eq-status-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
@@ -195,9 +214,9 @@ renderHeader('Equipment Rental');
 }
 .eq-cal-nav-btn:hover { background: #f7f8f5 !important; color: #1b3a24; }
 .eq-cal-nav-btn .material-icons { font-size: 20px; }
-.eq-cal-month { font-weight: 600; font-size: 16px; }
+.eq-cal-month { font-weight: 600; font-size: 15px; color: #1b3a24; }
 .eq-cal-weekdays, .eq-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.eq-cal-weekdays div { text-align: center; font-size: 11.5px; color: #667066; font-weight: 600; padding-bottom: 6px; }
+.eq-cal-weekdays div { text-align: center; font-size: 11px; color: #667066; font-weight: 600; padding-bottom: 6px; }
 .eq-cal-grid .eq-cal-day { min-height: 64px; padding: 4px; border-radius: 8px; background: #f7f8f5; color: #667066; font-size: 11.5px; overflow: hidden; }
 .eq-cal-grid .eq-cal-day.eq-empty { background: transparent; }
 .eq-cal-grid .eq-cal-day.eq-booked { background: #fdf1de; }
@@ -213,7 +232,7 @@ renderHeader('Equipment Rental');
     .eq-page table tr {
         display: flex; flex-wrap: wrap; align-items: baseline;
         column-gap: 8px; row-gap: 4px;
-        border-bottom: 1px solid #eceae4; padding: 12px 0;
+        border-bottom: 1px solid #f0efe9; padding: 12px 0;
     }
     .eq-page table tbody tr:last-child { border-bottom: none; }
     .eq-page table td { display: block; padding: 0; border-bottom: none !important; }
@@ -235,15 +254,14 @@ renderHeader('Equipment Rental');
 }
 @media (max-width: 560px) {
     .eq-form-row { grid-template-columns: 1fr; }
-    .eq-summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-    .eq-metric-card { padding: 12px 14px; }
-    .eq-metric-label { font-size: 11.5px; }
-    .eq-metric-value { font-size: 20px; }
+    .eq-metric-card { padding: 11px 16px; }
+    .eq-metric-label { font-size: 10.5px; }
+    .eq-metric-value { font-size: 17px; }
     .eq-equipment-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
     .eq-photo { height: 100px; }
     .eq-card-body { padding: 12px; }
     .eq-name { font-size: 13px; margin: 8px 0 2px; }
-    .eq-price { font-size: 11.5px; margin: 0 0 8px; }
+    .eq-price { font-size: 11px; margin: 0 0 8px; }
     .eq-status-readonly { font-size: 10.5px; padding: 3px 8px; }
     .eq-section-header {
         flex-direction: row;
@@ -263,7 +281,7 @@ renderHeader('Equipment Rental');
     .eq-btn-group .eq-btn span:not(.material-icons) { display: none; }
     .eq-btn-group .eq-btn .material-icons { font-size: 18px; }
     .eq-modal { padding: 20px 16px; align-items: center; }
-    .eq-modal-card { max-width: 92%; max-height: 82vh; width: 92%; margin: 0 auto; padding: 14px 14px 14px; border-radius: 14px; }
+    .eq-modal-card { max-width: 92%; max-height: 82vh; width: 92%; margin: 0 auto; padding: 14px 14px 14px; border-radius: 12px; }
     .eq-modal-header { margin-bottom: 10px; }
     .eq-modal-header h2 { font-size: 16px; }
     .eq-modal-card label { font-size: 11.5px; margin: 8px 0 4px; }
@@ -280,22 +298,22 @@ renderHeader('Equipment Rental');
 
 <div class="eq-page">
 
-    <div class="page-header">
-        <div class="page-header-icon">
+    <div class="eq-header">
+        <div class="eq-header-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L2 19l3 3 7.3-7.3a4 4 0 0 0 5.4-5.4l-2.1 2.1-2.7-2.7z"/></svg>
         </div>
         <div>
-            <p class="page-title">Equipment rental</p>
-            <p class="page-sub">Browse and book coop equipment</p>
+            <h1>Equipment rental</h1>
+            <p class="eq-muted">Browse and book coop equipment</p>
         </div>
     </div>
 
     <div class="eq-summary-grid">
         <div class="eq-metric-card">
             <p class="eq-metric-label">Available now</p>
-            <p class="eq-metric-value"><?php echo $availableCount; ?> of <?php echo count($equipmentList); ?></p>
+            <p class="eq-metric-value"><?php echo $availableCount; ?></p>
         </div>
-        <div class="eq-metric-card">
+        <div class="eq-metric-card eq-tone-blue">
             <p class="eq-metric-label">Your active bookings</p>
             <p class="eq-metric-value"><?php echo count($myBookings); ?></p>
         </div>
