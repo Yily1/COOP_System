@@ -1,14 +1,23 @@
 <?php
 /**
  * ============================================================
- * PAYMENT & ATTENDANCE HELPER FUNCTIONS (v2 - may pending/confirmed status)
- * Palitan ang laman ng config/payment-functions.php mo ng file na ito.
+ * PAYMENT & ATTENDANCE HELPER FUNCTIONS (v3 - may proof of payment)
+ * Ito ang laman ng config/payment-functions.php
  * ============================================================
  */
 
 const REGISTRATION_FEE_REQUIRED = 150.00;
 const INVESTMENT_TARGET_FOR_REGULAR = 1500.00;
 const MEETINGS_REQUIRED_FOR_ASSOCIATE = 3;
+
+// ------------------------------------------------------------
+// GCash account kung saan magbabayad ang mga miyembro.
+// SAMPLE LANG ITO - palitan ng totoong pangalan at number ng president.
+// (Ito lang ang lugar na kailangan mong i-edit; lalabas ito sa
+// "Pay via GCash to" box sa user payments page.)
+// ------------------------------------------------------------
+const COOP_GCASH_ACCOUNT_NAME = 'Juan Dela Cruz';
+const COOP_GCASH_NUMBER = '0917 123 4567';
 
 /**
  * Kabuuang na-bayad na registration fee ng isang member.
@@ -104,13 +113,15 @@ function recordPayment($pdo, $memberId, $paymentType, $amount, $paymentDate, $re
 /**
  * I-submit ang bagong payment bilang PENDING - ginagamit ng MEMBER/USER mismo.
  * $submittedBy ay ang user_id ng member (para malaman kung sino nag-submit).
+ * $proofOfPayment ay ang file path (relative sa project root) ng na-upload
+ * na screenshot ng GCash payment.
  */
-function submitPendingPayment($pdo, $memberId, $paymentType, $amount, $submittedBy) {
+function submitPendingPayment($pdo, $memberId, $paymentType, $amount, $submittedBy, $proofOfPayment = null) {
     $stmt = $pdo->prepare("
-        INSERT INTO payments (member_id, payment_type, amount, payment_date, recorded_by, notes, status)
-        VALUES (?, ?, ?, CURDATE(), ?, 'Submitted via GCash by member', 'pending')
+        INSERT INTO payments (member_id, payment_type, amount, payment_date, recorded_by, notes, proof_of_payment, status)
+        VALUES (?, ?, ?, CURDATE(), ?, 'Submitted via GCash by member', ?, 'pending')
     ");
-    return $stmt->execute([$memberId, $paymentType, $amount, $submittedBy]);
+    return $stmt->execute([$memberId, $paymentType, $amount, $submittedBy, $proofOfPayment]);
 }
 
 /**

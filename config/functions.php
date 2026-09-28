@@ -1074,7 +1074,7 @@ function renderFooter() {
                         }
                     });
 
-                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'false';
+                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'true';
                     if (wasOpen && !isMobile()) {
                         handleDrawerOpen();
                     }
@@ -1088,4 +1088,3 @@ function renderFooter() {
     </html>
     <?php
 }
-?>
