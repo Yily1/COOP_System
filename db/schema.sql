@@ -325,4 +325,53 @@ CREATE TABLE product_requests (
 );
 
 
+CREATE TABLE IF NOT EXISTS crops (
+    id                      INT AUTO_INCREMENT PRIMARY KEY,
+    member_id               INT NOT NULL,
+    crop_name               VARCHAR(100) NOT NULL,
+    location                VARCHAR(150) NOT NULL,
+    area_hectares           DECIMAL(6,2) NOT NULL,
+    planting_date           DATE NOT NULL,
+    expected_harvest_date   DATE NOT NULL,
+    actual_harvest_date     DATE DEFAULT NULL,
+    status                  ENUM('pending', 'rejected', 'growing', 'ready_to_harvest', 'harvested') NOT NULL DEFAULT 'pending',
+    rejection_reason        VARCHAR(255) DEFAULT NULL,
+    created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_crops_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+
+
+CREATE TABLE IF NOT EXISTS resource_distributions (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    member_id           INT NOT NULL,
+    resource_name       VARCHAR(150) NOT NULL,
+    quantity            VARCHAR(50) NOT NULL,
+    distribution_date   DATE NOT NULL,
+    notes               VARCHAR(255) DEFAULT NULL,
+    status              ENUM('not_released', 'released') NOT NULL DEFAULT 'not_released',
+    distributed_by      INT NOT NULL,
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_resource_distributions_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+    CONSTRAINT fk_resource_distributions_user FOREIGN KEY (distributed_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+ALTER TABLE resource_distributions
+    ADD COLUMN distribution_date DATE NULL AFTER quantity;
+
+UPDATE resource_distributions
+SET distribution_date = DATE(created_at)
+WHERE distribution_date IS NULL;
+
+ALTER TABLE resource_distributions
+    MODIFY COLUMN distribution_date DATE NOT NULL;
+
+ALTER TABLE resource_distributions
+    ADD COLUMN status ENUM('not_released', 'released') NOT NULL DEFAULT 'not_released' AFTER notes;
+
+
+
+    ALTER TABLE payments
+ADD COLUMN proof_of_payment VARCHAR(255) NULL AFTER notes;

@@ -156,6 +156,7 @@ renderHeader('Payments');
     </select>
 </div>
 
+<div style="overflow-x: auto;">
 <table style="width: 100%; border-collapse: collapse; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;" id="paymentsTable">
     <thead>
         <tr style="background: #f5f5f5; text-align: left;">
@@ -165,6 +166,7 @@ renderHeader('Payments');
             <th style="padding: 10px 12px;">Date</th>
             <th style="padding: 10px 12px;">Status</th>
             <th style="padding: 10px 12px;">Notes</th>
+            <th style="padding: 10px 12px;">Proof</th>
             <th style="padding: 10px 12px;">Recorded by</th>
             <th style="padding: 10px 12px;">Action</th>
         </tr>
@@ -172,7 +174,7 @@ renderHeader('Payments');
     <tbody id="paymentsTableBody">
         <?php if (empty($payments)): ?>
             <tr id="emptyRow">
-                <td colspan="8" style="padding: 20px; text-align: center; color: #666;">No payment records.</td>
+                <td colspan="9" style="padding: 20px; text-align: center; color: #666;">No payment records.</td>
             </tr>
         <?php else: ?>
             <?php foreach ($payments as $payment): ?>
@@ -180,6 +182,9 @@ renderHeader('Payments');
                     $meta = paymentTypeMeta($payment['payment_type']);
                     $avatar = memberAvatarColor($payment['membership_id']);
                     $initials = memberInitials($payment['first_name'], $payment['last_name']);
+                    $proofUrl = !empty($payment['proof_of_payment'])
+                        ? BASE_URL . '/' . ltrim($payment['proof_of_payment'], '/')
+                        : '';
                 ?>
                 <tr style="border-top: 1px solid #eee;" data-payment-id="<?php echo $payment['id']; ?>"
                     data-search="<?php echo htmlspecialchars(strtolower($payment['last_name'] . ', ' . $payment['first_name'] . ' ' . $payment['membership_id'])); ?>">
@@ -209,6 +214,14 @@ renderHeader('Payments');
                         <?php endif; ?>
                     </td>
                     <td style="padding: 10px 12px; color: #666;"><?php echo htmlspecialchars($payment['notes'] ?? '-'); ?></td>
+                    <td style="padding: 10px 12px;">
+                        <?php if ($proofUrl !== ''): ?>
+                            <a href="<?php echo htmlspecialchars($proofUrl); ?>" target="_blank" rel="noopener"
+                               style="color: #1976d2; text-decoration: underline; white-space: nowrap;">View image</a>
+                        <?php else: ?>
+                            <span style="color: #ccc;">-</span>
+                        <?php endif; ?>
+                    </td>
                     <td style="padding: 10px 12px; color: #666;"><?php echo htmlspecialchars($payment['recorded_by_email'] ?? '-'); ?></td>
                     <td style="padding: 10px 12px;">
                         <?php if ($payment['status'] === 'pending'): ?>
@@ -231,6 +244,7 @@ renderHeader('Payments');
         <?php endif; ?>
     </tbody>
 </table>
+</div>
 
 <!-- MODAL - Add Payment -->
 <div id="paymentModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
@@ -371,6 +385,8 @@ renderHeader('Payments');
         tr.style.borderTop = '1px solid #eee';
         tr.dataset.paymentId = payment.id;
         tr.dataset.search = (payment.last_name + ', ' + payment.first_name + ' ' + payment.membership_id).toLowerCase();
+        // Payments the manager records here are confirmed on the spot
+        // and never have a member-uploaded proof, so Proof is always "-".
         tr.innerHTML = `
             <td style="padding: 10px 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -390,6 +406,7 @@ renderHeader('Payments');
                 <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: #d4edda; color: #155724;">Confirmed</span>
             </td>
             <td style="padding: 10px 12px; color: #666;">${payment.notes || '-'}</td>
+            <td style="padding: 10px 12px;"><span style="color: #ccc;">-</span></td>
             <td style="padding: 10px 12px; color: #666;">${payment.recorded_by_email || '-'}</td>
             <td style="padding: 10px 12px;"><span style="color: #ccc;">-</span></td>
         `;
@@ -473,7 +490,8 @@ renderHeader('Payments');
                 if (action === 'confirm') {
                     const statusCell = row.children[4];
                     statusCell.innerHTML = '<span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: #d4edda; color: #155724;">Confirmed</span>';
-                    const actionCell = row.children[7];
+                    // Action is now the 9th column (Proof was added before "Recorded by").
+                    const actionCell = row.children[8];
                     actionCell.innerHTML = '<span style="color: #ccc;">-</span>';
                 } else {
                     row.remove();
