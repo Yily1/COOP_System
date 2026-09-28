@@ -609,15 +609,30 @@ function getDistributionById($pdo, $id) {
 }
 
 /**
+ * A single member's own distribution records, newest first
+ * (used on the member's read-only "My resources" page).
+ */
+function getDistributionsForMember($pdo, $memberId) {
+    $stmt = $pdo->prepare("
+        SELECT * FROM resource_distributions
+        WHERE member_id = :member_id
+        ORDER BY distribution_date DESC, created_at DESC
+    ");
+    $stmt->execute([':member_id' => $memberId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
  * Records a new distribution. Always starts as 'not_released' —
  * the manager confirms it once the resource is actually handed over.
+ * $distributedBy is the logged-in manager's user id (users.id).
  */
-function addDistribution($pdo, $memberId, $resourceName, $quantity, $distributionDate, $notes) {
+function addDistribution($pdo, $memberId, $resourceName, $quantity, $distributionDate, $notes, $distributedBy) {
     $stmt = $pdo->prepare("
-        INSERT INTO resource_distributions (member_id, resource_name, quantity, distribution_date, notes, status)
-        VALUES (?, ?, ?, ?, ?, 'not_released')
+        INSERT INTO resource_distributions (member_id, resource_name, quantity, distribution_date, notes, status, distributed_by)
+        VALUES (?, ?, ?, ?, ?, 'not_released', ?)
     ");
-    return $stmt->execute([$memberId, $resourceName, $quantity, $distributionDate, $notes]);
+    return $stmt->execute([$memberId, $resourceName, $quantity, $distributionDate, $notes, $distributedBy]);
 }
 
 /**
@@ -989,6 +1004,7 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/user/checkins.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/checkins.php">Meetings</a>
                             <a class="<?php echo navActive('/app/user/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/equipment.php">Equipment</a>
                             <a class="<?php echo navActive('/app/user/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/crops.php">Crops</a>
+                            <a class="<?php echo navActive('/app/user/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/resources.php">Resources</a>
                             <a class="<?php echo navActive('/app/user/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/loans.php">Loans</a>
                             <a class="<?php echo navActive('/app/user/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/products.php">Products</a>
                         <?php endif; ?>
@@ -1074,7 +1090,7 @@ function renderFooter() {
                         }
                     });
 
-                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'true';
+                    const wasOpen = localStorage.getItem(STORAGE_KEY) === 'false';
                     if (wasOpen && !isMobile()) {
                         handleDrawerOpen();
                     }
@@ -1088,3 +1104,4 @@ function renderFooter() {
     </html>
     <?php
 }
+?>

@@ -38,12 +38,16 @@ renderHeader('Resource Distribution');
     width: 100%;
     max-width: 100%;
     padding: 0 0 40px;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .rd-page h1, .rd-page h2 {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-weight: 600;
     color: #2c2c2a;
+    text-transform: none;
+    letter-spacing: normal;
     margin: 0;
 }
 
@@ -64,26 +68,41 @@ renderHeader('Resource Distribution');
 .rd-header h1 { font-size: 26px; }
 .rd-header > div:first-child { flex: 1; min-width: 0; }
 
-/* BUTTONS */
+/* BUTTONS
+   !important overrides used here because the site-wide style.css
+   applies `width: 100%` and `text-transform: uppercase` to all
+   <button> elements, which otherwise wins over these unqualified
+   rules and stretches/uppercases them (see equipment.php's
+   .eq-btn-link comment for the same issue). flex is locked to
+   `0 0 auto` so the button can never be squeezed or stretched by
+   the header's flex layout. */
 .rd-btn {
+    box-sizing: border-box;
+    width: auto !important;
+    flex: 0 0 auto !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
+    white-space: nowrap;
     font-family: inherit;
     font-size: 13.5px;
     font-weight: 600;
+    line-height: 1.2;
+    text-transform: none !important;
+    letter-spacing: normal;
     padding: 9px 16px;
     border-radius: var(--rd-radius);
     border: 1.5px solid var(--rd-forest);
     background: var(--rd-forest);
     color: #fff;
     cursor: pointer;
+    box-shadow: none;
     transition: background 0.12s ease;
 }
 .rd-btn .material-icons { font-size: 17px; }
 .rd-btn:hover { background: var(--rd-forest-dark); }
-.rd-btn-full { width: 100%; justify-content: center; padding: 11px; }
+.rd-btn-full { width: 100% !important; flex: none; justify-content: center; padding: 11px; }
 
 /* SECTION */
 .rd-section {
@@ -152,10 +171,13 @@ renderHeader('Resource Distribution');
     background: var(--rd-card);
     border: 1px solid var(--rd-line);
     border-radius: 20px;
+    box-shadow: none;
     padding: 4px 10px;
     font-family: inherit;
     font-size: 12px;
     font-weight: 600;
+    text-transform: none !important;
+    letter-spacing: normal;
     color: var(--rd-forest);
     cursor: pointer;
     display: inline-flex !important;
@@ -194,9 +216,10 @@ renderHeader('Resource Distribution');
 .rd-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .rd-modal-header h2 { flex: 1; min-width: 0; font-size: 18px; }
 .rd-icon-btn {
-    flex: 0 0 32px; width: 32px; height: 32px;
+    flex: 0 0 32px; width: 32px !important; height: 32px;
     display: inline-flex; align-items: center; justify-content: center;
-    background: transparent; border: none; color: var(--rd-ink-soft);
+    margin: 0; padding: 0;
+    background: transparent; border: none; box-shadow: none; color: var(--rd-ink-soft);
     cursor: pointer; border-radius: 6px;
 }
 .rd-icon-btn:hover { background: var(--rd-paper); color: var(--rd-ink); }
@@ -240,7 +263,7 @@ renderHeader('Resource Distribution');
 @media (max-width: 560px) {
     .rd-header { flex-direction: column; gap: 12px; }
     .rd-header > div:first-child { width: 100%; }
-    .rd-header .rd-btn { width: 100%; }
+    .rd-header .rd-btn { width: 100% !important; flex: none !important; justify-content: center; }
     .rd-section-header { flex-direction: column; align-items: flex-start; }
     .rd-modal { padding: 12px; }
     .rd-modal-card { max-width: 100%; max-height: 92vh; padding: 20px 18px 20px; }
