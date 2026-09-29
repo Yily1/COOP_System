@@ -107,6 +107,13 @@ $grandTotal = array_sum($totals);
 renderHeader('Payments');
 ?>
 
+<style>
+/* Summary cards: fixed 160px size, same as Crops / Products / Equipment */
+.pay-summary-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
+.pay-summary-card { border-radius: 10px; padding: 16px 18px; flex: 0 0 160px; width: 160px; }
+.pay-summary-card p { overflow-wrap: anywhere; }
+</style>
+
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 18px; gap: 16px; position: relative; width: 100%; border-bottom: 2px solid #E4DCC8;">
     <h1 style="margin: 0; flex: 1 1 auto; min-width: 0; position: static !important;">Payments</h1>
     <button id="openModalBtn"
@@ -118,24 +125,24 @@ renderHeader('Payments');
 <!-- ============================================================
      OVERALL PAYMENT TOTALS
      ============================================================ -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px;">
-    <div style="border-radius: 10px; padding: 16px 18px; background: #33502F;">
+<div class="pay-summary-grid">
+    <div class="pay-summary-card" style="background: #33502F;">
         <p style="margin: 0 0 6px; font-size: 12.5px; color: #E1EFDE;">Registration</p>
         <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['registration'], 2); ?></p>
     </div>
-    <div style="border-radius: 10px; padding: 16px 18px; background: #274B81;">
+    <div class="pay-summary-card" style="background: #274B81;">
         <p style="margin: 0 0 6px; font-size: 12.5px; color: #DCE7F5;">Investment</p>
         <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['investment'], 2); ?></p>
     </div>
-    <div style="border-radius: 10px; padding: 16px 18px; background: #4A3F7A;">
+    <div class="pay-summary-card" style="background: #4A3F7A;">
         <p style="margin: 0 0 6px; font-size: 12.5px; color: #E4E1F5;">Rental</p>
         <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['rental'], 2); ?></p>
     </div>
-    <div style="border-radius: 10px; padding: 16px 18px; background: #C1892B;">
+    <div class="pay-summary-card" style="background: #C1892B;">
         <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E4C3;">Loan Repayment</p>
         <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['loan_repayment'], 2); ?></p>
     </div>
-    <div style="border-radius: 10px; padding: 16px 18px; background: #B54A3C;">
+    <div class="pay-summary-card" style="background: #B54A3C;">
         <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E1DC;">Grand total</p>
         <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($grandTotal, 2); ?></p>
     </div>
