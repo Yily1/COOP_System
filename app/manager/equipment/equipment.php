@@ -185,12 +185,12 @@ renderHeader('Equipment Rental');
 .eq-btn-link-danger:hover { border-color: var(--eq-danger); }
 
 /* =========================
-   SUMMARY CARDS
+   SUMMARY CARDS (fixed 160px size, same as Crops / Products)
    ========================= */
 
 .eq-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 14px;
     margin-bottom: 28px;
 }
@@ -200,6 +200,8 @@ renderHeader('Equipment Rental');
     border-radius: var(--eq-radius);
     box-shadow: none;
     padding: 16px 18px;
+    flex: 0 0 160px;
+    width: 160px;
 }
 
 .eq-metric-label {
@@ -235,6 +237,7 @@ renderHeader('Equipment Rental');
 .eq-summary-grid .eq-metric-card:nth-child(5n+5) { background: var(--eq-gold-soft); }
 .eq-summary-grid .eq-metric-card:nth-child(5n+5) .eq-metric-label,
 .eq-summary-grid .eq-metric-card:nth-child(5n+5) .eq-metric-value { color: var(--eq-gold); }
+
 /* =========================
    EQUIPMENT CARDS
    ========================= */
