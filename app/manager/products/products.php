@@ -21,8 +21,9 @@ renderHeader('Products');
 .svc-page-head p { font-size: 13px; color: #6b7280; margin: 0; }
 .svc-page-head .svc-badge { background: #fdecea; color: #c62828; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
 
-.svc-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
-.svc-stat-card { border-radius: 10px; padding: 16px 18px; color: #fff; }
+/* STAT CARDS (same fixed size as the Crops page cards) */
+.svc-stat-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
+.svc-stat-card { border-radius: 10px; padding: 16px 18px; color: #fff; flex: 0 0 160px; width: 160px; }
 .svc-stat-card p.svc-stat-label { margin: 0 0 6px; font-size: 12.5px; opacity: 0.9; }
 .svc-stat-card p.svc-stat-value { margin: 0; font-size: 22px; font-weight: 600; }
 .svc-stat-total { background: #33502F; }
