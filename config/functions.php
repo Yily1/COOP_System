@@ -100,9 +100,6 @@ function canAccessEquipment($role) {
 }
 
 /**
- * All equipment items, for the browse grid and the booking form's dropdown.
- */
-/**
  * Total number of equipment items (all statuses).
  */
 function getTotalEquipmentCount($pdo) {
@@ -124,17 +121,31 @@ function getRentedThisMonthCount($pdo) {
 }
 
 /**
+ * Flips 'ongoing' bookings whose end_date has already passed to 'overdue'.
+ * Runs whenever the bookings lists are loaded, so no cron job is needed.
+ */
+function markOverdueBookings($pdo) {
+    $pdo->exec("
+        UPDATE equipment_bookings
+        SET status = 'overdue'
+        WHERE status = 'ongoing'
+          AND end_date < CURDATE()
+    ");
+}
+
+/**
  * All bookings still relevant to the manager's "Currently rented" table
  * (pending approval, ongoing, or overdue), across ALL members — unlike
  * getMyEquipmentBookings(), which is scoped to a single user.
  */
 function getCurrentEquipmentBookings($pdo) {
+    markOverdueBookings($pdo);
     $stmt = $pdo->query("
         SELECT b.*, e.name AS equipment_name
         FROM equipment_bookings b
         INNER JOIN equipment e ON e.id = b.equipment_id
-        WHERE b.status IN ('pending', 'ongoing', 'overdue')
-        ORDER BY b.start_date ASC
+        WHERE b.status IN ('pending', 'ongoing', 'overdue', 'returned')
+        ORDER BY (b.status = 'returned') ASC, b.start_date DESC
     ");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -159,6 +170,9 @@ function getMonthlyRentCountByEquipment($pdo) {
     return $counts;
 }
 
+/**
+ * All equipment items, for the browse grid and the booking form's dropdown.
+ */
 function getAllEquipment($pdo) {
     $stmt = $pdo->query("SELECT * FROM equipment ORDER BY name ASC");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -689,6 +703,7 @@ function distributionStatusBadge($status) {
  * bookings are left out since this feeds the "active bookings" summary.
  */
 function getMyEquipmentBookings($pdo, $userId) {
+    markOverdueBookings($pdo);
     $stmt = $pdo->prepare("
         SELECT b.*, e.name AS equipment_name
         FROM equipment_bookings b
@@ -1119,11 +1134,9 @@ function renderFooter() {
                 </div>
             </div>
         <?php endif; ?>
-    </body>
+    </body>SS
     </html>
     <?php
 }
-
-
 
 ?>

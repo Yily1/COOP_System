@@ -18,6 +18,50 @@ document.addEventListener('DOMContentLoaded', function () {
             document.body.style.overflow = '';
         }
 
+        /* ---------- Custom confirm dialog (replaces native confirm()) ---------- */
+        var confirmModal = document.getElementById('confirm-modal-wrap');
+        var confirmTitle = document.getElementById('confirm-title');
+        var confirmMessage = document.getElementById('confirm-message');
+        var confirmOkBtn = document.getElementById('confirm-ok');
+        var confirmCancelBtn = document.getElementById('confirm-cancel');
+        var confirmCloseBtn = document.getElementById('close-confirm');
+        var confirmCallback = null;
+
+        function confirmDialog(opts, onConfirm) {
+            if (!confirmModal) {
+                // Fallback if the modal markup is missing
+                if (window.confirm(opts.message || 'Are you sure?')) onConfirm();
+                return;
+            }
+            confirmTitle.textContent = opts.title || 'Are you sure?';
+            confirmMessage.textContent = opts.message || '';
+            confirmOkBtn.textContent = opts.confirmText || 'Confirm';
+            confirmOkBtn.classList.toggle('eq-btn-danger', !!opts.danger);
+            confirmOkBtn.classList.toggle('eq-btn-primary', !opts.danger);
+            confirmCallback = onConfirm;
+            openModal(confirmModal);
+        }
+
+        function closeConfirm() {
+            confirmCallback = null;
+            closeModal(confirmModal);
+        }
+
+        if (confirmOkBtn) {
+            confirmOkBtn.addEventListener('click', function () {
+                var cb = confirmCallback;
+                closeConfirm();
+                if (cb) cb();
+            });
+        }
+        if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', closeConfirm);
+        if (confirmCloseBtn) confirmCloseBtn.addEventListener('click', closeConfirm);
+        if (confirmModal) {
+            confirmModal.addEventListener('click', function (e) {
+                if (e.target === confirmModal) closeConfirm();
+            });
+        }
+
         /* ---------- Booking modal open/close ---------- */
         var bookBtn = document.getElementById('book-btn');
         var bookModal = document.getElementById('booking-modal-wrap');
@@ -106,6 +150,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 closeModal(addModal);
                 closeModal(editModal);
                 closeModal(scheduleModal);
+                closeConfirm();
             }
         });
 
@@ -551,42 +596,77 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        /* ---------- Approve / reject pending bookings (manager only) ---------- */
-        function handleBookingAction(action) {
-            return function () {
-                var btn = this;
-                var id = btn.dataset.id;
-                var row = btn.closest('tr');
-                var ajaxBase = typeof EQUIPMENT_AJAX_BASE !== 'undefined' ? EQUIPMENT_AJAX_BASE : '';
+        /* ---------- Booking actions: approve / reject / mark returned (manager only) ---------- */
+        function rowInfo(btn) {
+            var row = btn.closest('tr');
+            if (!row || !row.cells || row.cells.length < 2) return '';
+            return row.cells[0].textContent.trim() + ' (' + row.cells[1].textContent.trim() + ')';
+        }
 
-                var allBtns = row ? row.querySelectorAll('button') : [btn];
-                allBtns.forEach(function (b) { b.disabled = true; });
+        function sendBookingRequest(btn, url, body) {
+            var row = btn.closest('tr');
+            var ajaxBase = typeof EQUIPMENT_AJAX_BASE !== 'undefined' ? EQUIPMENT_AJAX_BASE : '';
 
-                fetch(ajaxBase + 'update-booking-status.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'booking_id=' + encodeURIComponent(id) + '&action=' + encodeURIComponent(action)
-                })
-                    .then(function (res) { return res.json(); })
-                    .then(function (data) {
-                        if (data.success) {
-                            window.location.reload();
-                        } else {
-                            alert(data.message || 'Could not update booking.');
-                            allBtns.forEach(function (b) { b.disabled = false; });
-                        }
-                    })
-                    .catch(function () {
-                        alert('Something went wrong. Please try again.');
+            var allBtns = row ? row.querySelectorAll('button') : [btn];
+            allBtns.forEach(function (b) { b.disabled = true; });
+
+            fetch(ajaxBase + url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body
+            })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Could not update booking.');
                         allBtns.forEach(function (b) { b.disabled = false; });
-                    });
-            };
+                    }
+                })
+                .catch(function () {
+                    alert('Something went wrong. Please try again.');
+                    allBtns.forEach(function (b) { b.disabled = false; });
+                });
         }
 
         document.querySelectorAll('.eq-approve-btn').forEach(function (btn) {
-            btn.addEventListener('click', handleBookingAction('approve'));
+            btn.addEventListener('click', function () {
+                confirmDialog({
+                    title: 'Approve booking',
+                    message: 'Approve the booking of ' + rowInfo(btn) + '?',
+                    confirmText: 'Approve'
+                }, function () {
+                    sendBookingRequest(btn, 'update-booking-status.php',
+                        'booking_id=' + encodeURIComponent(btn.dataset.id) + '&action=approve');
+                });
+            });
         });
+
         document.querySelectorAll('.eq-reject-btn').forEach(function (btn) {
-            btn.addEventListener('click', handleBookingAction('reject'));
+            btn.addEventListener('click', function () {
+                confirmDialog({
+                    title: 'Reject booking',
+                    message: 'Reject the booking of ' + rowInfo(btn) + '? This cannot be undone.',
+                    confirmText: 'Reject',
+                    danger: true
+                }, function () {
+                    sendBookingRequest(btn, 'update-booking-status.php',
+                        'booking_id=' + encodeURIComponent(btn.dataset.id) + '&action=reject');
+                });
+            });
+        });
+
+        document.querySelectorAll('.eq-return-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                confirmDialog({
+                    title: 'Mark as returned',
+                    message: 'Mark ' + rowInfo(btn) + ' as returned?',
+                    confirmText: 'Mark returned'
+                }, function () {
+                    sendBookingRequest(btn, 'mark-returned.php',
+                        'booking_id=' + encodeURIComponent(btn.dataset.id));
+                });
+            });
         });
     });

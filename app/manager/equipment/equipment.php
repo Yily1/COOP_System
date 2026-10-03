@@ -649,6 +649,32 @@ renderHeader('Equipment Rental');
 .eq-status-badge.eq-returned { background: var(--eq-success-soft); color: var(--eq-success); }
 
 /* =========================
+   CONFIRM DIALOG
+   ========================= */
+
+.eq-modal-card-sm { max-width: 380px; }
+
+.eq-confirm-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--eq-ink-soft);
+    margin: 0 0 20px;
+}
+
+.eq-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.eq-btn-danger {
+    background: var(--eq-danger);
+    border-color: var(--eq-danger);
+    color: #fff;
+}
+.eq-btn-danger:hover { background: #983c30; }
+
+/* =========================
    RESPONSIVE
    ========================= */
 
@@ -814,6 +840,12 @@ renderHeader('Equipment Rental');
                                             <span class="material-icons">close</span> Reject
                                         </button>
                                     <?php endif; ?>
+
+                                    <?php if (in_array($b['status'], ['ongoing', 'overdue'], true)): ?>
+                                        <button class="eq-btn-link eq-return-btn" data-id="<?php echo $b['id']; ?>" type="button">
+                                            <span class="material-icons">undo</span> Mark returned
+                                        </button>
+                                    <?php endif; ?>
                                 </td>
                             <?php endif; ?>
                         </tr>
@@ -940,6 +972,31 @@ renderHeader('Equipment Rental');
 
 
 <?php if (($_SESSION['role'] ?? '') === 'manager'): ?>
+
+<!-- ============================================================
+     CONFIRM MODAL (shared: approve / reject / mark returned)
+     ============================================================ -->
+<div class="eq-modal" id="confirm-modal-wrap">
+    <div class="eq-modal-card eq-modal-card-sm">
+        <div class="eq-modal-header">
+            <h2 id="confirm-title">Are you sure?</h2>
+            <button class="eq-icon-btn" id="close-confirm" type="button" aria-label="Close">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <p class="eq-confirm-text" id="confirm-message"></p>
+
+        <div class="eq-confirm-actions">
+            <button class="eq-btn eq-btn-outline" id="confirm-cancel" type="button">Cancel</button>
+            <button class="eq-btn eq-btn-primary" id="confirm-ok" type="button">Confirm</button>
+        </div>
+    </div>
+</div>
+
 
 <!-- ============================================================
      ADD EQUIPMENT MODAL
