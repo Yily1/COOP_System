@@ -1,6 +1,6 @@
 <?php
-require_once '../../config/config.php';
-require_once '../../config/functions.php';
+require_once '../../../config/config.php';
+require_once '../../../config/functions.php';
 requireRole('manager');
 
 $currentRole = $_SESSION['role'];
@@ -21,7 +21,7 @@ function umInitials($name) {
 }
 
 // Manager manages regular User (member) accounts
-$baseSelect = "SELECT u.id, u.email, u.role, u.account_status, u.is_verified, u.created_at,
+$baseSelect = "SELECT u.id, u.username, u.email, u.role, u.account_status, u.is_verified, u.created_at,
                       m.membership_id, m.last_name, m.first_name, m.middle_name
                FROM users u
                LEFT JOIN members m ON u.member_id = m.id";
@@ -78,7 +78,7 @@ renderHeader($pageTitle);
 
     #um-search-wrap {
         position: relative;
-        width: 230px;
+        width: 260px;
         max-width: 100%;
         flex: none;
     }
@@ -151,9 +151,9 @@ renderHeader($pageTitle);
     .um-modal-box {
         background: #fff;
         border-radius: 14px;
-        padding: 28px 24px 24px;
+        padding: 22px 22px 18px;
         width: 100%;
-        max-width: 440px;
+        max-width: 620px;
         max-height: 90vh;
         overflow-y: auto;
         position: relative;
@@ -200,7 +200,71 @@ renderHeader($pageTitle);
 
     .um-modal-message {
         display: none;
-        margin-bottom: 14px;
+        margin-bottom: 10px;
+    }
+
+    /* ===== Compact 2-column form layout so modals fit without scrolling ===== */
+    .um-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 14px;
+    }
+    .um-form-grid .form-group { margin: 0 !important; min-width: 0; }
+    .um-form-grid .um-span-2 { grid-column: 1 / -1; }
+    .um-modal-box .form-group label {
+        font-size: 13px;
+        margin-bottom: 3px !important;
+    }
+    .um-modal-box .form-group input:not([type="checkbox"]),
+    .um-modal-box .form-group select {
+        padding: 8px 10px !important;
+        font-size: 13px !important;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .um-modal-box .form-group small {
+        display: block;
+        font-size: 11px;
+        margin-top: 2px;
+    }
+    .um-modal-box .um-info-compact {
+        margin: 0 0 12px 0 !important;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+    }
+    .um-modal-box form button[type="submit"] {
+        padding: 10px !important;
+        margin-top: 2px;
+    }
+
+    /* ===== Fixed-height modal: title stays on top, only the form scrolls ===== */
+    .um-modal-box {
+        display: flex !important;
+        flex-direction: column;
+        max-height: calc(100vh - 32px) !important;
+        overflow: hidden !important;
+    }
+    .um-modal-box h2,
+    .um-modal-box .um-info-compact,
+    .um-modal-box .um-modal-message {
+        flex: 0 0 auto;
+    }
+    .um-modal-box form {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+    /* Submit button stays visible at the bottom while the fields scroll */
+    .um-modal-box form.um-form-grid button[type="submit"] {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        box-shadow: 0 -8px 8px -4px #fff;
+    }
+
+    @media (max-width: 560px) {
+        .um-form-grid { grid-template-columns: 1fr; }
     }
 </style>
 
@@ -209,7 +273,7 @@ renderHeader($pageTitle);
     <div class="um-header-actions">
         <div id="um-search-wrap">
             <span class="material-icons">search</span>
-            <input type="text" id="umSearchInput" placeholder="Search name or ID" autocomplete="off">
+            <input type="text" id="umSearchInput" placeholder="Search name, username or ID" autocomplete="off">
         </div>
         <button type="button" id="openCreateBtn" onclick="openCreateModal()">
             <span class="material-icons" style="font-size: 18px;">person_add</span>
@@ -227,6 +291,7 @@ renderHeader($pageTitle);
         <tr>
             <th>Membership ID</th>
             <th>Name</th>
+            <th>Username</th>
             <th>Email</th>
             <th>Role</th>
             <th>Status</th>
@@ -239,7 +304,8 @@ renderHeader($pageTitle);
         <?php foreach ($users as $user): ?>
         <?php
             $rowName = $user['last_name'] ? ($user['last_name'] . ', ' . $user['first_name']) : '-';
-            $rowSearchText = strtolower($rowName . ' ' . $user['membership_id'] . ' ' . $user['email']);
+            $rowUsername = $user['username'] ?? '';
+            $rowSearchText = strtolower($rowName . ' ' . $user['membership_id'] . ' ' . $rowUsername . ' ' . $user['email']);
             $canEditThisUser = canEditUser($currentRole, $currentUserId, $user['role'], $user['id']);
             $canChangeThisUserRole = canChangeRole($currentRole, $currentUserId, $user['id']);
         ?>
@@ -253,6 +319,7 @@ renderHeader($pageTitle);
                     <p style="margin: 0; font-weight: 600;"><?php echo htmlspecialchars($rowName); ?></p>
                 </div>
             </td>
+            <td><?php echo $rowUsername !== '' ? htmlspecialchars($rowUsername) : '<span style="color:#999;">-</span>'; ?></td>
             <td><?php echo htmlspecialchars($user['email']); ?></td>
             <td>
                 <span class="badge badge-<?php echo $user['role']; ?>">
@@ -273,7 +340,7 @@ renderHeader($pageTitle);
             <td style="white-space: nowrap;">
                 <?php if ($canEditThisUser): ?>
                     <a href="#"
-                         onclick="openEditUserModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['account_status']), ENT_QUOTES); ?>, <?php echo $canChangeThisUserRole ? 'true' : 'false'; ?>); return false;"
+                         onclick="openEditUserModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($rowUsername), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['account_status']), ENT_QUOTES); ?>, <?php echo $canChangeThisUserRole ? 'true' : 'false'; ?>); return false;"
                          style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#274b81 !important; text-decoration:none !important; margin-right:4px !important; cursor:pointer;">
                         <span class="material-icons" style="font-size:14px !important;">edit</span>Edit
                     </a>
@@ -281,7 +348,7 @@ renderHeader($pageTitle);
 
                 <?php if (canDeleteUser($currentRole, $currentUserId, $user['role'], $user['id'])): ?>
                     <a href="#"
-                         onclick="openDeleteUserModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role']), ENT_QUOTES); ?>); return false;"
+                         onclick="openDeleteUserModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($rowUsername !== '' ? $rowUsername : $user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role']), ENT_QUOTES); ?>); return false;"
                          style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#a6322f !important; text-decoration:none !important; cursor:pointer;">
                         <span class="material-icons" style="font-size:14px !important;">delete</span>Delete
                     </a>
@@ -313,13 +380,13 @@ renderHeader($pageTitle);
         <span class="um-modal-close" onclick="closeCreateModal()" role="button" tabindex="0" aria-label="Close">&times;</span>
         <h2>Create account</h2>
 
-        <div class="info-box" style="margin-bottom: 16px; font-size: 13px;">
+        <div class="info-box um-info-compact">
             Select a cooperative member to give them a login account. Only members without an existing account are listed.
         </div>
 
         <div id="createModalMessage" class="um-modal-message"></div>
 
-        <form id="createAccountForm">
+        <form id="createAccountForm" class="um-form-grid">
             <div class="form-group">
                 <label for="create_member_id">Select Member:</label>
                 <select id="create_member_id" name="member_id" required>
@@ -330,6 +397,20 @@ renderHeader($pageTitle);
                         </option>
                     <?php endforeach; ?>
                 </select>
+            </div>
+
+            <div class="form-group">
+                <label>Role:</label>
+                <input type="text" value="User" disabled style="background: #f0f0f0; color: #888;">
+            </div>
+
+            <div class="form-group">
+                <label for="create_username">Username:</label>
+                <input type="text" id="create_username" name="username" required
+                       placeholder="e.g. juan.delacruz" pattern="[a-zA-Z0-9_.]{3,50}"
+                       title="3-50 characters. Letters, numbers, underscore, or period only."
+                       autocomplete="off">
+                <small style="color: #666;">3-50 chars: letters, numbers, _ or .</small>
             </div>
 
             <div class="form-group">
@@ -348,12 +429,6 @@ renderHeader($pageTitle);
             </div>
 
             <div class="form-group">
-                <label>Role:</label>
-                <input type="text" value="User" disabled style="background: #f0f0f0; color: #888;">
-                <small style="color: #666;">Managers can only create regular User accounts.</small>
-            </div>
-
-            <div class="form-group">
                 <label for="create_account_status">Account Status:</label>
                 <select id="create_account_status" name="account_status">
                     <option value="Active" selected>Active</option>
@@ -361,18 +436,18 @@ renderHeader($pageTitle);
                 </select>
             </div>
 
-            <div class="form-group">
-                <label style="display: flex; align-items: center; cursor: pointer;">
+            <div class="form-group" style="align-self: end;">
+                <label style="display: flex; align-items: center; cursor: pointer; margin: 0;">
                     <input type="checkbox" name="send_verification_email" value="1" checked
-                           style="width: auto; margin-right: 10px;">
-                    <span>Send email verification (recommended)</span>
+                           style="width: auto; margin-right: 8px;">
+                    <span>Send email verification</span>
                 </label>
-                <small style="color: #666; margin-left: 30px;">
-                    If unchecked, user will be verified immediately without email confirmation.
+                <small style="color: #666; margin-left: 26px;">
+                    If unchecked, verified immediately.
                 </small>
             </div>
 
-            <button type="submit">
+            <button type="submit" class="um-span-2">
                 <span class="material-icons" style="vertical-align: middle; font-size: 18px;">person_add</span>
                 Create account
             </button>
@@ -388,15 +463,29 @@ renderHeader($pageTitle);
 
         <div id="editUserModalMessage" class="um-modal-message"></div>
 
-        <form id="editUserForm">
+        <form id="editUserForm" class="um-form-grid">
+            <div class="form-group">
+                <label for="eu_username">Username:</label>
+                <input type="text" id="eu_username" name="username" required
+                       pattern="[a-zA-Z0-9_.]{3,50}"
+                       title="3-50 characters. Letters, numbers, underscore, or period only."
+                       autocomplete="off">
+                <small style="color: #666;">3-50 chars: letters, numbers, _ or .</small>
+            </div>
+
             <div class="form-group">
                 <label for="eu_email">Email:</label>
                 <input type="email" id="eu_email" name="email">
             </div>
 
             <div class="form-group">
-                <label for="eu_password">Password (leave empty to keep current):</label>
-                <input type="password" id="eu_password" name="password">
+                <label for="eu_password">New Password:</label>
+                <input type="password" id="eu_password" name="password" placeholder="Leave empty to keep current" autocomplete="new-password">
+            </div>
+
+            <div class="form-group">
+                <label for="eu_confirm_password">Confirm Password:</label>
+                <input type="password" id="eu_confirm_password" name="confirm_password" placeholder="Re-enter new password" autocomplete="new-password">
             </div>
 
             <div class="form-group">
@@ -417,7 +506,7 @@ renderHeader($pageTitle);
                 </select>
             </div>
 
-            <button type="submit">Update user</button>
+            <button type="submit" class="um-span-2">Update user</button>
         </form>
     </div>
 </div>
@@ -432,6 +521,7 @@ renderHeader($pageTitle);
 
         <div class="info-box" style="margin-bottom: 16px; font-size: 13px;">
             <strong>User Details:</strong><br>
+            Username: <span id="delUserUsername"></span><br>
             Email: <span id="delUserEmail"></span><br>
             Role: <span id="delUserRole"></span>
         </div>
@@ -448,7 +538,7 @@ renderHeader($pageTitle);
 <script>
 (function() {
     // ============================================================
-    // SEARCH FILTER (client-side, filters by name / membership ID / email)
+    // SEARCH FILTER (client-side, filters by name / membership ID / username / email)
     // ============================================================
     const searchInput = document.getElementById('umSearchInput');
     const tableRows = Array.from(document.querySelectorAll('#umTable tbody tr'));
@@ -502,9 +592,7 @@ renderHeader($pageTitle);
             formData.append('ajax', '1');
             submitBtn.disabled = true;
 
-            // NOTE: account-create.php now lives under app/manager/ instead
-            // of app/members/, since account creation is a manager-only action.
-            fetch('<?php echo BASE_URL; ?>/app/manager/account-create.php', {
+            fetch('<?php echo BASE_URL; ?>/app/manager/user-management/api/account-create.php', {
                 method: 'POST',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: formData
@@ -541,10 +629,12 @@ renderHeader($pageTitle);
     // ============================================================
     let currentEditUserId = null;
 
-    window.openEditUserModal = function(userId, email, role, accountStatus, canChangeRole) {
+    window.openEditUserModal = function(userId, username, email, role, accountStatus, canChangeRole) {
         currentEditUserId = userId;
+        document.getElementById('eu_username').value = username || '';
         document.getElementById('eu_email').value = email;
         document.getElementById('eu_password').value = '';
+        document.getElementById('eu_confirm_password').value = '';
         document.getElementById('eu_account_status').value = accountStatus;
 
         const roleSelect = document.getElementById('eu_role');
@@ -570,15 +660,24 @@ renderHeader($pageTitle);
         e.preventDefault();
         if (!currentEditUserId) return;
 
+        // If a new password was typed, it must match the confirmation
+        const newPw = document.getElementById('eu_password').value;
+        const confirmPw = document.getElementById('eu_confirm_password').value;
+        if (newPw !== '' && newPw !== confirmPw) {
+            const msgBox = document.getElementById('editUserModalMessage');
+            msgBox.style.display = 'block';
+            msgBox.className = 'um-modal-message error';
+            msgBox.textContent = 'Passwords do not match.';
+            return;
+        }
+
         const form = e.target;
         const submitBtn = form.querySelector('button[type="submit"]');
         const formData = new FormData(form);
         formData.append('ajax', '1');
         submitBtn.disabled = true;
 
-        // NOTE: user-update.php is now a shared handler under
-        // app/includes/handlers/ instead of app/users/.
-        fetch('<?php echo BASE_URL; ?>/app/includes/handlers/user-update.php?user_id=' + currentEditUserId, {
+        fetch('<?php echo BASE_URL; ?>/app/manager/user-management/api/user-update.php?user_id=' + currentEditUserId, {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: formData
@@ -613,8 +712,9 @@ renderHeader($pageTitle);
     // ============================================================
     let currentDeleteUserId = null;
 
-    window.openDeleteUserModal = function(userId, email, role) {
+    window.openDeleteUserModal = function(userId, username, email, role) {
         currentDeleteUserId = userId;
+        document.getElementById('delUserUsername').textContent = username;
         document.getElementById('delUserEmail').textContent = email;
         document.getElementById('delUserRole').textContent = role;
         document.getElementById('deleteUserModalMessage').style.display = 'none';
@@ -637,9 +737,7 @@ renderHeader($pageTitle);
         const submitBtn = this.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
 
-        // NOTE: user-delete.php is now a shared handler under
-        // app/includes/handlers/ instead of app/users/.
-        fetch('<?php echo BASE_URL; ?>/app/includes/handlers/user-delete.php?user_id=' + currentDeleteUserId, {
+        fetch('<?php echo BASE_URL; ?>/app/manager/user-management/api/user-delete.php?user_id=' + currentDeleteUserId, {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: new URLSearchParams({ ajax: '1' })

@@ -1008,7 +1008,7 @@ function renderHeader($title) {
                         <?php elseif ($currentRole === 'manager'): ?>
                             <a class="<?php echo navActive('/app/manager/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/manager/member-management/member-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/member-management/member-management.php">Member Management</a>
-                            <a class="<?php echo navActive('/app/manager/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/user-management.php">User Management</a>
+                            <a class="<?php echo navActive('/app/manager/user-management/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/user-management/user-management.php">User Management</a>
                             <a class="<?php echo navActive('/app/manager/payments/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/manager/meetings/meeting.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/meetings/meeting.php">Meetings</a>
                             <a class="<?php echo navActive('/app/manager/equipment/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.php">Equipment</a>
@@ -1123,4 +1123,7 @@ function renderFooter() {
     </html>
     <?php
 }
+
+
+
 ?>
