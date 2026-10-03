@@ -133,12 +133,16 @@ renderHeader('Payments');
 .pay-card-red    .pay-card-label, .pay-card-red    .pay-card-value { color: #B54A3C; }
 .pay-card-sand   { background: #F6E4C3; }
 .pay-card-sand   .pay-card-label, .pay-card-sand   .pay-card-value { color: #C1892B; }
+
+/* Bright green buttons (same as the "Add product" button) */
+#openModalBtn:hover,
+#submitBtn:hover { background: #2e5a0d !important; }
 </style>
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 18px; gap: 16px; position: relative; width: 100%; border-bottom: 2px solid #E4DCC8;">
     <h1 style="margin: 0; flex: 1 1 auto; min-width: 0; position: static !important;">Payments</h1>
     <button id="openModalBtn"
-            style="background: #1976d2 !important; color: #fff !important; border: none !important; padding: 10px 18px !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important; display: inline-block !important; width: auto !important; max-width: 200px !important; flex: 0 0 auto !important; white-space: nowrap !important; position: static !important; top: auto !important; left: auto !important; right: auto !important; float: none !important; margin-left: auto !important;">
+            style="background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; border: none !important; padding: 10px 18px !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important; display: inline-block !important; width: auto !important; max-width: 200px !important; flex: 0 0 auto !important; white-space: nowrap !important; position: static !important; top: auto !important; left: auto !important; right: auto !important; float: none !important; margin-left: auto !important;">
         + Add payment
     </button>
 </div>
@@ -329,7 +333,7 @@ renderHeader('Payments');
                 <button type="button" id="cancelBtn" style="padding: 10px 18px !important; border-radius: 6px; border: 1px solid #ccc; background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
                     Cancel
                 </button>
-                <button type="submit" id="submitBtn" style="padding: 10px 18px !important; border-radius: 6px; border: none; background: #639a20 !important; color: #fff !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
+                <button type="submit" id="submitBtn" style="padding: 10px 18px !important; border-radius: 6px; border: none; background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
                     Save payment
                 </button>
             </div>
