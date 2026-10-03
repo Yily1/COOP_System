@@ -375,3 +375,7 @@ ALTER TABLE resource_distributions
 
     ALTER TABLE payments
 ADD COLUMN proof_of_payment VARCHAR(255) NULL AFTER notes;
+
+
+ALTER TABLE users ADD COLUMN username VARCHAR(50) NULL AFTER member_id;
+ALTER TABLE users ADD UNIQUE (username);

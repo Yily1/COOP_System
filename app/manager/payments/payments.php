@@ -108,10 +108,31 @@ renderHeader('Payments');
 ?>
 
 <style>
-/* Summary cards: fixed 160px size, same as Crops / Products / Equipment */
+/* Summary cards: flat colors, same style as the Equipment rental page */
 .pay-summary-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
-.pay-summary-card { border-radius: 10px; padding: 16px 18px; flex: 0 0 160px; width: 160px; }
-.pay-summary-card p { overflow-wrap: anywhere; }
+.pay-summary-card {
+    border-radius: 12px; padding: 0 18px; flex: 0 0 160px; width: 160px; height: 92px;
+    box-sizing: border-box; box-shadow: none;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.pay-summary-card .pay-card-label { margin: 0 0 6px; font-size: 13px; }
+.pay-summary-card .pay-card-value {
+    margin: 0; font-size: 22px; font-weight: 700; line-height: 1.15;
+    font-family: 'Fraunces', 'Times New Roman', Times, serif;
+    font-variant-numeric: lining-nums tabular-nums;
+    white-space: nowrap;   /* never wrap the amount to a 2nd line */
+}
+.pay-card-dark   { background: #33502F; }
+.pay-card-dark   .pay-card-label, .pay-card-dark   .pay-card-value { color: #fff; }
+.pay-card-amber  { background: #C1892B; }
+.pay-card-amber  .pay-card-label, .pay-card-amber  .pay-card-value { color: #3E2A07; }
+.pay-card-green  { background: #E1EFDE; }
+.pay-card-green  .pay-card-label { color: #3F7D52; }
+.pay-card-green  .pay-card-value { color: #2F6B43; }
+.pay-card-red    { background: #F6E1DC; }
+.pay-card-red    .pay-card-label, .pay-card-red    .pay-card-value { color: #B54A3C; }
+.pay-card-sand   { background: #F6E4C3; }
+.pay-card-sand   .pay-card-label, .pay-card-sand   .pay-card-value { color: #C1892B; }
 </style>
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 18px; gap: 16px; position: relative; width: 100%; border-bottom: 2px solid #E4DCC8;">
@@ -126,25 +147,25 @@ renderHeader('Payments');
      OVERALL PAYMENT TOTALS
      ============================================================ -->
 <div class="pay-summary-grid">
-    <div class="pay-summary-card" style="background: #33502F;">
-        <p style="margin: 0 0 6px; font-size: 12.5px; color: #E1EFDE;">Registration</p>
-        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['registration'], 2); ?></p>
+    <div class="pay-summary-card pay-card-dark">
+        <p class="pay-card-label">Grand total</p>
+        <p class="pay-card-value">₱<?php echo number_format($grandTotal, 2); ?></p>
     </div>
-    <div class="pay-summary-card" style="background: #274B81;">
-        <p style="margin: 0 0 6px; font-size: 12.5px; color: #DCE7F5;">Investment</p>
-        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['investment'], 2); ?></p>
+    <div class="pay-summary-card pay-card-amber">
+        <p class="pay-card-label">Registration</p>
+        <p class="pay-card-value">₱<?php echo number_format($totals['registration'], 2); ?></p>
     </div>
-    <div class="pay-summary-card" style="background: #4A3F7A;">
-        <p style="margin: 0 0 6px; font-size: 12.5px; color: #E4E1F5;">Rental</p>
-        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['rental'], 2); ?></p>
+    <div class="pay-summary-card pay-card-green">
+        <p class="pay-card-label">Investment</p>
+        <p class="pay-card-value">₱<?php echo number_format($totals['investment'], 2); ?></p>
     </div>
-    <div class="pay-summary-card" style="background: #C1892B;">
-        <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E4C3;">Loan Repayment</p>
-        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($totals['loan_repayment'], 2); ?></p>
+    <div class="pay-summary-card pay-card-red">
+        <p class="pay-card-label">Rental</p>
+        <p class="pay-card-value">₱<?php echo number_format($totals['rental'], 2); ?></p>
     </div>
-    <div class="pay-summary-card" style="background: #B54A3C;">
-        <p style="margin: 0 0 6px; font-size: 12.5px; color: #F6E1DC;">Grand total</p>
-        <p style="margin: 0; font-size: 22px; font-weight: 600; color: #fff;">₱<?php echo number_format($grandTotal, 2); ?></p>
+    <div class="pay-summary-card pay-card-sand">
+        <p class="pay-card-label">Loan Repayment</p>
+        <p class="pay-card-value">₱<?php echo number_format($totals['loan_repayment'], 2); ?></p>
     </div>
 </div>
 
@@ -308,7 +329,7 @@ renderHeader('Payments');
                 <button type="button" id="cancelBtn" style="padding: 10px 18px !important; border-radius: 6px; border: 1px solid #ccc; background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
                     Cancel
                 </button>
-                <button type="submit" id="submitBtn" style="padding: 10px 18px !important; border-radius: 6px; border: none; background: #1976d2 !important; color: #fff !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
+                <button type="submit" id="submitBtn" style="padding: 10px 18px !important; border-radius: 6px; border: none; background: #639a20 !important; color: #fff !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
                     Save payment
                 </button>
             </div>
@@ -530,6 +551,20 @@ renderHeader('Payments');
             const matches = !q || (row.dataset.search || '').indexOf(q) !== -1;
             row.style.display = matches ? '' : 'none';
         });
+    });
+})();
+</script>
+
+<script>
+// Shrink an amount's font just enough to fit inside its card (all cards stay the same size)
+(function() {
+    document.querySelectorAll('.pay-card-value').forEach(function(el) {
+        var size = 22;
+        el.style.fontSize = size + 'px';
+        while (el.scrollWidth > el.clientWidth && size > 12) {
+            size--;
+            el.style.fontSize = size + 'px';
+        }
     });
 })();
 </script>
