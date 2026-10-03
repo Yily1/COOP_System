@@ -114,14 +114,17 @@ renderHeader('Member Management');
     box-sizing: border-box;
     font-size: 13px;
 }
+/* Bright green, same as the "Add product" button */
 .mm-add-btn {
-    background: #1976d2 !important;
+    background: #3B6D11 !important;
     color: #fff !important;
     border: none !important;
     padding: 10px 18px !important;
     border-radius: 6px !important;
     cursor: pointer;
     font-size: 14px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
     display: inline-flex !important;
     align-items: center;
     gap: 6px;
@@ -130,6 +133,7 @@ renderHeader('Member Management');
     flex: 0 0 auto !important;
     white-space: nowrap !important;
 }
+.mm-add-btn:hover { background: #2e5a0d !important; }
 
 .mm-summary-text {
     color: #667066;
@@ -257,13 +261,15 @@ renderHeader('Member Management');
     background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px !important;
     width: auto !important; flex: 0 0 auto !important;
 }
-/* Green, same as Create account / Update user on the Users page */
+/* Bright green, same as the "Add product" button
+   (Register Member / Update Member; the Delete button overrides the color inline) */
 .mm-btn-primary {
     padding: 10px 18px !important; border-radius: 6px !important; border: none !important;
-    background: #639a20 !important; color: #fff !important; cursor: pointer; font-size: 14px !important;
+    background: #3B6D11 !important; color: #fff !important; cursor: pointer; font-size: 14px !important;
+    font-weight: 600 !important; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
     width: auto !important; flex: 0 0 auto !important;
 }
-.mm-btn-primary:hover { background: #55851a !important; }
+.mm-btn-primary:hover { background: #2e5a0d !important; }
 
 /* ===== Delete confirmation modal ===== */
 .mm-confirm-box {
