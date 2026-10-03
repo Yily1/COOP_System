@@ -208,14 +208,159 @@ renderHeader('My Crops');
 
 .empty-note { color: #667066; font-size: 13px; text-align: center; padding: 20px 0; }
 
-/* MODAL */
-.crop-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
-.crop-modal.crop-open { display: flex; }
-.crop-modal-card { background: #fff; border-radius: 14px; width: 100%; max-width: 400px; box-sizing: border-box; padding: 24px; position: relative; }
-
 @media (max-width: 480px) {
     .page-title { font-size: 17px; }
     .btn-primary { padding: 8px 14px !important; font-size: 13px !important; }
+}
+
+/* ============================================================
+   ADD PLANTING MODAL
+   Same look as the Update Account modal on My Account: fixed title,
+   only the fields scroll, button always visible, 2 columns on
+   desktop and one compact column on phones.
+   ============================================================ */
+.crop-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.crop-modal.crop-open { display: flex; }
+
+.crop-modal-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 28px 24px 24px;
+    width: 100%;
+    max-width: 480px;
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
+}
+
+.crop-modal-card h2 {
+    background: none !important;
+    color: #1b3a24 !important;
+    margin: 0 0 14px 0 !important;
+    padding: 0 40px 0 0 !important;
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    text-align: left !important;
+    flex: 0 0 auto;
+}
+
+/* Close (x): a <span role="button"> so no global "button { }" rule can stretch it */
+#closeCropModalBtn {
+    position: absolute !important;
+    top: 16px !important;
+    right: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 0 !important;
+    max-width: 28px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    border: 1px solid #cfd8e3 !important;
+    border-radius: 50% !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    color: #274b81 !important;
+    box-shadow: none !important;
+    text-transform: none !important;
+    z-index: 10;
+    user-select: none;
+}
+#closeCropModalBtn:hover {
+    background: #eef3fb !important;
+    border-color: #274b81 !important;
+}
+
+#cropModalErrors,
+#cropModalSuccess { flex: 0 0 auto; }
+
+.crop-form {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+    text-align: left;
+}
+.crop-form .form-group { margin: 0 !important; min-width: 0; }
+.crop-form .span-2 { grid-column: 1 / -1; }
+
+.crop-form .form-group label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 3px !important;
+}
+.crop-form .form-group input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 9px !important;
+    font-size: 13px !important;
+}
+
+.crop-form button[type="submit"] {
+    grid-column: 1 / -1;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    width: 100% !important;
+    box-sizing: border-box;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: #639a20 !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 6px !important;
+    cursor: pointer;
+    font-size: 14px !important;
+    box-shadow: 0 -8px 8px -4px #fff;
+}
+
+@media (max-width: 560px) {
+    /* Wider side margins = narrower modal */
+    .crop-modal { padding: 10px 34px; }
+    .crop-modal-card {
+        padding: 18px 16px 14px;
+        max-width: 100%;
+        border-radius: 12px;
+        max-height: calc(100vh - 20px);
+    }
+    .crop-modal-card h2 {
+        font-size: 17px !important;
+        margin: 0 0 10px 0 !important;
+    }
+    #closeCropModalBtn { top: 12px !important; right: 12px !important; }
+
+    /* One field per row, stacked top to bottom */
+    .crop-form {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .crop-form .form-group label { font-size: 12px; }
+    .crop-form .form-group input {
+        padding: 7px 9px !important;
+        font-size: 13px !important;
+    }
+    .crop-form button[type="submit"] { padding: 10px !important; font-size: 13px !important; }
+    #cropModalErrors, #cropModalSuccess { margin-bottom: 8px !important; font-size: 12.5px !important; }
 }
 </style>
 
@@ -288,39 +433,41 @@ renderHeader('My Crops');
 <!-- MODAL - Add planting -->
 <div class="crop-modal" id="cropModalBackdrop">
     <div class="crop-modal-card">
-        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center; color: #1b3a24;">Add planting</h2>
-        <button id="closeCropModalBtn"
-                style="position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important; font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important; max-width: 28px !important; flex: 0 0 auto !important; color: #667066 !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;">&times;</button>
+        <span id="closeCropModalBtn" role="button" tabindex="0" aria-label="Close">&times;</span>
+        <h2>Add planting</h2>
 
         <div id="cropModalErrors" style="display: none; background: #fbe6e6; color: #a6322f; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; text-align: left;"></div>
         <div id="cropModalSuccess" style="display: none; background: #e8f5e9; color: #2e7d32; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; text-align: left;">
             Your planting will be sent to a manager for approval before it starts tracking.
         </div>
 
-        <form id="cropForm" style="text-align: left;">
-            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066;">Crop</label>
-            <input type="text" name="crop_name" placeholder="e.g. Rice, Corn, Eggplant" required
-                   style="width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 14px; font-family: inherit; font-size: 14px;">
+        <form id="cropForm" class="crop-form">
+            <div class="form-group">
+                <label for="crop_name">Crop</label>
+                <input type="text" id="crop_name" name="crop_name" placeholder="e.g. Rice, Corn, Eggplant" required>
+            </div>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066;">Farm location</label>
-            <input type="text" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required
-                   style="width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 14px; font-family: inherit; font-size: 14px;">
+            <div class="form-group">
+                <label for="crop_area">Area (hectares)</label>
+                <input type="number" id="crop_area" name="area_hectares" placeholder="e.g. 1.5" min="0.01" step="0.01" required>
+            </div>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066;">Area (hectares)</label>
-            <input type="number" name="area_hectares" placeholder="e.g. 1.5" min="0.01" step="0.01" required
-                   style="width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 14px; font-family: inherit; font-size: 14px;">
+            <div class="form-group span-2">
+                <label for="crop_location">Farm location</label>
+                <input type="text" id="crop_location" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
+            </div>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066;">Planting date</label>
-            <input type="date" name="planting_date" required
-                   style="width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 14px; font-family: inherit; font-size: 14px;">
+            <div class="form-group">
+                <label for="crop_planting_date">Planting date</label>
+                <input type="date" id="crop_planting_date" name="planting_date" required>
+            </div>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #667066;">Expected harvest date</label>
-            <input type="date" name="expected_harvest_date" required
-                   style="width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid #eceae4; box-sizing: border-box; margin-bottom: 20px; font-family: inherit; font-size: 14px;">
+            <div class="form-group">
+                <label for="crop_harvest_date">Expected harvest date</label>
+                <input type="date" id="crop_harvest_date" name="expected_harvest_date" required>
+            </div>
 
-            <button type="submit" id="cropSubmitBtn" class="btn-primary" style="width: 100% !important; padding: 11px !important; font-size: 14px !important;">
-                Submit planting
-            </button>
+            <button type="submit" id="cropSubmitBtn">Submit planting</button>
         </form>
     </div>
 </div>
@@ -345,6 +492,10 @@ renderHeader('My Crops');
 
     openBtn.addEventListener('click', openModal);
     closeBtn.addEventListener('click', closeModal);
+    // The close (x) is a <span role="button">, so it needs a manual keyboard handler
+    closeBtn.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeModal(); }
+    });
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
 
     form.addEventListener('submit', async function(e) {
