@@ -117,6 +117,164 @@ renderHeader('Payments');
         font-size: 13px !important;
     }
 }
+
+/* ============================================================
+   ADD PAYMENT MODAL
+   Same look as the Update Account modal on My Account: fixed title,
+   only the fields scroll, button always visible, 2 columns on
+   desktop and one compact column on phones.
+   (display is controlled by the inline style so the JS can toggle it)
+   ============================================================ */
+.pay-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.pay-modal-box {
+    background: #fff;
+    border-radius: 14px;
+    padding: 28px 24px 24px;
+    width: 100%;
+    max-width: 480px;
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
+}
+
+.pay-modal-box h2 {
+    background: none !important;
+    color: #1b3a24 !important;
+    margin: 0 0 14px 0 !important;
+    padding: 0 40px 0 0 !important;
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    text-align: left !important;
+    flex: 0 0 auto;
+}
+
+/* Close (x): a <span role="button"> so no global "button { }" rule can stretch it */
+#closePayModalBtn {
+    position: absolute !important;
+    top: 16px !important;
+    right: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 0 !important;
+    max-width: 28px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    border: 1px solid #cfd8e3 !important;
+    border-radius: 50% !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    color: #274b81 !important;
+    box-shadow: none !important;
+    text-transform: none !important;
+    z-index: 10;
+    user-select: none;
+}
+#closePayModalBtn:hover {
+    background: #eef3fb !important;
+    border-color: #274b81 !important;
+}
+
+#payModalErrors,
+#payModalSuccess { flex: 0 0 auto; }
+
+.pay-form {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+    text-align: left;
+}
+.pay-form .form-group { margin: 0 !important; min-width: 0; }
+.pay-form .span-2 { grid-column: 1 / -1; }
+.pay-form .gcash-box,
+.pay-form .proof-drop { margin-bottom: 0; }
+
+.pay-form .form-group label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 3px !important;
+}
+.pay-form .form-group input:not([type="file"]),
+.pay-form .form-group select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 9px !important;
+    font-size: 13px !important;
+}
+
+.pay-form button[type="submit"] {
+    grid-column: 1 / -1;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    width: 100% !important;
+    box-sizing: border-box;
+    margin: 0 !important;
+    padding: 10px !important;
+    background: #639a20 !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 6px !important;
+    cursor: pointer;
+    font-size: 14px !important;
+    box-shadow: 0 -8px 8px -4px #fff;
+}
+
+@media (max-width: 560px) {
+    /* Wider side margins = narrower modal */
+    .pay-modal-overlay { padding: 10px 34px; }
+    .pay-modal-box {
+        padding: 18px 16px 14px;
+        max-width: 100%;
+        border-radius: 12px;
+        max-height: calc(100vh - 20px);
+    }
+    .pay-modal-box h2 {
+        font-size: 17px !important;
+        margin: 0 0 10px 0 !important;
+    }
+    #closePayModalBtn { top: 12px !important; right: 12px !important; }
+
+    /* One field per row, stacked top to bottom */
+    .pay-form {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .pay-form .form-group label { font-size: 12px; }
+    .pay-form .form-group input:not([type="file"]),
+    .pay-form .form-group select {
+        padding: 7px 9px !important;
+        font-size: 13px !important;
+    }
+    .pay-form button[type="submit"] { padding: 10px !important; font-size: 13px !important; }
+
+    .gcash-box { padding: 10px; }
+    .gcash-box-val { font-size: 13px; }
+    .proof-drop { padding: 10px; }
+    .proof-drop-hint { display: none; }
+    #payModalErrors, #payModalSuccess { margin-bottom: 8px !important; font-size: 12.5px !important; }
+}
 </style>
 
 <div class="payment-card">
@@ -206,32 +364,34 @@ renderHeader('Payments');
 <!-- ============================================================
      MODAL - Add payment
      ============================================================ -->
-<div id="payModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;">
-    <div style="background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 400px; box-sizing: border-box; position: relative; max-height: 92vh; overflow-y: auto;">
-        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Add payment</h2>
-        <button id="closePayModalBtn" type="button"
-                style="position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important; font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important; max-width: 28px !important; flex: 0 0 auto !important; color: #333 !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;">&times;</button>
+<div id="payModalBackdrop" class="pay-modal-overlay" style="display: none;">
+    <div class="pay-modal-box">
+        <span id="closePayModalBtn" role="button" tabindex="0" aria-label="Close">&times;</span>
+        <h2>Add payment</h2>
 
         <div id="payModalErrors" style="display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; text-align: left;"></div>
         <div id="payModalSuccess" style="display: none; background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; text-align: left;">
             Na-submit na para sa confirmation ng manager.
         </div>
 
-        <form id="payForm" style="text-align: left;" enctype="multipart/form-data">
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payment type</label>
-            <select name="payment_type" id="payTypeSelect" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px;">
-                <option value="">-- Piliin --</option>
-                <option value="registration">Registration Fee (₱150)</option>
-                <option value="investment">Investment</option>
-                <option value="rental">Rental</option>
-                <option value="loan_repayment">Loan Repayment</option>
-            </select>
+        <form id="payForm" class="pay-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="payTypeSelect">Payment type</label>
+                <select name="payment_type" id="payTypeSelect" required>
+                    <option value="">-- Piliin --</option>
+                    <option value="registration">Registration Fee (₱150)</option>
+                    <option value="investment">Investment</option>
+                    <option value="rental">Rental</option>
+                    <option value="loan_repayment">Loan Repayment</option>
+                </select>
+            </div>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Amount (₱)</label>
-            <input type="number" name="amount" id="payAmountInput" step="0.01" min="0" required
-                   style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px;">
+            <div class="form-group">
+                <label for="payAmountInput">Amount (₱)</label>
+                <input type="number" name="amount" id="payAmountInput" step="0.01" min="0" required>
+            </div>
 
-            <div class="gcash-box">
+            <div class="gcash-box span-2">
                 <div class="gcash-box-title"><span class="material-icons">smartphone</span>Pay via GCash to</div>
                 <div class="gcash-box-grid">
                     <div>
@@ -245,36 +405,37 @@ renderHeader('Payments');
                 </div>
             </div>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payment date</label>
-            <input type="date" name="payment_date" required value="<?php echo date('Y-m-d'); ?>"
-                   style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px;">
+            <div class="form-group">
+                <label for="payDateInput">Payment date</label>
+                <input type="date" name="payment_date" id="payDateInput" required value="<?php echo date('Y-m-d'); ?>">
+            </div>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Proof of payment (screenshot) <span style="color:#c62828;">*</span></label>
-            <input type="file" name="proof_of_payment" id="payProofInput" accept="image/png,image/jpeg" style="display: none;">
-            <div class="proof-drop" id="payProofDrop" role="button" tabindex="0">
-                <div id="payProofEmpty">
-                    <span class="material-icons">upload</span>
-                    <div class="proof-drop-text">I-tap para mag-upload</div>
-                    <div class="proof-drop-hint">PNG o JPG, hanggang 5MB</div>
-                </div>
-                <div class="proof-done" id="payProofDone">
-                    <div class="proof-done-icon"><span class="material-icons">photo</span></div>
-                    <div style="min-width: 0; flex: 1;">
-                        <div class="proof-done-name" id="payProofName"></div>
-                        <div class="proof-done-ok">Na-upload na</div>
+            <div class="form-group">
+                <label for="payNotesInput">Notes (optional)</label>
+                <input type="text" name="notes" id="payNotesInput" placeholder="e.g. paid via GCash">
+            </div>
+
+            <div class="form-group span-2">
+                <label>Proof of payment (screenshot) <span style="color:#c62828;">*</span></label>
+                <input type="file" name="proof_of_payment" id="payProofInput" accept="image/png,image/jpeg" style="display: none;">
+                <div class="proof-drop" id="payProofDrop" role="button" tabindex="0">
+                    <div id="payProofEmpty">
+                        <span class="material-icons">upload</span>
+                        <div class="proof-drop-text">I-tap para mag-upload</div>
+                        <div class="proof-drop-hint">PNG o JPG, hanggang 5MB</div>
                     </div>
-                    <span class="proof-remove" id="payProofRemove">Alisin</span>
+                    <div class="proof-done" id="payProofDone">
+                        <div class="proof-done-icon"><span class="material-icons">photo</span></div>
+                        <div style="min-width: 0; flex: 1;">
+                            <div class="proof-done-name" id="payProofName"></div>
+                            <div class="proof-done-ok">Na-upload na</div>
+                        </div>
+                        <span class="proof-remove" id="payProofRemove">Alisin</span>
+                    </div>
                 </div>
             </div>
 
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Notes (optional)</label>
-            <input type="text" name="notes" placeholder="e.g. paid via GCash"
-                   style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 20px;">
-
-            <button type="submit" id="paySubmitBtn"
-                    style="width: 100%; box-sizing: border-box; background: #1976d2 !important; color: #fff !important; border: none !important; padding: 10px !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important;">
-                Submit for confirmation
-            </button>
+            <button type="submit" id="paySubmitBtn">Submit for confirmation</button>
         </form>
     </div>
 </div>
@@ -324,6 +485,10 @@ renderHeader('Payments');
 
     openBtn.addEventListener('click', openModal);
     closeBtn.addEventListener('click', closeModal);
+    // The close (x) is a <span role="button">, so it needs a manual keyboard handler
+    closeBtn.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeModal(); }
+    });
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
 
     // Auto-fill ng ₱150 kapag "Registration Fee" ang pinili
