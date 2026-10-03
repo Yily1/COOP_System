@@ -166,15 +166,22 @@ renderHeader('Member Management');
 
 .mm-empty { text-align: center; padding: 40px; color: #6c757d; }
 
-/* ===== Member modal (Add / Edit / View) ===== */
+/* ===== Member modal (Add / Edit / View) =====
+   The backdrop never scrolls. The modal box is capped to the screen
+   height, and only the middle part (.mm-form-body) scrolls, so the
+   title stays at the top and the buttons stay at the bottom. */
 .mm-modal-backdrop {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.5); z-index: 100; align-items: flex-start;
-    justify-content: center; padding: 30px 16px; overflow-y: auto;
+    background: rgba(0,0,0,0.5); z-index: 100; align-items: center;
+    justify-content: center; padding: 20px 16px; overflow: hidden;
+    box-sizing: border-box;
 }
 .mm-modal-box {
-    background: #fff; border-radius: 10px; padding: 24px 28px; width: 100%;
+    background: #fff; border-radius: 10px; padding: 22px 26px 18px; width: 100%;
     max-width: 640px; box-sizing: border-box; position: relative;
+    display: flex; flex-direction: column;
+    max-height: calc(100vh - 40px);
+    overflow: hidden;
 }
 .mm-modal-close {
     position: absolute !important; top: 16px !important; right: 16px !important;
@@ -183,22 +190,33 @@ renderHeader('Member Management');
     max-width: 28px !important; flex: 0 0 auto !important; color: #333 !important;
     line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;
 }
-.mm-modal-box h2 { margin: 0 0 4px; font-size: 19px; padding-right: 30px; }
-.mm-modal-subtext { margin: 0 0 18px; font-size: 13px; color: #667066; }
+.mm-modal-box h2 { margin: 0 0 4px; font-size: 19px; padding-right: 30px; flex: 0 0 auto; }
+.mm-modal-subtext { margin: 0 0 14px; font-size: 13px; color: #667066; flex: 0 0 auto; }
 .mm-modal-box h3 { font-size: 14px; color: #444; margin: 18px 0 10px; }
 .mm-modal-box h3:first-of-type { margin-top: 0; }
 
-.mm-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+/* The form fills the remaining space; body scrolls, footer stays put */
+#mmForm {
+    display: flex; flex-direction: column;
+    flex: 1 1 auto; min-height: 0;
+}
+.mm-form-body {
+    flex: 1 1 auto; min-height: 0;
+    overflow-y: auto;
+    padding: 2px 8px 4px 0;
+}
+
+.mm-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
 .mm-form-grid .span-2 { grid-column: span 2; }
 @media (max-width: 600px) {
     .mm-form-grid { grid-template-columns: 1fr; }
     .mm-form-grid .span-2 { grid-column: span 1; }
 }
-.mm-field label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; }
+.mm-field label { display: block; margin-bottom: 4px; font-weight: 500; font-size: 13px; }
 .mm-field input[type="text"],
 .mm-field input[type="date"],
 .mm-field select {
-    width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 14px;
+    width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 14px;
 }
 .mm-field input:disabled, .mm-field select:disabled {
     background: #f5f5f5; color: #666;
@@ -222,21 +240,30 @@ renderHeader('Member Management');
     font-size: 13px; font-weight: 500; color: #333; line-height: 1.3;
 }
 
-#mmErrors, #mmSuccess { display: none; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
+#mmErrors, #mmSuccess {
+    display: none; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px;
+    font-size: 13px; flex: 0 0 auto;
+}
 #mmErrors { background: #f8d7da; color: #721c24; }
 #mmSuccess { background: #d4edda; color: #155724; }
 
-.mm-modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.mm-modal-footer {
+    display: flex; gap: 8px; justify-content: flex-end;
+    margin-top: 0; padding-top: 14px; flex: 0 0 auto;
+    border-top: 1px solid #eee;
+}
 .mm-btn-secondary {
     padding: 10px 18px !important; border-radius: 6px !important; border: 1px solid #ccc !important;
     background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px !important;
     width: auto !important; flex: 0 0 auto !important;
 }
+/* Green, same as Create account / Update user on the Users page */
 .mm-btn-primary {
     padding: 10px 18px !important; border-radius: 6px !important; border: none !important;
-    background: #1976d2 !important; color: #fff !important; cursor: pointer; font-size: 14px !important;
+    background: #639a20 !important; color: #fff !important; cursor: pointer; font-size: 14px !important;
     width: auto !important; flex: 0 0 auto !important;
 }
+.mm-btn-primary:hover { background: #55851a !important; }
 
 /* ===== Delete confirmation modal ===== */
 .mm-confirm-box {
@@ -244,6 +271,7 @@ renderHeader('Member Management');
 }
 .mm-confirm-box h3 { margin: 0 0 8px; font-size: 17px; }
 .mm-confirm-box p { margin: 0 0 18px; font-size: 14px; color: #444; }
+.mm-confirm-box .mm-modal-footer { border-top: none; padding-top: 0; margin-top: 16px; }
 </style>
 
 <div class="mm-header">
@@ -339,6 +367,7 @@ renderHeader('Member Management');
 
 <!-- ============================================================
      MEMBER MODAL (Add / Edit / View - same form, different mode)
+     Layout: title + messages (fixed) / form body (scrolls) / buttons (fixed)
      ============================================================ -->
 <div class="mm-modal-backdrop" id="mmModalBackdrop">
     <div class="mm-modal-box">
@@ -352,107 +381,109 @@ renderHeader('Member Management');
         <form id="mmForm">
             <input type="hidden" id="mm_member_id" name="member_id" value="">
 
-            <h3>Personal Information</h3>
-            <div class="mm-form-grid">
-                <div class="mm-field span-2">
-                    <label>Membership ID</label>
-                    <input type="text" id="mm_membership_id" disabled value="Auto-generated (e.g. SJFMC-0001)">
-                </div>
-                <div class="mm-field">
-                    <label for="mm_last_name">Last Name</label>
-                    <input type="text" id="mm_last_name" name="last_name" placeholder="Dela Cruz">
-                </div>
-                <div class="mm-field">
-                    <label for="mm_first_name">First Name</label>
-                    <input type="text" id="mm_first_name" name="first_name" placeholder="Juan">
-                </div>
-                <div class="mm-field">
-                    <label for="mm_middle_name">Middle Name</label>
-                    <input type="text" id="mm_middle_name" name="middle_name" placeholder="Santos">
-                </div>
-                <div class="mm-field">
-                    <label for="mm_gender">Gender</label>
-                    <select id="mm_gender" name="gender">
-                        <option value="">-- Select Gender --</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                    </select>
-                </div>
-                <div class="mm-field">
-                    <label for="mm_date_of_birth">Date of Birth</label>
-                    <input type="date" id="mm_date_of_birth" name="date_of_birth">
-                </div>
-                <div class="mm-field">
-                    <label for="mm_occupation">Occupation</label>
-                    <input type="text" id="mm_occupation" name="occupation" placeholder="Farming">
-                </div>
-                <div class="mm-field span-2">
-                    <label for="mm_address">Complete Address</label>
-                    <input type="text" id="mm_address" name="address" placeholder="Street, Barangay, City, Province">
-                </div>
-                <div class="mm-field span-2">
-                    <label for="mm_contact_number">Contact Number</label>
-                    <input type="text" id="mm_contact_number" name="contact_number" placeholder="09XXXXXXXXX">
-                </div>
-            </div>
-
-            <h3>Membership Information</h3>
-            <div class="mm-form-grid">
-                <div class="mm-field">
-                    <label for="mm_membership_type">Membership Type</label>
-                    <select id="mm_membership_type" name="membership_type">
-                        <option value="">-- Select Type --</option>
-                        <option value="Regular">Regular</option>
-                        <option value="Associate">Associate</option>
-                    </select>
-                </div>
-                <div class="mm-field">
-                    <label for="mm_date_joined">Date Joined</label>
-                    <input type="date" id="mm_date_joined" name="date_joined">
-                </div>
-                <div class="mm-field span-2">
-                    <label for="mm_hectares_cultivated">Number of Hectares Cultivated</label>
-                    <select id="mm_hectares_cultivated" name="hectares_cultivated">
-                        <option value="">-- Select Number of Hectares --</option>
-                        <?php for ($h = 1; $h <= 10; $h++): ?>
-                            <option value="<?php echo $h; ?>"><?php echo $h; ?> hectare<?php echo $h !== 1 ? 's' : ''; ?></option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
-            </div>
-
-            <h3>Farming Profile</h3>
-            <div class="mm-form-grid">
-                <div class="mm-field span-2">
-                    <label for="mm_farmer_type">Type of Farmer</label>
-                    <select id="mm_farmer_type" name="farmer_type">
-                        <option value="">-- Select Type --</option>
-                        <option value="Livestock">Livestock</option>
-                        <option value="Crops">Crops</option>
-                        <option value="Both">Both</option>
-                    </select>
-                </div>
-
-                <div class="mm-field span-2" id="mm_livestock_field" style="display: none;">
-                    <label>Livestock Raised</label>
-                    <div class="mm-checkbox-group" id="mm_livestock_checkboxes">
-                        <?php foreach ($livestockOptions as $opt): ?>
-                            <label><input type="checkbox" name="livestock[]" value="<?php echo $opt; ?>"><?php echo $opt; ?></label>
-                        <?php endforeach; ?>
+            <div class="mm-form-body">
+                <h3>Personal Information</h3>
+                <div class="mm-form-grid">
+                    <div class="mm-field span-2">
+                        <label>Membership ID</label>
+                        <input type="text" id="mm_membership_id" disabled value="Auto-generated (e.g. SJFMC-0001)">
                     </div>
-                    <input type="text" id="mm_livestock_others" name="livestock_others" placeholder="Others (specify)">
-                    <div class="mm-badge-view" id="mm_livestock_badges" style="display: none;"></div>
+                    <div class="mm-field">
+                        <label for="mm_last_name">Last Name</label>
+                        <input type="text" id="mm_last_name" name="last_name" placeholder="Dela Cruz">
+                    </div>
+                    <div class="mm-field">
+                        <label for="mm_first_name">First Name</label>
+                        <input type="text" id="mm_first_name" name="first_name" placeholder="Juan">
+                    </div>
+                    <div class="mm-field">
+                        <label for="mm_middle_name">Middle Name</label>
+                        <input type="text" id="mm_middle_name" name="middle_name" placeholder="Santos">
+                    </div>
+                    <div class="mm-field">
+                        <label for="mm_gender">Gender</label>
+                        <select id="mm_gender" name="gender">
+                            <option value="">-- Select Gender --</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    <div class="mm-field">
+                        <label for="mm_date_of_birth">Date of Birth</label>
+                        <input type="date" id="mm_date_of_birth" name="date_of_birth">
+                    </div>
+                    <div class="mm-field">
+                        <label for="mm_occupation">Occupation</label>
+                        <input type="text" id="mm_occupation" name="occupation" placeholder="Farming">
+                    </div>
+                    <div class="mm-field span-2">
+                        <label for="mm_address">Complete Address</label>
+                        <input type="text" id="mm_address" name="address" placeholder="Street, Barangay, City, Province">
+                    </div>
+                    <div class="mm-field span-2">
+                        <label for="mm_contact_number">Contact Number</label>
+                        <input type="text" id="mm_contact_number" name="contact_number" placeholder="09XXXXXXXXX">
+                    </div>
                 </div>
 
-                <div class="mm-field span-2" id="mm_crops_field" style="display: none;">
-                    <label>Crops Grown</label>
-                    <div class="mm-checkbox-group" id="mm_crops_checkboxes">
-                        <?php foreach ($cropOptions as $opt): ?>
-                            <label><input type="checkbox" name="crops[]" value="<?php echo $opt; ?>"><?php echo $opt; ?></label>
-                        <?php endforeach; ?>
+                <h3>Membership Information</h3>
+                <div class="mm-form-grid">
+                    <div class="mm-field">
+                        <label for="mm_membership_type">Membership Type</label>
+                        <select id="mm_membership_type" name="membership_type">
+                            <option value="">-- Select Type --</option>
+                            <option value="Regular">Regular</option>
+                            <option value="Associate">Associate</option>
+                        </select>
                     </div>
-                    <input type="text" id="mm_crops_others" name="crops_others" placeholder="Others (specify)">
-                    <div class="mm-badge-view" id="mm_crops_badges" style="display: none;"></div>
+                    <div class="mm-field">
+                        <label for="mm_date_joined">Date Joined</label>
+                        <input type="date" id="mm_date_joined" name="date_joined">
+                    </div>
+                    <div class="mm-field span-2">
+                        <label for="mm_hectares_cultivated">Number of Hectares Cultivated</label>
+                        <select id="mm_hectares_cultivated" name="hectares_cultivated">
+                            <option value="">-- Select Number of Hectares --</option>
+                            <?php for ($h = 1; $h <= 10; $h++): ?>
+                                <option value="<?php echo $h; ?>"><?php echo $h; ?> hectare<?php echo $h !== 1 ? 's' : ''; ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <h3>Farming Profile</h3>
+                <div class="mm-form-grid">
+                    <div class="mm-field span-2">
+                        <label for="mm_farmer_type">Type of Farmer</label>
+                        <select id="mm_farmer_type" name="farmer_type">
+                            <option value="">-- Select Type --</option>
+                            <option value="Livestock">Livestock</option>
+                            <option value="Crops">Crops</option>
+                            <option value="Both">Both</option>
+                        </select>
+                    </div>
+
+                    <div class="mm-field span-2" id="mm_livestock_field" style="display: none;">
+                        <label>Livestock Raised</label>
+                        <div class="mm-checkbox-group" id="mm_livestock_checkboxes">
+                            <?php foreach ($livestockOptions as $opt): ?>
+                                <label><input type="checkbox" name="livestock[]" value="<?php echo $opt; ?>"><?php echo $opt; ?></label>
+                            <?php endforeach; ?>
+                        </div>
+                        <input type="text" id="mm_livestock_others" name="livestock_others" placeholder="Others (specify)">
+                        <div class="mm-badge-view" id="mm_livestock_badges" style="display: none;"></div>
+                    </div>
+
+                    <div class="mm-field span-2" id="mm_crops_field" style="display: none;">
+                        <label>Crops Grown</label>
+                        <div class="mm-checkbox-group" id="mm_crops_checkboxes">
+                            <?php foreach ($cropOptions as $opt): ?>
+                                <label><input type="checkbox" name="crops[]" value="<?php echo $opt; ?>"><?php echo $opt; ?></label>
+                            <?php endforeach; ?>
+                        </div>
+                        <input type="text" id="mm_crops_others" name="crops_others" placeholder="Others (specify)">
+                        <div class="mm-badge-view" id="mm_crops_badges" style="display: none;"></div>
+                    </div>
                 </div>
             </div>
 
@@ -512,6 +543,7 @@ renderHeader('Member Management');
     const modalTitle = document.getElementById('mmModalTitle');
     const modalSubtext = document.getElementById('mmModalSubtext');
     const form = document.getElementById('mmForm');
+    const formBody = form.querySelector('.mm-form-body');
     const errorsBox = document.getElementById('mmErrors');
     const successBox = document.getElementById('mmSuccess');
     const submitBtn = document.getElementById('mmSubmitBtn');
@@ -561,6 +593,7 @@ renderHeader('Member Management');
         successBox.style.display = 'none';
         livestockBadges.innerHTML = '';
         cropsBadges.innerHTML = '';
+        formBody.scrollTop = 0; // always start at the top of the form
         toggleFarmerFields();
     }
 
