@@ -46,7 +46,8 @@ function cropImageUrl($crop) {
 // Show the user's own full profile inline. Account Info and
 // Personal/Membership Info are in SEPARATE cards. Only Account
 // Info is editable, via a popup/modal (no page navigation, AJAX
-// submit to the shared includes/handlers/user-update.php).
+// submit to app/user/api/user-update.php - a handler that can only
+// ever edit the logged-in user's OWN account).
 // ============================================================
 
 $stmt = $pdo->prepare("
@@ -355,6 +356,88 @@ renderHeader($pageTitle);
         display: none;
         margin-bottom: 14px;
     }
+
+    /* ===== Compact, responsive Update Account form =====
+       2 columns on desktop, 1 compact column on phones. Title stays on
+       top, only the fields scroll, and the button stays visible. */
+    .modal-box {
+        display: flex;
+        flex-direction: column;
+        max-width: 480px;
+        max-height: calc(100vh - 32px);
+        overflow: hidden;
+    }
+    .modal-box h2,
+    #modalMessage { flex: 0 0 auto; }
+
+    .modal-box form {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 4px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 12px;
+    }
+    .modal-box form .form-group { margin: 0 !important; min-width: 0; }
+    .modal-box form .form-group.span-2 { grid-column: 1 / -1; }
+
+    .modal-box .form-group label {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 3px !important;
+    }
+    .modal-box .form-group input:not([type="hidden"]),
+    .modal-box .form-group select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 9px !important;
+        font-size: 13px !important;
+    }
+    .modal-box .form-group small {
+        display: block;
+        font-size: 11px;
+        margin-top: 2px;
+    }
+    .modal-box form button[type="submit"] {
+        grid-column: 1 / -1;
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        margin: 0 !important;
+        padding: 10px !important;
+        box-shadow: 0 -8px 8px -4px #fff;
+    }
+
+    @media (max-width: 560px) {
+        /* Wider side margins = narrower modal (same look as the Book equipment modal) */
+        .modal-overlay { padding: 10px 34px; }
+        .modal-box {
+            padding: 18px 16px 14px;
+            max-width: 100%;
+            border-radius: 12px;
+            max-height: calc(100vh - 20px);
+        }
+        .modal-box h2 {
+            font-size: 17px !important;
+            margin: 0 0 10px 0 !important;
+        }
+        #closeBtn { top: 12px !important; right: 12px !important; }
+        /* One field per row, stacked top to bottom (like the Book equipment modal) */
+        .modal-box form {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        .modal-box form .form-hint { display: none; }
+        .modal-box .form-group label { font-size: 12px; }
+        .modal-box .form-group input:not([type="hidden"]),
+        .modal-box .form-group select {
+            padding: 7px 9px !important;
+            font-size: 13px !important;
+        }
+        .modal-box form button[type="submit"] { padding: 10px !important; font-size: 13px !important; }
+        #modalMessage { margin-bottom: 8px; font-size: 12.5px; }
+    }
 </style>
 
 <div class="page-shell">
@@ -383,6 +466,10 @@ renderHeader($pageTitle);
                     <h3>Account Information</h3>
                 </div>
                 <div class="info-rows">
+                    <div class="info-row">
+                        <span class="info-label">Username</span>
+                        <span class="info-value" id="acctUsername"><?php echo !empty($user['username']) ? htmlspecialchars($user['username']) : '-'; ?></span>
+                    </div>
                     <div class="info-row">
                         <span class="info-label">Email</span>
                         <span class="info-value" id="acctEmail"><?php echo htmlspecialchars($user['email']); ?></span>
@@ -519,14 +606,29 @@ renderHeader($pageTitle);
                 <div id="modalMessage"></div>
 
                 <form id="editAccountForm">
-                    <div class="form-group">
+                    <div class="form-group mob-full">
+                        <label for="modal_username">Username:</label>
+                        <input type="text" id="modal_username" name="username" required
+                               pattern="[a-zA-Z0-9_.]{3,50}"
+                               title="3-50 characters. Letters, numbers, underscore, or period only."
+                               value="<?php echo htmlspecialchars($user['username'] ?? ''); ?>"
+                               autocomplete="off">
+                        <small class="form-hint" style="color: #666;">3-50 chars: letters, numbers, _ or .</small>
+                    </div>
+
+                    <div class="form-group mob-full">
                         <label for="modal_email">Email:</label>
                         <input type="email" id="modal_email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>">
                     </div>
 
                     <div class="form-group">
-                        <label for="modal_password">Password (leave empty to keep current):</label>
-                        <input type="password" id="modal_password" name="password">
+                        <label for="modal_password">New Password:</label>
+                        <input type="password" id="modal_password" name="password" autocomplete="new-password" placeholder="Leave empty to keep current">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="modal_confirm_password">Confirm Password:</label>
+                        <input type="password" id="modal_confirm_password" name="confirm_password" autocomplete="new-password" placeholder="Re-enter password">
                     </div>
 
                     <div class="form-group">
@@ -536,7 +638,7 @@ renderHeader($pageTitle);
                         </select>
                         <?php if (!$canChangeThisRole): ?>
                             <input type="hidden" name="role" value="<?php echo htmlspecialchars($user['role']); ?>">
-                            <small style="color: #666;">Only admins can change roles, and not their own.</small>
+                            <small class="form-hint" style="color: #666;">Only admins can change roles, and not their own.</small>
                         <?php endif; ?>
                     </div>
 
@@ -579,6 +681,17 @@ renderHeader($pageTitle);
         document.getElementById('editAccountForm').addEventListener('submit', function (e) {
             e.preventDefault();
 
+            // If a new password was typed, it must match the confirmation
+            const newPw = document.getElementById('modal_password').value;
+            const confirmPw = document.getElementById('modal_confirm_password').value;
+            if (newPw !== '' && newPw !== confirmPw) {
+                const msgBox = document.getElementById('modalMessage');
+                msgBox.style.display = 'block';
+                msgBox.className = 'error';
+                msgBox.textContent = 'Passwords do not match.';
+                return;
+            }
+
             const form = e.target;
             const submitBtn = form.querySelector('button[type="submit"]');
             const formData = new FormData(form);
@@ -586,9 +699,9 @@ renderHeader($pageTitle);
 
             submitBtn.disabled = true;
 
-            // NOTE: user-update.php is now a shared handler under
-            // app/includes/handlers/ instead of app/users/.
-            fetch('<?php echo BASE_URL; ?>/app/includes/handlers/user-update.php?user_id=<?php echo $user['id']; ?>', {
+            // This handler can only edit the logged-in user's OWN account
+            // (the user id comes from the session, not from the request).
+            fetch('<?php echo BASE_URL; ?>/app/user/api/user-update.php', {
                 method: 'POST',
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 body: formData
@@ -602,6 +715,7 @@ renderHeader($pageTitle);
 
                 if (data.success && data.user) {
                     // Update the Account Information card in place - no reload
+                    document.getElementById('acctUsername').textContent = data.user.username;
                     document.getElementById('acctEmail').textContent = data.user.email;
 
                     const statusBadge = document.getElementById('acctStatusBadge');
@@ -609,6 +723,7 @@ renderHeader($pageTitle);
                     statusBadge.style.background = data.user.account_status === 'Active' ? '#2e7d32' : '#a9a79f';
 
                     document.getElementById('modal_password').value = '';
+                    document.getElementById('modal_confirm_password').value = '';
 
                     setTimeout(closeEditModal, 1200);
                 }
@@ -629,6 +744,6 @@ renderHeader($pageTitle);
         <div class="error">Account not found.</div>
     <?php endif; ?>
 
-</div>
+</div>sss
 
 <?php renderFooter(); ?>
