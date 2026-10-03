@@ -604,17 +604,17 @@ function canAccessResourceDistribution($role) {
 }
 
 /**
- * Members who currently have an active crop planting (growing or
- * ready_to_harvest — approved and not yet harvested), for the
- * "Add distribution" member dropdown. A member with more than one
- * active planting still appears once.
+ * Members who have at least one crop planting on record, whatever its
+ * status (pending, growing, ready_to_harvest, harvested, rejected), for
+ * the "Add distribution" member dropdown. A member with more than one
+ * planting still appears once, and can be given resources any number
+ * of times.
  */
 function getEligibleMembersForDistribution($pdo) {
     $stmt = $pdo->query("
         SELECT DISTINCT m.id, m.first_name, m.last_name, m.membership_id
         FROM members m
         INNER JOIN crops c ON c.member_id = m.id
-        WHERE c.status IN ('growing', 'ready_to_harvest')
         ORDER BY m.last_name, m.first_name
     ");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1134,7 +1134,7 @@ function renderFooter() {
                 </div>
             </div>
         <?php endif; ?>
-    </body>SS
+    </body>
     </html>
     <?php
 }

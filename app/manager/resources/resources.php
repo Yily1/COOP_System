@@ -75,7 +75,8 @@ renderHeader('Resource Distribution');
    rules and stretches/uppercases them (see equipment.php's
    .eq-btn-link comment for the same issue). flex is locked to
    `0 0 auto` so the button can never be squeezed or stretched by
-   the header's flex layout. */
+   the header's flex layout.
+   Bright green + soft shadow, same as the "Add product" button. */
 .rd-btn {
     box-sizing: border-box;
     width: auto !important;
@@ -93,15 +94,15 @@ renderHeader('Resource Distribution');
     letter-spacing: normal;
     padding: 9px 16px;
     border-radius: var(--rd-radius);
-    border: 1.5px solid var(--rd-forest);
-    background: var(--rd-forest);
+    border: 1.5px solid #3B6D11;
+    background: #3B6D11;
     color: #fff;
     cursor: pointer;
-    box-shadow: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     transition: background 0.12s ease;
 }
 .rd-btn .material-icons { font-size: 17px; }
-.rd-btn:hover { background: var(--rd-forest-dark); }
+.rd-btn:hover { background: #2e5a0d; border-color: #2e5a0d; }
 .rd-btn-full { width: 100% !important; flex: none; justify-content: center; padding: 11px; }
 
 /* SECTION */
@@ -275,7 +276,7 @@ renderHeader('Resource Distribution');
     <div class="rd-header">
         <div>
             <h1>Resource Distribution</h1>
-            <p class="rd-muted">DA resources go to members with an active crop planting only</p>
+            <p class="rd-muted">Give DA resources to members who have crop plantings</p>
         </div>
         <button class="rd-btn" id="add-distribution-btn" type="button">
             <span class="material-icons">add</span> Add distribution
@@ -371,7 +372,7 @@ renderHeader('Resource Distribution');
                 <?php endforeach; ?>
             </select>
             <?php if (empty($eligibleMembers)): ?>
-                <p class="rd-muted" style="margin-top:4px;">No members currently have an active crop planting.</p>
+                <p class="rd-muted" style="margin-top:4px;">No members have a crop planting yet.</p>
             <?php endif; ?>
 
             <label>Resource</label>

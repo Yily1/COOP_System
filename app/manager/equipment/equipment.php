@@ -143,6 +143,15 @@ renderHeader('Equipment Rental');
 }
 .eq-btn-primary:hover { background: var(--eq-forest-dark); }
 
+/* Bright green button (same as the "Add product" button) */
+.eq-btn-green {
+    background: #3B6D11;
+    border-color: #3B6D11;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.eq-btn-green:hover { background: #2e5a0d; border-color: #2e5a0d; }
+
 .eq-btn-full { width: 100%; justify-content: center; padding: 11px; }
 .eq-btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
 
@@ -705,7 +714,7 @@ renderHeader('Equipment Rental');
         </div>
 
         <?php if (($_SESSION['role'] ?? '') === 'manager'): ?>
-            <button class="eq-btn eq-btn-outline" id="add-equipment-btn" type="button">
+            <button class="eq-btn eq-btn-green" id="add-equipment-btn" type="button">
                 <span class="material-icons">add</span> Add equipment
             </button>
         <?php endif; ?>
@@ -764,7 +773,7 @@ renderHeader('Equipment Rental');
                         <?php if (($_SESSION['role'] ?? '') === 'manager'): ?>
                             <button class="eq-status-btn" data-id="<?php echo $eq['id']; ?>" type="button">
                                 <span class="eq-dot <?php echo $isAvailable ? 'eq-dot-success' : 'eq-dot-danger'; ?>"></span>
-                                <span class="eq-status-label"><?php echo $isAvailable ? 'Available' : 'Not available'; ?></span>
+                                <span class="eq-status-label"><?php echo $isAvailable ? 'Available' : 'Under repair'; ?></span>
                             </button>
 
                             <button class="eq-btn-link eq-edit-btn" type="button">
@@ -773,7 +782,7 @@ renderHeader('Equipment Rental');
                         <?php else: ?>
                             <div class="eq-status-readonly">
                                 <span class="eq-dot <?php echo $isAvailable ? 'eq-dot-success' : 'eq-dot-danger'; ?>"></span>
-                                <span><?php echo $isAvailable ? 'Available' : 'Not available'; ?></span>
+                                <span><?php echo $isAvailable ? 'Available' : 'Under repair'; ?></span>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -1047,7 +1056,7 @@ renderHeader('Equipment Rental');
                 <option value="sack">Sack</option>
             </select>
 
-            <button type="submit" class="eq-btn eq-btn-primary eq-btn-full" style="margin-top:16px;">Save equipment</button>
+            <button type="submit" class="eq-btn eq-btn-green eq-btn-full" style="margin-top:16px;">Save equipment</button>
         </form>
     </div>
 </div>
@@ -1104,7 +1113,7 @@ renderHeader('Equipment Rental');
                 <option value="sack">Sack</option>
             </select>
 
-            <button type="submit" class="eq-btn eq-btn-primary eq-btn-full" style="margin-top:16px;">Save changes</button>
+            <button type="submit" class="eq-btn eq-btn-green eq-btn-full" style="margin-top:16px;">Save changes</button>
         </form>
     </div>
 </div>
