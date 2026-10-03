@@ -55,21 +55,25 @@ renderHeader($pageTitle);
         flex-wrap: wrap;
     }
 
+    /* Bright green, same as the "Add product" button */
     #openCreateBtn {
         display: inline-flex !important;
         align-items: center !important;
         gap: 6px !important;
         width: auto !important;
         flex: none !important;
-        background: #1976d2 !important;
+        background: #3B6D11 !important;
         color: #fff !important;
         border: none !important;
         padding: 10px 18px !important;
         border-radius: 6px !important;
         font-size: 14px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
         cursor: pointer;
         white-space: nowrap;
     }
+    #openCreateBtn:hover { background: #2e5a0d !important; }
 
     .um-toolbar {
         margin-bottom: 14px;
@@ -261,6 +265,22 @@ renderHeader($pageTitle);
         bottom: 0;
         z-index: 2;
         box-shadow: 0 -8px 8px -4px #fff;
+    }
+
+    /* Bright green Create account / Update user buttons
+       (same as the "Add product" button). Scoped to the 2-column forms,
+       so the red Delete User button is not affected. */
+    .um-modal-box form.um-form-grid button[type="submit"] {
+        background: #3B6D11 !important;
+        color: #fff !important;
+        border: none !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        cursor: pointer;
+        box-shadow: 0 -8px 8px -4px #fff, 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    }
+    .um-modal-box form.um-form-grid button[type="submit"]:hover {
+        background: #2e5a0d !important;
     }
 
     @media (max-width: 560px) {
