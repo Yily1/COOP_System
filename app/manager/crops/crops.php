@@ -401,7 +401,7 @@ renderHeader('Crops Management');
     <!-- PAGE HEADER -->
     <div class="cm-header">
         <div>
-            <h1>Crops Management</h1>
+            <h1>Crops</h1>
             <p class="cm-muted">
                 <?php echo $role === 'manager'
                     ? 'Review and track every member\'s crop plantings'
