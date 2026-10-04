@@ -15,7 +15,7 @@ renderHeader('Products');
 <style>
 .svc-page-head {
     display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-    margin-bottom: 20px; padding-bottom: 18px; border-bottom: 2px solid #E4DCC8;
+    margin-bottom: 20px; padding-bottom: 18px; border-bottom:;
 }
 .svc-page-head h1 { font-size: 24px; color: #2c2c2a; margin: 0 0 4px; font-weight: 600; }
 .svc-page-head p { font-size: 13px; color: #6b7280; margin: 0; }
@@ -99,7 +99,6 @@ renderHeader('Products');
 <div class="svc-page-head">
     <div>
         <h1>Products</h1>
-        <p>Manage cooperative products and review member requests.</p>
     </div>
     <button type="button" class="svc-btn svc-btn-primary" id="openAddProductBtn">+ Add product</button>
 </div>

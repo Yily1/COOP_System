@@ -63,7 +63,7 @@ renderHeader('Resource Distribution');
     gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 20px;
-    border-bottom: 2px solid var(--rd-line);
+    border-bottom: ;
 }
 .rd-header h1 { font-size: 26px; }
 .rd-header > div:first-child { flex: 1; min-width: 0; }
@@ -276,7 +276,6 @@ renderHeader('Resource Distribution');
     <div class="rd-header">
         <div>
             <h1>Resource Distribution</h1>
-            <p class="rd-muted">Give DA resources to members who have crop plantings</p>
         </div>
         <button class="rd-btn" id="add-distribution-btn" type="button">
             <span class="material-icons">add</span> Add distribution

@@ -104,7 +104,7 @@ renderHeader('Crops Management');
     gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 20px;
-    border-bottom: 2px solid var(--cm-line);
+    border-bottom:;
 }
 .cm-header h1 { font-size: 26px; }
 .cm-header > div:first-child { flex: 1; min-width: 0; }
@@ -402,11 +402,6 @@ renderHeader('Crops Management');
     <div class="cm-header">
         <div>
             <h1>Crops</h1>
-            <p class="cm-muted">
-                <?php echo $role === 'manager'
-                    ? 'Review and track every member\'s crop plantings'
-                    : 'Track your own crop plantings from planting to harvest'; ?>
-            </p>
         </div>
 
         <?php if ($role === 'user'): ?>
