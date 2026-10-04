@@ -90,7 +90,7 @@ renderHeader('Equipment Rental');
     gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 20px;
-    border-bottom: 2px solid var(--eq-line);
+    border-bottom:;
 }
 
 .eq-header h1 { font-size: 26px; }
@@ -710,7 +710,6 @@ renderHeader('Equipment Rental');
     <div class="eq-header">
         <div>
             <h1>Equipment rental</h1>
-            <p class="eq-muted">Manage rentable coop equipment and bookings</p>
         </div>
 
         <?php if (($_SESSION['role'] ?? '') === 'manager'): ?>

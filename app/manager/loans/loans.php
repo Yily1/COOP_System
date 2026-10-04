@@ -105,7 +105,7 @@ renderHeader('Loans');
     gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 20px;
-    border-bottom: 2px solid var(--ln-line);
+    border-bottom:;
 }
 .ln-header h1 { font-size: 26px; }
 .ln-header > div:first-child { flex: 1; min-width: 0; }
@@ -429,7 +429,6 @@ renderHeader('Loans');
     <div class="ln-header">
         <div>
             <h1>Loans</h1>
-            <p class="ln-muted">Review, approve, and release member loan requests</p>
         </div>
 
         <?php if ($pendingLoanCount): ?>
