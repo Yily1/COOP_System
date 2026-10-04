@@ -373,11 +373,10 @@ renderHeader('Meetings');
 ?>
 <style>
     .mtg-page-head {
-        display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;
-        margin-bottom:20px; padding-bottom:18px; border-bottom:2px solid #E4DCC8;
+        display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+        margin-bottom:20px;
     }
-    .mtg-page-head h1 { display:flex; align-items:center; gap:8px; font-size:24px; color:#2c2c2a; margin:0 0 4px; }
-    .mtg-page-head p { font-size:13px; color:#6b7280; margin:0; }
+    .mtg-page-head h1 { display:flex; align-items:center; gap:8px; font-size:24px; color:#2c2c2a; margin:0; }
     button.mtg-btn-create,
     .mtg-page-head button.mtg-btn-create {
         display:inline-flex !important; width:auto !important; max-width:none !important;
@@ -516,7 +515,6 @@ renderHeader('Meetings');
 <div class="mtg-page-head">
     <div>
         <h1>Meetings</h1>
-        <p>View upcoming meetings and manage your participation.</p>
     </div>
     <button type="button" class="mtg-btn-create" onclick="document.getElementById('create-modal').style.display='flex'">+ Create meeting</button>
 </div>
