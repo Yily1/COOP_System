@@ -6,11 +6,12 @@ require_once '../../../config/payment-functions.php';
 requireRole('manager');
 
 $filterType = $_GET['payment_type'] ?? '';
+$filterPayer = $_GET['payer'] ?? '';
 
 $query = "
     SELECT p.*, m.first_name, m.last_name, m.membership_id, u.email as recorded_by_email
     FROM payments p
-    JOIN members m ON p.member_id = m.id
+    LEFT JOIN members m ON p.member_id = m.id
     LEFT JOIN users u ON p.recorded_by = u.id
     WHERE 1=1
 ";
@@ -21,6 +22,12 @@ if (!empty($filterType)) {
     $params[] = $filterType;
 }
 
+if ($filterPayer === 'member') {
+    $query .= " AND p.member_id IS NOT NULL";
+} elseif ($filterPayer === 'non_member') {
+    $query .= " AND p.member_id IS NULL";
+}
+
 $query .= " ORDER BY (p.status = 'pending') DESC, p.payment_date DESC, p.created_at DESC";
 
 $stmt = $pdo->prepare($query);
@@ -29,6 +36,15 @@ $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $stmt2 = $pdo->query("SELECT id, membership_id, last_name, first_name FROM members ORDER BY last_name, first_name");
 $members = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+
+// Compact member list used by the search box in the Add payment modal
+$membersForJs = array_map(function($m) {
+    return [
+        'id' => (int) $m['id'],
+        'membership_id' => $m['membership_id'],
+        'name' => $m['last_name'] . ', ' . $m['first_name'],
+    ];
+}, $members);
 
 // ============================================================
 // PAYMENT TYPE METADATA (label + badge colors)
@@ -41,6 +57,7 @@ function paymentTypeMeta($type) {
         'investment'      => ['label' => 'Investment',      'bg' => '#cce5ff', 'text' => '#004085'],
         'rental'          => ['label' => 'Rental',           'bg' => '#eeedfe', 'text' => '#3c3489'],
         'loan_repayment'  => ['label' => 'Loan Repayment',   'bg' => '#faeeda', 'text' => '#633806'],
+        'product'         => ['label' => 'Product',          'bg' => '#DDEAF6', 'text' => '#185FA5'],
     ];
     return $map[$type] ?? ['label' => ucfirst($type), 'bg' => '#eee', 'text' => '#555'];
 }
@@ -88,10 +105,17 @@ function memberInitials($firstName, $lastName) {
     return mb_strtoupper($l . $f);
 }
 
+// Initials for a non-member, taken from the typed name (e.g. "Maria Santos" -> "MS")
+function payerInitials($name) {
+    $parts = preg_split('/\s+/', trim($name), -1, PREG_SPLIT_NO_EMPTY);
+    $letters = array_map(function($w) { return mb_strtoupper(mb_substr($w, 0, 1)); }, array_slice($parts, 0, 2));
+    return implode('', $letters);
+}
+
 // ============================================================
 // SUMMARY TOTALS (confirmed payments only, respects current filters)
 // ============================================================
-$totals = ['registration' => 0, 'investment' => 0, 'rental' => 0, 'loan_repayment' => 0];
+$totals = ['registration' => 0, 'investment' => 0, 'rental' => 0, 'loan_repayment' => 0, 'product' => 0];
 
 foreach ($payments as $payment) {
     if ($payment['status'] !== 'confirmed') {
@@ -133,13 +157,15 @@ renderHeader('Payments');
 .pay-card-red    .pay-card-label, .pay-card-red    .pay-card-value { color: #B54A3C; }
 .pay-card-sand   { background: #F6E4C3; }
 .pay-card-sand   .pay-card-label, .pay-card-sand   .pay-card-value { color: #C1892B; }
+.pay-card-blue   { background: #DDEAF6; }
+.pay-card-blue   .pay-card-label, .pay-card-blue   .pay-card-value { color: #185FA5; }
 
 /* Bright green buttons (same as the "Add product" button) */
 #openModalBtn:hover,
 #submitBtn:hover { background: #2e5a0d !important; }
 </style>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 18px; gap: 16px; position: relative; width: 100%; border-bottom: 2px solid #E4DCC8;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; position: relative; width: 100%;">
     <h1 style="margin: 0; flex: 1 1 auto; min-width: 0; position: static !important;">Payments</h1>
     <button id="openModalBtn"
             style="background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; border: none !important; padding: 10px 18px !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important; display: inline-block !important; width: auto !important; max-width: 200px !important; flex: 0 0 auto !important; white-space: nowrap !important; position: static !important; top: auto !important; left: auto !important; right: auto !important; float: none !important; margin-left: auto !important;">
@@ -171,6 +197,10 @@ renderHeader('Payments');
         <p class="pay-card-label">Loan Repayment</p>
         <p class="pay-card-value">₱<?php echo number_format($totals['loan_repayment'], 2); ?></p>
     </div>
+    <div class="pay-summary-card pay-card-blue">
+        <p class="pay-card-label">Products</p>
+        <p class="pay-card-value">₱<?php echo number_format($totals['product'], 2); ?></p>
+    </div>
 </div>
 
 <h2 style="margin: 0 0 12px 0;">Payment history</h2>
@@ -185,6 +215,13 @@ renderHeader('Payments');
         <option value="investment" <?php echo ($filterType === 'investment') ? 'selected' : ''; ?>>Investment</option>
         <option value="rental" <?php echo ($filterType === 'rental') ? 'selected' : ''; ?>>Rental</option>
         <option value="loan_repayment" <?php echo ($filterType === 'loan_repayment') ? 'selected' : ''; ?>>Loan Repayment</option>
+        <option value="product" <?php echo ($filterType === 'product') ? 'selected' : ''; ?>>Products</option>
+    </select>
+
+    <select id="payerFilterSelect" style="padding: 8px; border-radius: 6px; border: 1px solid #ccc; width: 160px !important; max-width: 160px !important; flex: 0 0 auto !important;">
+        <option value="">All payers</option>
+        <option value="member" <?php echo ($filterPayer === 'member') ? 'selected' : ''; ?>>Members</option>
+        <option value="non_member" <?php echo ($filterPayer === 'non_member') ? 'selected' : ''; ?>>Non-members</option>
     </select>
 </div>
 
@@ -212,22 +249,37 @@ renderHeader('Payments');
             <?php foreach ($payments as $payment): ?>
                 <?php
                     $meta = paymentTypeMeta($payment['payment_type']);
-                    $avatar = memberAvatarColor($payment['membership_id']);
-                    $initials = memberInitials($payment['first_name'], $payment['last_name']);
+                    $isNonMember = empty($payment['member_id']);
+                    if ($isNonMember) {
+                        $displayName = $payment['payer_name'] ?: '-';
+                        $avatar = ['bg' => '#888780', 'text' => '#FFFFFF'];
+                        $initials = payerInitials($displayName);
+                        $searchText = strtolower($displayName . ' non-member');
+                    } else {
+                        $displayName = $payment['last_name'] . ', ' . $payment['first_name'];
+                        $avatar = memberAvatarColor($payment['membership_id']);
+                        $initials = memberInitials($payment['first_name'], $payment['last_name']);
+                        $searchText = strtolower($displayName . ' ' . $payment['membership_id']);
+                    }
+                    
                     $proofUrl = !empty($payment['proof_of_payment'])
                         ? BASE_URL . '/' . ltrim($payment['proof_of_payment'], '/')
                         : '';
                 ?>
                 <tr style="border-top: 1px solid #eee;" data-payment-id="<?php echo $payment['id']; ?>"
-                    data-search="<?php echo htmlspecialchars(strtolower($payment['last_name'] . ', ' . $payment['first_name'] . ' ' . $payment['membership_id'])); ?>">
+                    data-search="<?php echo htmlspecialchars($searchText); ?>">
                     <td style="padding: 10px 12px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: <?php echo $avatar['bg']; ?>; color: <?php echo $avatar['text']; ?>; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px;">
                                 <?php echo htmlspecialchars($initials); ?>
                             </div>
                             <div>
-                                <p style="margin: 0; font-weight: 600;"><?php echo htmlspecialchars($payment['last_name'] . ', ' . $payment['first_name']); ?></p>
-                                <p style="margin: 0; font-size: 12px; color: #888;"><?php echo htmlspecialchars($payment['membership_id']); ?></p>
+                                <p style="margin: 0; font-weight: 600;"><?php echo htmlspecialchars($displayName); ?></p>
+                                <?php if ($isNonMember): ?>
+                                    <span style="display: inline-block; font-size: 10px; font-weight: 600; background: #F1EFE8; color: #5F5E5A; border-radius: 4px; padding: 1px 6px;">Non-member</span>
+                                <?php else: ?>
+                                    <p style="margin: 0; font-size: 12px; color: #888;"><?php echo htmlspecialchars($payment['membership_id']); ?></p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </td>
@@ -235,6 +287,11 @@ renderHeader('Payments');
                         <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: <?php echo $meta['bg']; ?>; color: <?php echo $meta['text']; ?>; white-space: nowrap;">
                             <?php echo htmlspecialchars($meta['label']); ?>
                         </span>
+                        <?php if ($payment['payment_type'] === 'product' && !empty($payment['product_name'])): ?>
+                            <div style="font-size: 11px; color: #666; margin-top: 3px;">
+                                <?php echo htmlspecialchars($payment['product_name']); ?>
+                            </div>
+                        <?php endif; ?>
                     </td>
                     <td style="padding: 10px 12px; font-weight: 600;">₱<?php echo number_format($payment['amount'], 2); ?></td>
                     <td style="padding: 10px 12px;"><?php echo date('M d, Y', strtotime($payment['payment_date'])); ?></td>
@@ -289,26 +346,41 @@ renderHeader('Payments');
 
         <form id="paymentForm">
             <div style="margin-bottom: 14px;">
-                <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Member</label>
-                <select name="member_id" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
-                    <option value="">-- Select member --</option>
-                    <?php foreach ($members as $member): ?>
-                        <option value="<?php echo $member['id']; ?>">
-                            <?php echo htmlspecialchars($member['last_name'] . ', ' . $member['first_name'] . ' (' . $member['membership_id'] . ')'); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payer</label>
+                <input type="hidden" name="payer_type" id="payerTypeInput" value="member">
+                <div style="display: flex; border: 1px solid #3B6D11; border-radius: 8px; overflow: hidden;">
+                    <button type="button" id="tabMember"
+                            style="flex: 1 1 50% !important; width: auto !important; max-width: none !important; padding: 8px !important; margin: 0 !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; font-size: 14px; font-weight: 600; text-transform: none !important; letter-spacing: normal; cursor: pointer;">Member</button>
+                    <button type="button" id="tabNonMember"
+                            style="flex: 1 1 50% !important; width: auto !important; max-width: none !important; padding: 8px !important; margin: 0 !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; font-size: 14px; font-weight: 600; text-transform: none !important; letter-spacing: normal; cursor: pointer;">Non-member</button>
+                </div>
+            </div>
+
+            <div id="memberBox" style="margin-bottom: 14px;">
+                <label for="memberSearchBox" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Search member</label>
+                <input type="hidden" name="member_id" id="memberIdInput" value="">
+                <input type="text" id="memberSearchBox" autocomplete="off" placeholder="Type membership ID or name"
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                <div id="memberResults" style="display: none; border: 1px solid #ddd; border-radius: 6px; margin-top: 4px; max-height: 180px; overflow-y: auto; background: #fff;"></div>
+                <div id="memberChosen" style="display: none; margin-top: 6px; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #C0DD97; border-radius: 6px; background: #EAF3DE; font-size: 13px;"></div>
+            </div>
+
+            <div id="nonMemberBox" style="display: none; margin-bottom: 14px;">
+                <label for="payerNameInput" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payer name</label>
+                <input type="text" name="payer_name" id="payerNameInput" maxlength="150" placeholder="e.g. Maria Santos"
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payment type</label>
-                <select name="payment_type" id="paymentTypeInput" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
-                    <option value="">-- Select --</option>
-                    <option value="registration">Registration fee (₱150)</option>
-                    <option value="investment">Investment</option>
-                    <option value="rental">Rental</option>
-                    <option value="loan_repayment">Loan Repayment</option>
-                </select>
+                <select name="payment_type" id="paymentTypeInput" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;"></select>
+                
+            </div>
+
+            <div id="productFields" style="display: none; margin-bottom: 14px;">
+                <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Product</label>
+                <input type="text" name="product_name" id="productNameInput" maxlength="150" placeholder="e.g. Pork meat"
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 14px;">
@@ -351,11 +423,155 @@ renderHeader('Payments');
     const submitBtn = document.getElementById('submitBtn');
     const modalErrors = document.getElementById('modalErrors');
     const tableBody = document.getElementById('paymentsTableBody');
+    const typeInput = document.getElementById('paymentTypeInput');
+    const productFields = document.getElementById('productFields');
+    const productNameInput = document.getElementById('productNameInput');
+    const payerTypeInput = document.getElementById('payerTypeInput');
+    const tabMember = document.getElementById('tabMember');
+    const tabNonMember = document.getElementById('tabNonMember');
+    const memberBox = document.getElementById('memberBox');
+    const nonMemberBox = document.getElementById('nonMemberBox');
+    const memberIdInput = document.getElementById('memberIdInput');
+    const memberSearchBox = document.getElementById('memberSearchBox');
+    const memberResults = document.getElementById('memberResults');
+    const memberChosen = document.getElementById('memberChosen');
+    const payerNameInput = document.getElementById('payerNameInput');
+
+    const MEMBERS = <?php echo json_encode($membersForJs, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+    const MEMBER_TYPES = [
+        ['registration', 'Registration fee (₱150)'],
+        ['investment', 'Investment'],
+        ['rental', 'Rental'],
+        ['loan_repayment', 'Loan Repayment'],
+        ['product', 'Product']
+    ];
+    const NON_MEMBER_TYPES = MEMBER_TYPES;
+
+    function toggleProductFields() {
+        const isProduct = typeInput.value === 'product';
+        productFields.style.display = isProduct ? 'block' : 'none';
+        productNameInput.required = isProduct;
+        if (!isProduct) productNameInput.value = '';
+    }
+
+    typeInput.addEventListener('change', toggleProductFields);
+
+    function styleTab(btn, active) {
+        btn.style.setProperty('background', active ? '#3B6D11' : '#fff', 'important');
+        btn.style.setProperty('color', active ? '#fff' : '#3B6D11', 'important');
+    }
+
+    function clearMember() {
+        memberIdInput.value = '';
+        memberSearchBox.value = '';
+        memberChosen.style.display = 'none';
+        memberResults.style.display = 'none';
+        memberResults.textContent = '';
+    }
+
+    function setPayerMode(mode) {
+        const isMember = mode === 'member';
+        payerTypeInput.value = isMember ? 'member' : 'non_member';
+        styleTab(tabMember, isMember);
+        styleTab(tabNonMember, !isMember);
+        memberBox.style.display = isMember ? 'block' : 'none';
+        nonMemberBox.style.display = isMember ? 'none' : 'block';
+        payerNameInput.required = !isMember;
+        clearMember();
+        if (isMember) payerNameInput.value = '';
+
+        typeInput.textContent = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Select --';
+        typeInput.appendChild(placeholder);
+        (isMember ? MEMBER_TYPES : NON_MEMBER_TYPES).forEach(function(t) {
+            const opt = document.createElement('option');
+            opt.value = t[0];
+            opt.textContent = t[1];
+            typeInput.appendChild(opt);
+        });
+        toggleProductFields();
+    }
+
+    function chooseMember(m) {
+        memberIdInput.value = m.id;
+        memberResults.style.display = 'none';
+        memberChosen.textContent = '';
+        memberChosen.style.display = 'flex';
+
+        const label = document.createElement('span');
+        label.style.flex = '1';
+        const strong = document.createElement('strong');
+        strong.textContent = m.name;
+        const idSpan = document.createElement('span');
+        idSpan.style.color = '#667066';
+        idSpan.textContent = ' ' + (m.membership_id || '');
+        label.appendChild(strong);
+        label.appendChild(idSpan);
+
+        const clear = document.createElement('span');
+        clear.setAttribute('role', 'button');
+        clear.setAttribute('tabindex', '0');
+        clear.setAttribute('aria-label', 'Clear selected member');
+        clear.style.cssText = 'cursor: pointer; font-size: 16px; color: #3B6D11;';
+        clear.textContent = '\u00d7';
+        clear.addEventListener('click', clearMember);
+
+        memberChosen.appendChild(label);
+        memberChosen.appendChild(clear);
+    }
+
+    function renderMemberResults() {
+        const q = memberSearchBox.value.trim().toLowerCase();
+        memberIdInput.value = '';
+        memberChosen.style.display = 'none';
+        memberResults.textContent = '';
+        if (!q) {
+            memberResults.style.display = 'none';
+            return;
+        }
+        const found = MEMBERS.filter(function(m) {
+            return (m.membership_id || '').toLowerCase().indexOf(q) !== -1 ||
+                   m.name.toLowerCase().indexOf(q) !== -1;
+        }).slice(0, 8);
+
+        memberResults.style.display = 'block';
+        if (!found.length) {
+            const none = document.createElement('div');
+            none.style.cssText = 'padding: 9px 10px; font-size: 13px; color: #667066;';
+            none.textContent = 'No member found';
+            memberResults.appendChild(none);
+            return;
+        }
+        found.forEach(function(m, idx) {
+            const row = document.createElement('div');
+            row.style.cssText = 'padding: 9px 10px; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px;' + (idx > 0 ? ' border-top: 1px solid #f0f0f0;' : '');
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = m.name;
+            const idSpan = document.createElement('span');
+            idSpan.style.color = '#667066';
+            idSpan.textContent = m.membership_id || '';
+            row.appendChild(nameSpan);
+            row.appendChild(idSpan);
+            row.addEventListener('mouseenter', function() { row.style.background = '#F4F9EC'; });
+            row.addEventListener('mouseleave', function() { row.style.background = '#fff'; });
+            row.addEventListener('click', function() { chooseMember(m); });
+            memberResults.appendChild(row);
+        });
+    }
+
+    tabMember.addEventListener('click', function() { setPayerMode('member'); });
+    tabNonMember.addEventListener('click', function() { setPayerMode('non_member'); });
+    memberSearchBox.addEventListener('input', renderMemberResults);
+    setPayerMode('member');
 
     function openModal() { backdrop.style.display = 'flex'; }
     function closeModal() {
         backdrop.style.display = 'none';
         form.reset();
+        setPayerMode('member');
         modalErrors.style.display = 'none';
     }
 
@@ -368,7 +584,8 @@ renderHeader('Payments');
         registration:   { label: 'Registration',   bg: '#d4edda', text: '#155724' },
         investment:     { label: 'Investment',     bg: '#cce5ff', text: '#004085' },
         rental:         { label: 'Rental',          bg: '#eeedfe', text: '#3c3489' },
-        loan_repayment: { label: 'Loan Repayment', bg: '#faeeda', text: '#633806' }
+        loan_repayment: { label: 'Loan Repayment', bg: '#faeeda', text: '#633806' },
+        product:        { label: 'Product',        bg: '#DDEAF6', text: '#185FA5' }
     };
 
     const AVATAR_PALETTE = [
@@ -401,6 +618,19 @@ renderHeader('Payments');
         return (l + f).toUpperCase();
     }
 
+    function payerInitials(name) {
+        const parts = (name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
+        return parts.map(function(w) { return w.charAt(0).toUpperCase(); }).join('');
+    }
+
+    function escapeHtml(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     function formatDate(dateStr) {
         const d = new Date(dateStr + 'T00:00:00');
         return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
@@ -411,12 +641,21 @@ renderHeader('Payments');
 
     function buildRow(payment) {
         const meta = TYPE_META[payment.payment_type] || { label: payment.payment_type, bg: '#eee', text: '#555' };
-        const avatar = avatarColorFor(payment.membership_id);
-        const initials = initialsFor(payment.last_name, payment.first_name);
+        const isNonMember = !payment.member_id;
+        const displayName = isNonMember ? (payment.payer_name || '-') : (payment.last_name + ', ' + payment.first_name);
+        const avatar = isNonMember ? { bg: '#888780', text: '#FFFFFF' } : avatarColorFor(payment.membership_id);
+        const initials = isNonMember ? payerInitials(displayName) : initialsFor(payment.last_name, payment.first_name);
+        const subLine = isNonMember
+            ? '<span style="display: inline-block; font-size: 10px; font-weight: 600; background: #F1EFE8; color: #5F5E5A; border-radius: 4px; padding: 1px 6px;">Non-member</span>'
+            : `<p style="margin: 0; font-size: 12px; color: #888;">${escapeHtml(payment.membership_id)}</p>`;
+        
+        const productLine = (payment.payment_type === 'product' && payment.product_name)
+            ? `<div style="font-size: 11px; color: #666; margin-top: 3px;">${escapeHtml(payment.product_name)}</div>`
+            : '';
         const tr = document.createElement('tr');
         tr.style.borderTop = '1px solid #eee';
         tr.dataset.paymentId = payment.id;
-        tr.dataset.search = (payment.last_name + ', ' + payment.first_name + ' ' + payment.membership_id).toLowerCase();
+        tr.dataset.search = (isNonMember ? displayName + ' non-member' : displayName + ' ' + payment.membership_id).toLowerCase();
         // Payments the manager records here are confirmed on the spot
         // and never have a member-uploaded proof, so Proof is always "-".
         tr.innerHTML = `
@@ -424,13 +663,14 @@ renderHeader('Payments');
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: ${avatar.bg}; color: ${avatar.text}; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px;">${initials}</div>
                     <div>
-                        <p style="margin: 0; font-weight: 600;">${payment.last_name}, ${payment.first_name}</p>
-                        <p style="margin: 0; font-size: 12px; color: #888;">${payment.membership_id}</p>
+                        <p style="margin: 0; font-weight: 600;">${escapeHtml(displayName)}</p>
+                        ${subLine}
                     </div>
                 </div>
             </td>
             <td style="padding: 10px 12px;">
                 <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: ${meta.bg}; color: ${meta.text}; white-space: nowrap;">${meta.label}</span>
+                ${productLine}
             </td>
             <td style="padding: 10px 12px; font-weight: 600;">₱${formatAmount(payment.amount)}</td>
             <td style="padding: 10px 12px;">${formatDate(payment.payment_date)}</td>
@@ -454,6 +694,13 @@ renderHeader('Payments');
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         modalErrors.style.display = 'none';
+
+        if (payerTypeInput.value === 'member' && !memberIdInput.value) {
+            modalErrors.textContent = 'Search and select a member from the list.';
+            modalErrors.style.display = 'block';
+            return;
+        }
+
         submitBtn.disabled = true;
         submitBtn.textContent = 'Saving...';
 
@@ -536,6 +783,16 @@ renderHeader('Payments');
             alert('Could not connect to the server.');
             btn.disabled = false;
         }
+    });
+
+    document.getElementById('payerFilterSelect').addEventListener('change', function() {
+        const url = new URL(window.location.href);
+        if (this.value) {
+            url.searchParams.set('payer', this.value);
+        } else {
+            url.searchParams.delete('payer');
+        }
+        window.location.href = url.toString();
     });
 
     document.getElementById('paymentTypeSelect').addEventListener('change', function() {

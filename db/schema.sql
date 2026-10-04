@@ -379,3 +379,9 @@ ADD COLUMN proof_of_payment VARCHAR(255) NULL AFTER notes;
 
 ALTER TABLE users ADD COLUMN username VARCHAR(50) NULL AFTER member_id;
 ALTER TABLE users ADD UNIQUE (username);
+
+
+ALTER TABLE payments ADD COLUMN product_name VARCHAR(150) NULL AFTER payment_type;
+ALTER TABLE payments MODIFY member_id INT(11) NULL;
+ALTER TABLE payments ADD COLUMN payer_name VARCHAR(150) NULL AFTER member_id;
+ALTER TABLE payments DROP COLUMN product_id;
