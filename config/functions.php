@@ -1018,8 +1018,7 @@ function renderHeader($title) {
                     <div class="list">
                         <?php if ($currentRole === 'admin'): ?>
                             <a class="<?php echo navActive('/app/admin/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/dashboard.php">Dashboard</a>
-                            <a class="<?php echo navActive('/app/admin/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/user-management.php">User Management</a>
-                            <a class="<?php echo navActive('/app/admin/user-create.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/user-create.php">Create Account</a>
+                              <a class="<?php echo navActive('/app/admin/user-management/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/user-management/user-management.php">User Management</a>
                         <?php elseif ($currentRole === 'manager'): ?>
                             <a class="<?php echo navActive('/app/manager/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/manager/member-management/member-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/member-management/member-management.php">Member Management</a>
