@@ -135,6 +135,26 @@ renderHeader('Member Management');
 }
 .mm-add-btn:hover { background: #2e5a0d !important; }
 
+/* Print button: outlined green so "Add member" stays the main action */
+.mm-print-btn {
+    background: #fff !important;
+    color: #3B6D11 !important;
+    border: 1px solid #3B6D11 !important;
+    padding: 10px 18px !important;
+    border-radius: 6px !important;
+    cursor: pointer;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    width: auto !important;
+    max-width: 220px !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+}
+.mm-print-btn:hover { background: #f1f6ea !important; }
+
 .mm-summary-text {
     color: #667066;
     margin: 0 0 16px;
@@ -278,6 +298,109 @@ renderHeader('Member Management');
 .mm-confirm-box h3 { margin: 0 0 8px; font-size: 17px; }
 .mm-confirm-box p { margin: 0 0 18px; font-size: 14px; color: #444; }
 .mm-confirm-box .mm-modal-footer { border-top: none; padding-top: 0; margin-top: 16px; }
+
+/* ============================================================
+   PRINT REPORT
+   Hidden on screen. When the Print button is clicked, only
+   #mmPrintReport is shown in the printout.
+   ============================================================ */
+#mmPrintReport { display: none; }
+
+/* Footer on every page: "Printed on ..." (left) and "Page X of Y" (right).
+   Works in Chrome / Edge. Firefox may not show the margin boxes. */
+@page {
+    size: A4 landscape;
+    margin: 14mm 12mm 16mm;
+    /* Blank top margin boxes so the browser's own header
+       (date/time and page title) is not printed */
+    @top-left   { content: ""; }
+    @top-center { content: ""; }
+    @top-right  { content: ""; }
+    @bottom-left {
+        content: "Printed on <?php echo date('F j, Y'); ?>";
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10px;
+        color: #000;
+    }
+    @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10px;
+        color: #000;
+    }
+}
+
+@media print {
+    /* Remove this page's own content so it doesn't create blank pages */
+    .mm-header,
+    .mm-summary-text,
+    .mm-table-wrap,
+    #mmNoResults,
+    .mm-modal-backdrop {
+        display: none !important;
+    }
+
+    /* Hide everything else (sidebar, top bar, etc.), show only the report */
+    body * { visibility: hidden !important; }
+    #mmPrintReport,
+    #mmPrintReport * { visibility: visible !important; }
+
+    #mmPrintReport {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        color: #000;
+        background: #fff;
+        font-family: Arial, Helvetica, sans-serif;
+        -webkit-font-smoothing: auto;
+    }
+
+    .pr-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #000;
+    }
+    .pr-title { font-size: 16px; font-weight: 700; }
+    .pr-sub, .pr-total { font-size: 12px; color: #333; }
+
+    .pr-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        table-layout: fixed;
+    }
+    .pr-table thead { display: table-header-group; } /* repeats on every page */
+    .pr-table th {
+        text-align: left;
+        padding: 8px 6px;
+        border-bottom: 1px solid #000;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .pr-table td {
+        padding: 7px 6px;
+        border-bottom: 1px solid #ddd;
+        vertical-align: top;
+        word-wrap: break-word;
+        color: #000;
+    }
+    .pr-table tr { page-break-inside: avoid; }
+
+    /* Column widths (8 columns) */
+    .pr-table th:nth-child(1) { width: 13%; } /* Membership ID */
+    .pr-table th:nth-child(2) { width: 16%; } /* Name */
+    .pr-table th:nth-child(3) { width: 8%; }  /* Gender */
+    .pr-table th:nth-child(4) { width: 10%; } /* Type */
+    .pr-table th:nth-child(5) { width: 10%; } /* Farmer type */
+    .pr-table th:nth-child(6) { width: 13%; } /* Contact number */
+    .pr-table th:nth-child(7) { width: 20%; } /* Address */
+    .pr-table th:nth-child(8) { width: 10%; } /* Date joined */
+}
 </style>
 
 <div class="mm-header">
@@ -287,6 +410,10 @@ renderHeader('Member Management');
             <span class="material-icons">search</span>
             <input type="text" id="mmSearchInput" placeholder="Search by name or membership ID">
         </div>
+        <button type="button" class="mm-print-btn" id="mmPrintBtn">
+            <span class="material-icons" style="font-size: 18px;">print</span>
+            Print
+        </button>
         <button type="button" class="mm-add-btn" id="mmAddBtn">
             <span class="material-icons" style="font-size: 18px;">person_add</span>
             Add member
@@ -516,6 +643,54 @@ renderHeader('Member Management');
     </div>
 </div>
 
+<?php
+// ============================================================
+// PRINT REPORT (hidden on screen, shown only when printing)
+// All members, sorted by Membership ID.
+// ============================================================
+$printMembers = $members;
+usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id']));
+?>
+<div id="mmPrintReport">
+    <div class="pr-head">
+        <div>
+            <div class="pr-title">SJFMC Cooperative</div>
+            <div class="pr-sub">Member list</div>
+        </div>
+        <div class="pr-total">Total: <?php echo $totalMembers; ?> members</div>
+    </div>
+    <table class="pr-table">
+        <thead>
+            <tr>
+                <th>Membership ID</th>
+                <th>Name</th>
+                <th>Gender</th>
+                <th>Type</th>
+                <th>Farmer Type</th>
+                <th>Contact number</th>
+                <th>Address</th>
+                <th>Date joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($printMembers as $m):
+                $mi = !empty($m['middle_name']) ? ' ' . strtoupper(mb_substr($m['middle_name'], 0, 1)) . '.' : '';
+            ?>
+            <tr>
+                <td><?php echo htmlspecialchars($m['membership_id']); ?></td>
+                <td><?php echo htmlspecialchars($m['last_name'] . ', ' . $m['first_name'] . $mi); ?></td>
+                <td><?php echo htmlspecialchars($m['gender'] ?? '-'); ?></td>
+                <td><?php echo htmlspecialchars($m['membership_type']); ?></td>
+                <td><?php echo htmlspecialchars($m['farmer_type'] ?? '-'); ?></td>
+                <td><?php echo htmlspecialchars($m['contact_number'] ?? '-'); ?></td>
+                <td><?php echo htmlspecialchars($m['address'] ?? '-'); ?></td>
+                <td><?php echo date('M j, Y', strtotime($m['date_joined'])); ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+
 <script type="application/json" id="mmLivestockImageMap"><?php echo json_encode($livestockImageMap); ?></script>
 <script type="application/json" id="mmCropImageMap"><?php echo json_encode($cropImageMap); ?></script>
 
@@ -524,6 +699,11 @@ renderHeader('Member Management');
     const BASE = '<?php echo BASE_URL; ?>';
     const livestockImageMap = JSON.parse(document.getElementById('mmLivestockImageMap').textContent);
     const cropImageMap = JSON.parse(document.getElementById('mmCropImageMap').textContent);
+
+    // ---------- Print ----------
+    document.getElementById('mmPrintBtn')?.addEventListener('click', function() {
+        window.print();
+    });
 
     // ---------- Search / filter ----------
     const searchInput = document.getElementById('mmSearchInput');
