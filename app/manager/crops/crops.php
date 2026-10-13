@@ -108,6 +108,13 @@ renderHeader('Crops Management');
 }
 .cm-header h1 { font-size: 26px; }
 .cm-header > div:first-child { flex: 1; min-width: 0; }
+.cm-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: none;
+}
 
 /* BUTTONS */
 .cm-btn {
@@ -388,11 +395,109 @@ renderHeader('Crops Management');
     .cm-page { padding: 0 0 40px; }
     .cm-header { flex-direction: column; gap: 12px; }
     .cm-header > div:first-child { width: 100%; }
+    .cm-header-actions { width: 100%; }
     .cm-header .cm-btn { width: 100%; }
     .cm-form-row { grid-template-columns: 1fr; }
     .cm-section-header { flex-direction: column; align-items: flex-start; }
     .cm-modal { padding: 12px; }
     .cm-modal-card { max-width: 100%; max-height: 92vh; padding: 20px 18px 20px; }
+}
+
+/* ============================================================
+   PRINT REPORT
+   Hidden on screen. When the Print button is clicked, only
+   #cmPrintReport is shown in the printout.
+   Columns: Membership ID, Name, Crop, Location, Area (ha), Planted
+   ============================================================ */
+#cmPrintReport { display: none; }
+
+@page {
+    size: A4 landscape;
+    margin: 14mm 12mm 16mm;
+    /* Blank top margin boxes so the browser's own header
+       (date/time and page title) is not printed */
+    @top-left   { content: ""; }
+    @top-center { content: ""; }
+    @top-right  { content: ""; }
+    @bottom-left {
+        content: "Printed on <?php echo date('F j, Y'); ?>";
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10px;
+        color: #000;
+    }
+    @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10px;
+        color: #000;
+    }
+}
+
+@media print {
+    /* Remove the page's own content so it doesn't create blank pages */
+    .cm-page,
+    .cm-modal {
+        display: none !important;
+    }
+
+    /* Hide everything else (sidebar, top bar, etc.), show only the report */
+    body * { visibility: hidden !important; }
+    #cmPrintReport,
+    #cmPrintReport * { visibility: visible !important; }
+
+    #cmPrintReport {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        color: #000;
+        background: #fff;
+        font-family: Arial, Helvetica, sans-serif;
+        -webkit-font-smoothing: auto;
+    }
+
+    .cm-pr-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #000;
+    }
+    .cm-pr-title { font-size: 16px; font-weight: 700; }
+    .cm-pr-sub, .cm-pr-total { font-size: 12px; color: #333; }
+
+    .cm-pr-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        table-layout: fixed;
+    }
+    .cm-pr-table thead { display: table-header-group; } /* repeats on every page */
+    .cm-pr-table th {
+        text-align: left;
+        padding: 8px 6px;
+        border-bottom: 1px solid #000;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .cm-pr-table td {
+        padding: 7px 6px;
+        border-bottom: 1px solid #ddd;
+        vertical-align: top;
+        word-wrap: break-word;
+        color: #000;
+    }
+    .cm-pr-table tr { page-break-inside: avoid; }
+
+    /* Column widths (6 columns) */
+    .cm-pr-table th:nth-child(1) { width: 15%; } /* Membership ID */
+    .cm-pr-table th:nth-child(2) { width: 23%; } /* Name */
+    .cm-pr-table th:nth-child(3) { width: 15%; } /* Crop */
+    .cm-pr-table th:nth-child(4) { width: 25%; } /* Location */
+    .cm-pr-table th:nth-child(5) { width: 10%; } /* Area (ha) */
+    .cm-pr-table th:nth-child(6) { width: 12%; } /* Planted */
 }
 </style>
 
@@ -404,11 +509,17 @@ renderHeader('Crops Management');
             <h1>Crops</h1>
         </div>
 
-        <?php if ($role === 'user'): ?>
-            <button class="cm-btn cm-btn-outline" id="add-planting-btn" type="button">
-                <span class="material-icons">add</span> Add planting
+        <div class="cm-header-actions">
+            <button class="cm-btn cm-btn-outline" id="cm-print-btn" type="button">
+                <span class="material-icons">print</span> Print
             </button>
-        <?php endif; ?>
+
+            <?php if ($role === 'user'): ?>
+                <button class="cm-btn cm-btn-outline" id="add-planting-btn" type="button">
+                    <span class="material-icons">add</span> Add planting
+                </button>
+            <?php endif; ?>
+        </div>
     </div>
 
     <!-- SUMMARY -->
@@ -509,6 +620,45 @@ renderHeader('Crops Management');
 </div>
 
 
+<!-- ============================================================
+     PRINT REPORT (hidden on screen, shown only when printing)
+     Membership ID, Name, Crop, Location, Area (ha), Planted
+     ============================================================ -->
+<div id="cmPrintReport">
+    <div class="cm-pr-head">
+        <div>
+            <div class="cm-pr-title">SJFMC Cooperative</div>
+            <div class="cm-pr-sub">Crops list</div>
+        </div>
+        <div class="cm-pr-total">Total: <?php echo count($crops); ?> plantings</div>
+    </div>
+    <table class="cm-pr-table">
+        <thead>
+            <tr>
+                <th>Membership ID</th>
+                <th>Name</th>
+                <th>Crop</th>
+                <th>Location</th>
+                <th>Hectare</th>
+                <th>Date Planted</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($crops as $c): ?>
+            <tr>
+                <td><?php echo htmlspecialchars($c['membership_id'] ?? '-'); ?></td>
+                <td><?php echo htmlspecialchars(trim(($c['last_name'] ?? '') . ', ' . ($c['first_name'] ?? ''), ' ,') ?: '-'); ?></td>
+                <td><?php echo htmlspecialchars($c['crop_name']); ?></td>
+                <td><?php echo htmlspecialchars($c['location']); ?></td>
+                <td><?php echo rtrim(rtrim(number_format($c['area_hectares'], 2), '0'), '.'); ?> ha</td>
+                <td><?php echo date('M j, Y', strtotime($c['planting_date'])); ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+
+
 <?php if ($role === 'user'): ?>
 <!-- ============================================================
      ADD PLANTING MODAL
@@ -561,6 +711,11 @@ renderHeader('Crops Management');
 
 <script>
     window.CROPS_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/crops/api/";
+
+    // Print: only the report (#cmPrintReport) shows in the printout
+    document.getElementById('cm-print-btn')?.addEventListener('click', function() {
+        window.print();
+    });
 </script>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/crops/crops.js"></script>
