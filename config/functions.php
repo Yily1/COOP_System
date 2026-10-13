@@ -804,7 +804,7 @@ function renderHeader($title) {
         <!-- Drawer/Sidebar toggle styles -->
         <style>
             :root {
-                --drawer-width: 240px;
+                --drawer-width: 180px;
                 --header-height: 56px;
             }
 
@@ -940,6 +940,10 @@ function renderHeader($title) {
                 font-weight: 600;
             }
 
+            /* Logout shown right under the menu on phones only (hidden on desktop,
+               where the Logout at the very bottom of the drawer is used) */
+            .drawer .mobile-logout { display: none; }
+
             /* Dark overlay for mobile (temporary drawer variant) */
             .backdrop {
                 display: none;
@@ -995,6 +999,19 @@ function renderHeader($title) {
                     padding: 10px 10px;
                     font-size: 12px;
                 }
+
+                /* Phone: Logout sits right under the last menu item, so it never
+                   ends up hidden under the browser's bottom bar */
+                .drawer .mobile-logout {
+                    display: block;
+                    margin-top: 8px;
+                    border-top: 1px solid rgba(255,255,255,0.2);
+                }
+                .drawer .drawer-footer { display: none; }
+
+                /* Extra room at the bottom of every page so the browser bar
+                   doesn't cover the last content */
+                .main > .container { padding-bottom: 120px !important; }
             }
             <?php endif; ?>
         </style>
@@ -1018,31 +1035,32 @@ function renderHeader($title) {
                     <div class="list">
                         <?php if ($currentRole === 'admin'): ?>
                             <a class="<?php echo navActive('/app/admin/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/dashboard.php">Dashboard</a>
-                              <a class="<?php echo navActive('/app/admin/user-management/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/user-management/user-management.php">User Management</a>
+                            <a class="<?php echo navActive('/app/admin/user-management/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/user-management/user-management.php">User Management</a>
                         <?php elseif ($currentRole === 'manager'): ?>
                             <a class="<?php echo navActive('/app/manager/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/manager/member-management/member-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/member-management/member-management.php">Member Management</a>
                             <a class="<?php echo navActive('/app/manager/user-management/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/user-management/user-management.php">User Management</a>
-                            <a class="<?php echo navActive('/app/manager/payments/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/manager/meetings/meeting.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/meetings/meeting.php">Meetings</a>
-                            <a class="<?php echo navActive('/app/manager/equipment/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.php">Equipment</a>
-                            <a class="<?php echo navActive('/app/manager/crops/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/crops/crops.php">Crops</a>
-                            <a class="<?php echo navActive('/app/manager/loans/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/loans/loans.php">Loans</a>
+                            <a class="<?php echo navActive('/app/manager/payments/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/manager/products/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/products/products.php">Products</a>
+                            <a class="<?php echo navActive('/app/manager/equipment/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.php">Equipment</a>
+                            <a class="<?php echo navActive('/app/manager/loans/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/loans/loans.php">Loans</a>
+                            <a class="<?php echo navActive('/app/manager/crops/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/crops/crops.php">Crops</a>
                             <a class="<?php echo navActive('/app/manager/resources/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/resources/resources.php">Resources Distribution</a>
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/user/profile.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/profile.php">My Account</a>
                             <a class="<?php echo navActive('/app/user/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/user/checkins.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/checkins.php">Meetings</a>
+                            <a class="<?php echo navActive('/app/user/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/products.php">Products</a>
                             <a class="<?php echo navActive('/app/user/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/equipment.php">Equipment</a>
+                            <a class="<?php echo navActive('/app/user/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/loans.php">Loans</a>
                             <a class="<?php echo navActive('/app/user/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/crops.php">Crops</a>
                             <a class="<?php echo navActive('/app/user/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/resources.php">Resources</a>
-                            <a class="<?php echo navActive('/app/user/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/loans.php">Loans</a>
-                            <a class="<?php echo navActive('/app/user/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/products.php">Products</a>
                         <?php endif; ?>
+                        <a class="mobile-logout" href="<?php echo BASE_URL; ?>/app/auth/signout.php">Logout</a>
                     </div>
-                    <div style="margin-top: auto;">
+                    <div class="drawer-footer" style="margin-top: auto;">
                         <hr class="divider">
                         <div class="list">
                             <a href="<?php echo BASE_URL; ?>/app/auth/signout.php">Logout</a>

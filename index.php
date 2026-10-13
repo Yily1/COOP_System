@@ -278,13 +278,13 @@ body { background: #f5f3ec; }
 <form method="POST">
     <div class="form-group">
         <label for="login">Email or username</label>
-        <input type="text" id="login" name="login" placeholder="juan@example.com" required autocomplete="username" value="<?php echo htmlspecialchars($_POST['login'] ?? ''); ?>">
+        <input type="text" id="login" name="login" placeholder="" required autocomplete="username" value="<?php echo htmlspecialchars($_POST['login'] ?? ''); ?>">
     </div>
     
     <div class="form-group">
         <label for="password">Password</label>
         <div class="pw-wrap">
-            <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+            <input type="password" id="password" name="password" placeholder="" required autocomplete="current-password">
             <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">
                 <svg class="eye" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
