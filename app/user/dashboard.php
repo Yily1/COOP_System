@@ -784,7 +784,11 @@ button.md-close {
 
 
     <!-- ========================================================
-         NAV CARDS
+         NAV CARDS  (4 rows of 2, each row is a pair)
+         My Account | Meetings
+         Transactions | Products
+         Equipment | Loans
+         Crops | Resources
     ========================================================= -->
 
     <div class="nav-card-grid">
@@ -808,18 +812,7 @@ button.md-close {
             </div>
         </a>
 
-        <!-- PAYMENTS -->
-        <a class="nav-card green" href="<?php echo BASE_URL; ?>/app/user/payments.php">
-            <div class="nav-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
-            </div>
-            <div>
-                <p class="nav-card-title">Transactions</p>
-                <p class="nav-card-sub">View your payments</p>
-            </div>
-        </a>
-
-        <!-- MY CHECK-INS -->
+        <!-- MEETINGS (CHECK-INS) -->
         <a class="nav-card purple" href="<?php echo BASE_URL; ?>/app/user/checkins.php">
             <div class="nav-card-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -830,36 +823,14 @@ button.md-close {
             </div>
         </a>
 
-        <!-- EQUIPMENT -->
-        <a class="nav-card amber" href="<?php echo BASE_URL; ?>/app/user/equipment.php">
+        <!-- PAYMENTS -->
+        <a class="nav-card green" href="<?php echo BASE_URL; ?>/app/user/payments.php">
             <div class="nav-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L2 19l3 3 7.3-7.3a4 4 0 0 0 5.4-5.4l-2.1 2.1-2.7-2.7z"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
             </div>
             <div>
-                <p class="nav-card-title">Equipment</p>
-                <p class="nav-card-sub">Borrow or reserve tools</p>
-            </div>
-        </a>
-
-        <!-- CROPS -->
-        <a class="nav-card green" href="<?php echo BASE_URL; ?>/app/user/crops.php">
-            <div class="nav-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 6 6 5 4 5c0 6 2 9 8 7z"/><path d="M12 12c0-6 6-7 8-7 0 6-2 9-8 7z"/></svg>
-            </div>
-            <div>
-                <p class="nav-card-title">Crops</p>
-                <p class="nav-card-sub">My crop plantings</p>
-            </div>
-        </a>
-
-        <!-- LOANS -->
-        <a class="nav-card blue" href="<?php echo BASE_URL; ?>/app/user/loans.php">
-            <div class="nav-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9 9.5c0-1.4 1.3-2.5 3-2.5s3 1.1 3 2.5-1.3 2-3 2.5-3 1.1-3 2.5 1.3 2.5 3 2.5 3-1.1 3-2.5"/></svg>
-            </div>
-            <div>
-                <p class="nav-card-title">Loans</p>
-                <p class="nav-card-sub">View loan status</p>
+                <p class="nav-card-title">Transactions</p>
+                <p class="nav-card-sub">View your payments</p>
             </div>
         </a>
 
@@ -874,8 +845,49 @@ button.md-close {
             </div>
         </a>
 
-        <!-- BLANK SLOT - reserved for future features -->
-        <div class="nav-card blank"></div>
+        <!-- EQUIPMENT -->
+        <a class="nav-card amber" href="<?php echo BASE_URL; ?>/app/user/equipment.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L2 19l3 3 7.3-7.3a4 4 0 0 0 5.4-5.4l-2.1 2.1-2.7-2.7z"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Equipment</p>
+                <p class="nav-card-sub">Borrow or reserve tools</p>
+            </div>
+        </a>
+
+        <!-- LOANS -->
+        <a class="nav-card blue" href="<?php echo BASE_URL; ?>/app/user/loans.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9 9.5c0-1.4 1.3-2.5 3-2.5s3 1.1 3 2.5-1.3 2-3 2.5-3 1.1-3 2.5 1.3 2.5 3 2.5 3-1.1 3-2.5"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Loans</p>
+                <p class="nav-card-sub">View loan status</p>
+            </div>
+        </a>
+
+        <!-- CROPS -->
+        <a class="nav-card green" href="<?php echo BASE_URL; ?>/app/user/crops.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 6 6 5 4 5c0 6 2 9 8 7z"/><path d="M12 12c0-6 6-7 8-7 0 6-2 9-8 7z"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Crops</p>
+                <p class="nav-card-sub">My crop plantings</p>
+            </div>
+        </a>
+
+        <!-- RESOURCES (DA resources given to the member) -->
+        <a class="nav-card rose" href="<?php echo BASE_URL; ?>/app/user/resources.php">
+            <div class="nav-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+            </div>
+            <div>
+                <p class="nav-card-title">Resources</p>
+                <p class="nav-card-sub">View your resources</p>
+            </div>
+        </a>
 
     </div>
 
