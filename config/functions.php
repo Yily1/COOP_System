@@ -994,7 +994,7 @@ function renderHeader($title) {
             @media (max-width: 768px) {
                 .app-bar.app-bar-shift { margin-left: 0; width: 100%; }
                 .main.main-shift { margin-left: 0; }
-                .drawer { width: 160px; max-width: 160px; }
+                .drawer { width: 130px; max-width: 160px; }
                 .drawer .list a {
                     padding: 10px 10px;
                     font-size: 12px;
