@@ -15,7 +15,7 @@ renderHeader('Products');
 <style>
 .svc-page-head {
     display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-    margin-bottom: 20px; padding-bottom: 18px; border-bottom:;
+    margin-bottom: 20px; padding-bottom: 18px;
 }
 .svc-page-head h1 { font-size: 24px; color: #2c2c2a; margin: 0 0 4px; font-weight: 600; }
 .svc-page-head p { font-size: 13px; color: #6b7280; margin: 0; }
@@ -43,15 +43,38 @@ renderHeader('Products');
 .svc-btn-primary { background: #3B6D11 !important; color: #fff !important; }
 .svc-btn-primary:hover { background: #2e5a0d !important; }
 
-.svc-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 8px; }
-@media (max-width: 560px) { .svc-product-grid { grid-template-columns: 1fr; } }
-.svc-product-card { background: #fff; border: 1px solid #e2e0d5; border-radius: 10px; overflow: hidden; }
-.svc-product-photo { height: 110px; background: #f3f1e8; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px; }
-.svc-product-photo img { width: 100%; height: 100%; object-fit: cover; }
-.svc-product-body { padding: 12px 14px; }
-.svc-product-name { font-weight: 600; font-size: 14px; margin: 0 0 4px; }
-.svc-product-meta { font-size: 12.5px; color: #6b7280; margin: 0 0 10px; }
-.svc-product-footer { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+/* ===== PRODUCT CARDS ===== */
+.svc-product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 14px;
+    margin-bottom: 8px;
+}
+.svc-product-card {
+    background: #fff; border: 1px solid #e2e0d5; border-radius: 12px; overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.svc-product-card:hover { border-color: #3B6D11; box-shadow: 0 2px 8px rgba(59, 109, 17, 0.12); }
+.svc-product-photo {
+    height: 140px; background: #f3f1e8; display: flex; align-items: center; justify-content: center; color: #b4b2a6;
+}
+.svc-product-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.svc-product-photo .material-icons { font-size: 38px; }
+.svc-product-body { padding: 14px 14px 12px; flex: 1; }
+.svc-product-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin: 0 0 3px; }
+.svc-product-name { font-weight: 600; font-size: 15px; margin: 0; color: #2c2c2a; overflow-wrap: anywhere; }
+.svc-product-cat { font-size: 12px; color: #6b7280; margin: 0 0 12px; }
+.svc-product-price-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.svc-product-price { font-size: 17px; font-weight: 600; color: #2c2c2a; }
+.svc-product-stock { font-size: 12px; color: #6b7280; }
+.svc-product-stock.is-out { color: #c62828; }
+.svc-product-footer { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid #f0f0ea; }
+
+.svc-status-pill { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; white-space: nowrap; flex: none; }
+.svc-status-available { background: #e8f5e9; color: #2e7d32; }
+.svc-status-out { background: #fdecea; color: #c62828; }
+.svc-status-other { background: #eee; color: #666; }
 
 .svc-action-cell { display: flex; gap: 6px; flex-wrap: nowrap; }
 .svc-mini-btn {
@@ -83,6 +106,18 @@ renderHeader('Products');
     color: #333 !important; line-height: 1 !important;
 }
 
+/* Photo upload (Add / Edit product) */
+.svc-photo-preview { display: none; width: 100%; height: 120px; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+.svc-photo-preview.svc-show { display: block; }
+.svc-photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.svc-photo-drop {
+    border: 1.5px dashed #c9c5b4; border-radius: 8px; padding: 14px 12px; text-align: center; cursor: pointer;
+    background: #faf9f4; margin-bottom: 14px;
+}
+.svc-photo-drop:hover { border-color: #3B6D11; }
+.svc-photo-drop .material-icons { color: #6b7280; font-size: 22px; }
+.svc-photo-drop p { font-size: 12.5px; color: #6b7280; margin: 4px 0 0; word-break: break-all; }
+
 @media (max-width: 700px) {
     .svc-table thead { display: none; }
     .svc-table, .svc-table tbody, .svc-table tr, .svc-table td { display: block; width: 100%; }
@@ -93,6 +128,17 @@ renderHeader('Products');
         content: attr(data-label); display: block; font-size: 11px; font-weight: 600;
         color: #6b7280; text-transform: uppercase; margin-bottom: 2px;
     }
+}
+
+@media (max-width: 560px) {
+    .svc-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .svc-product-photo { height: 100px; }
+    .svc-product-body { padding: 10px 10px 8px; }
+    .svc-product-top { flex-direction: column; gap: 4px; }
+    .svc-product-name { font-size: 13.5px; }
+    .svc-product-cat { margin-bottom: 8px; }
+    .svc-product-price { font-size: 15px; }
+    .svc-product-footer { padding: 8px 10px; gap: 6px; }
 }
 </style>
 
@@ -123,7 +169,7 @@ renderHeader('Products');
 </div>
 
 <!-- ============================================================
-     PRODUCTS
+     PRODUCTS (cards with photos)
      ============================================================ -->
 <div class="svc-section-head">
     <h2>Products</h2>
@@ -131,47 +177,54 @@ renderHeader('Products');
 <?php if (empty($products)): ?>
     <p class="svc-empty">No products added yet.</p>
 <?php else: ?>
-    <div class="svc-table-wrap">
-        <table class="svc-table" id="productTable">
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Category</th>
-                    <th>Price / Unit</th>
-                    <th>Stock</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($products as $p): ?>
-                    <?php $pJson = htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8'); ?>
-                    <tr data-product='<?php echo $pJson; ?>'>
-                        <td data-label="Product" style="font-weight:600;"><?php echo htmlspecialchars($p['name']); ?></td>
-                        <td data-label="Category"><?php echo htmlspecialchars($p['category']); ?></td>
-                        <td data-label="Price / Unit">₱<?php echo number_format($p['price'], 2); ?> / <?php echo htmlspecialchars($p['unit']); ?></td>
-                        <td data-label="Stock"><?php echo number_format($p['stock_quantity'], 0); ?></td>
-                        <td data-label="Status">
-                            <span style="font-size:11px;padding:2px 8px;border-radius:20px;
-                                <?php echo $p['status'] === 'available' ? 'background:#e8f5e9;color:#2e7d32;' : ($p['status'] === 'out_of_stock' ? 'background:#fdecea;color:#c62828;' : 'background:#eee;color:#666;'); ?>">
-                                <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $p['status']))); ?>
-                            </span>
-                        </td>
-                        <td data-label="Action">
-                            <div class="svc-action-cell">
-                                <button type="button" class="svc-mini-btn edit-product-btn">Edit</button>
-                                <button type="button" class="svc-mini-btn svc-mini-btn-reject delete-product-btn">Delete</button>
-                            </div>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+    <div class="svc-product-grid" id="productGrid">
+        <?php foreach ($products as $p): ?>
+            <?php
+                $pJson = htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8');
+                $hasPhoto = !empty($p['photo_path']);
+                $photoUrl = $hasPhoto ? BASE_URL . '/' . ltrim($p['photo_path'], '/') : '';
+                if ($p['status'] === 'available') {
+                    $pillClass = 'svc-status-available';
+                } elseif ($p['status'] === 'out_of_stock') {
+                    $pillClass = 'svc-status-out';
+                } else {
+                    $pillClass = 'svc-status-other';
+                }
+            ?>
+            <div class="svc-product-card" data-product='<?php echo $pJson; ?>'>
+                <div class="svc-product-photo">
+                    <?php if ($hasPhoto): ?>
+                        <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="<?php echo htmlspecialchars($p['name']); ?>">
+                    <?php else: ?>
+                        <span class="material-icons">inventory_2</span>
+                    <?php endif; ?>
+                </div>
+                <div class="svc-product-body">
+                    <div class="svc-product-top">
+                        <p class="svc-product-name"><?php echo htmlspecialchars($p['name']); ?></p>
+                        <span class="svc-status-pill <?php echo $pillClass; ?>">
+                            <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $p['status']))); ?>
+                        </span>
+                    </div>
+                    <p class="svc-product-cat"><?php echo htmlspecialchars($p['category']); ?></p>
+                    <div class="svc-product-price-row">
+                        <span class="svc-product-price">₱<?php echo number_format($p['price'], 2); ?> / <?php echo htmlspecialchars($p['unit']); ?></span>
+                        <span class="svc-product-stock <?php echo ((float)$p['stock_quantity'] <= 0) ? 'is-out' : ''; ?>">
+                            <?php echo number_format($p['stock_quantity'], 0); ?> in stock
+                        </span>
+                    </div>
+                </div>
+                <div class="svc-product-footer">
+                    <button type="button" class="svc-mini-btn edit-product-btn">Edit</button>
+                    <button type="button" class="svc-mini-btn svc-mini-btn-reject delete-product-btn">Delete</button>
+                </div>
+            </div>
+        <?php endforeach; ?>
     </div>
 <?php endif; ?>
 
 <!-- ============================================================
-     PRODUCT REQUESTS
+     PRODUCT REQUESTS (stays a table)
      ============================================================ -->
 <div class="svc-section-head">
     <h2>Product Requests</h2>
@@ -229,6 +282,16 @@ renderHeader('Products');
         <div id="svcModalErrors"></div>
         <form id="svcProductForm" enctype="multipart/form-data">
             <input type="hidden" name="id" id="svcProductId">
+
+            <label class="svc-form-label">Photo (optional)</label>
+            <div class="svc-photo-preview" id="svcPhotoPreview">
+                <img id="svcPhotoPreviewImg" src="" alt="Preview">
+            </div>
+            <div class="svc-photo-drop" id="svcPhotoDrop" role="button" tabindex="0">
+                <span class="material-icons">add_a_photo</span>
+                <p id="svcPhotoDropText">Click to upload a photo</p>
+            </div>
+            <input type="file" name="photo" id="svcPhotoInput" accept="image/png,image/jpeg,image/webp" style="display:none;">
 
             <label class="svc-form-label">Product name</label>
             <input type="text" name="name" id="svcProductName" class="svc-form-input" required>
@@ -302,6 +365,8 @@ renderHeader('Products');
 <script>
 (function() {
     const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/products/api/';
+    const SITE_BASE = '<?php echo BASE_URL; ?>/';
+    const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
     /* ---------- Product modal (add / edit) ---------- */
     const productBackdrop = document.getElementById('svcModalBackdrop');
@@ -309,9 +374,58 @@ renderHeader('Products');
     const productErrors = document.getElementById('svcModalErrors');
     const productModalTitle = document.getElementById('svcModalTitle');
 
+    const photoInput = document.getElementById('svcPhotoInput');
+    const photoDrop = document.getElementById('svcPhotoDrop');
+    const photoDropText = document.getElementById('svcPhotoDropText');
+    const photoPreview = document.getElementById('svcPhotoPreview');
+    const photoPreviewImg = document.getElementById('svcPhotoPreviewImg');
+
+    function resetPhotoUI(existingPath) {
+        photoInput.value = '';
+        if (existingPath) {
+            photoPreviewImg.src = SITE_BASE + existingPath.replace(/^\/+/, '');
+            photoPreview.classList.add('svc-show');
+            photoDropText.textContent = 'Click to change photo';
+        } else {
+            photoPreviewImg.src = '';
+            photoPreview.classList.remove('svc-show');
+            photoDropText.textContent = 'Click to upload a photo';
+        }
+    }
+
+    photoDrop.addEventListener('click', function() { photoInput.click(); });
+    photoDrop.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoInput.click(); }
+    });
+    photoInput.addEventListener('change', function() {
+        const file = photoInput.files && photoInput.files[0];
+        if (!file) return;
+        if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+            photoInput.value = '';
+            productErrors.textContent = 'Photo must be a PNG, JPG or WEBP image.';
+            productErrors.style.display = 'block';
+            return;
+        }
+        if (file.size > MAX_PHOTO_BYTES) {
+            photoInput.value = '';
+            productErrors.textContent = 'Photo must be 5MB or smaller.';
+            productErrors.style.display = 'block';
+            return;
+        }
+        productErrors.style.display = 'none';
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            photoPreviewImg.src = e.target.result;
+            photoPreview.classList.add('svc-show');
+            photoDropText.textContent = file.name;
+        };
+        reader.readAsDataURL(file);
+    });
+
     function openAddProduct() {
         productForm.reset();
         document.getElementById('svcProductId').value = '';
+        resetPhotoUI('');
         productModalTitle.textContent = 'Add product';
         productErrors.style.display = 'none';
         productBackdrop.style.display = 'flex';
@@ -325,6 +439,7 @@ renderHeader('Products');
         document.getElementById('svcProductUnit').value = p.unit;
         document.getElementById('svcProductStock').value = p.stock_quantity;
         document.getElementById('svcProductStatus').value = p.status;
+        resetPhotoUI(p.photo_path || '');
         productModalTitle.textContent = 'Edit product';
         productErrors.style.display = 'none';
         productBackdrop.style.display = 'flex';
@@ -335,15 +450,15 @@ renderHeader('Products');
 
     document.querySelectorAll('.edit-product-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
-            const row = btn.closest('tr');
-            openEditProduct(JSON.parse(row.dataset.product));
+            const card = btn.closest('.svc-product-card');
+            openEditProduct(JSON.parse(card.dataset.product));
         });
     });
 
     document.querySelectorAll('.delete-product-btn').forEach(function(btn) {
         btn.addEventListener('click', async function() {
-            const row = btn.closest('tr');
-            const p = JSON.parse(row.dataset.product);
+            const card = btn.closest('.svc-product-card');
+            const p = JSON.parse(card.dataset.product);
             if (!confirm('Delete "' + p.name + '"? This cannot be undone.')) return;
             try {
                 const formData = new FormData();
@@ -351,7 +466,7 @@ renderHeader('Products');
                 const res = await fetch(AJAX_BASE + 'delete-product.php', { method: 'POST', body: formData });
                 const data = await res.json();
                 if (data.success) {
-                    row.remove();
+                    window.location.reload();
                 } else {
                     alert(data.message || 'Could not delete product.');
                 }

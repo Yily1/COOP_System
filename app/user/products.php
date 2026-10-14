@@ -78,41 +78,41 @@ renderHeader('Products');
 .svc-btn-outline { background: #fff !important; color: #1b3a24 !important; border: 1px solid #eceae4 !important; }
 .svc-btn-primary { background: #2e7d32 !important; color: #fff !important; }
 
-.svc-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 8px; }
-@media (max-width: 560px) { .svc-product-grid { grid-template-columns: 1fr; } }
-.svc-product-card { background: #fff; border: 1px solid #eceae4; border-radius: 14px; overflow: hidden; }
-.svc-product-photo { height: 110px; background: #f7f8f5; display: flex; align-items: center; justify-content: center; color: #a9a79f; font-size: 12px; }
-.svc-product-photo img { width: 100%; height: 100%; object-fit: cover; }
-.svc-product-body { padding: 12px 14px; }
-.svc-product-name { font-weight: 600; font-size: 14px; margin: 0 0 4px; color: #1b3a24; }
-.svc-product-meta { font-size: 12.5px; color: #667066; margin: 0 0 10px; }
+/* ===== AVAILABLE PRODUCTS (photo cards) ===== */
+.svc-product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.svc-product-card {
+    background: #fff; border: 1px solid #eceae4; border-radius: 14px; overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.svc-product-card:hover { border-color: #cfe8d1; box-shadow: 0 2px 8px rgba(46, 125, 50, 0.08); }
+.svc-product-photo {
+    height: 110px; background: #f7f8f5; display: flex; align-items: center; justify-content: center; color: #a9a79f;
+}
+.svc-product-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.svc-product-photo .material-icons { font-size: 34px; }
+.svc-product-body { padding: 10px 14px 8px; flex: 1; }
+.svc-product-name { font-weight: 600; font-size: 15px; margin: 0 0 2px; color: #1b3a24; overflow-wrap: anywhere; }
+.svc-product-cat { font-size: 12px; color: #667066; margin: 0 0 6px; }
+.svc-product-price { font-size: 16px; font-weight: 600; color: #1b3a24; margin: 0 0 2px; }
+.svc-product-stock { font-size: 12px; color: #2e7d32; margin: 0; font-weight: 500; }
+.svc-product-stock.is-out { color: #a6322f; }
+.svc-product-footer { padding: 0 14px 12px; }
 
 .svc-request-btn {
     display: inline-flex !important; width: auto !important; align-items: center; justify-content: center;
     background: #2e7d32 !important; color: #fff !important; border: none !important; border-radius: 8px !important;
     padding: 7px 12px !important; font-size: 12px !important; font-weight: 600 !important; cursor: pointer !important; white-space: nowrap !important;
 }
+.svc-request-btn.svc-request-btn-full { width: 100% !important; padding: 8px 12px !important; font-size: 13px !important; }
 .svc-request-btn:disabled { background: #cbd5c8 !important; cursor: not-allowed !important; }
 
-.svc-table-wrap { overflow-x: auto; border: 1px solid #eceae4; border-radius: 14px; margin-bottom: 8px; }
-.svc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.svc-table th { text-align: left; padding: 12px 14px; background: #fff; border-bottom: 1px solid #eceae4; color: #667066; font-weight: 600; }
-.svc-table td { padding: 12px 14px; border-bottom: 1px solid #f0efe9; color: #1b3a24; vertical-align: top; }
-.svc-table tbody tr:last-child td { border-bottom: none; }
 .svc-empty { padding: 20px; text-align: center; color: #667066; font-size: 13px; }
-
-/* Available Products: real <table> on wider screens, a plain div-based
-   card grid on narrow screens (CSS Grid inside <table>/<tbody> renders
-   inconsistently across mobile browsers, so we avoid that entirely by
-   using two separate markup blocks toggled with display, not one). */
-.svc-desktop-only { display: block; }
-.svc-mobile-only { display: none; }
-
-.svc-mobile-product-card {
-    background: #fff; border: 1px solid #eceae4; border-radius: 12px; padding: 10px 12px;
-}
-.svc-mobile-product-name { font-weight: 600; font-size: 12.5px; margin: 0 0 4px; color: #1b3a24; }
-.svc-mobile-product-meta { font-size: 11px; color: #667066; margin: 0 0 8px; line-height: 1.5; }
 
 /* My Requests: a proper card design (name + status up top, quantity /
    pickup date side by side, manager note called out at the bottom)
@@ -144,12 +144,20 @@ renderHeader('Products');
 }
 
 @media (max-width: 700px) {
-    .svc-desktop-only { display: none; }
-    .svc-mobile-only { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .svc-request-grid { grid-template-columns: 1fr; }
 }
-@media (max-width: 380px) {
-    .svc-mobile-only { grid-template-columns: 1fr; }
+
+@media (max-width: 560px) {
+    .svc-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .svc-product-photo { height: 80px; }
+    .svc-product-photo .material-icons { font-size: 26px; }
+    .svc-product-body { padding: 8px 10px 6px; }
+    .svc-product-name { font-size: 13px; }
+    .svc-product-cat { margin-bottom: 4px; font-size: 11px; }
+    .svc-product-price { font-size: 14px; margin-bottom: 2px; }
+    .svc-product-stock { font-size: 11px; }
+    .svc-product-footer { padding: 0 10px 8px; }
+    .svc-request-btn.svc-request-btn-full { padding: 7px 10px !important; font-size: 12px !important; }
 }
 </style>
 
@@ -166,7 +174,7 @@ renderHeader('Products');
     </div>
 
     <!-- ============================================================
-         AVAILABLE PRODUCTS
+         AVAILABLE PRODUCTS (photo cards)
          ============================================================ -->
     <div class="svc-section-head">
         <h2>Available Products</h2>
@@ -175,52 +183,37 @@ renderHeader('Products');
     <?php if (empty($products)): ?>
         <p class="svc-empty">No products available right now.</p>
     <?php else: ?>
-        <div class="svc-table-wrap svc-desktop-only">
-            <table class="svc-table">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Price / Unit</th>
-                        <th>Availability</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($products as $p): ?>
-                        <?php $isAvailable = $p['status'] === 'available' && (float)$p['stock_quantity'] > 0; ?>
-                        <tr>
-                            <td data-label="Product" style="font-weight:600;"><?php echo htmlspecialchars($p['name']); ?></td>
-                            <td data-label="Price / Unit">₱<?php echo number_format($p['price'], 2); ?> / <?php echo htmlspecialchars($p['unit']); ?></td>
-                            <td data-label="Availability"><?php echo $isAvailable ? number_format($p['stock_quantity'], 0) . ' ' . htmlspecialchars($p['unit']) . ' available' : 'Out of stock'; ?></td>
-                            <td data-label="Action">
-                                <button type="button" class="svc-request-btn request-product-btn"
-                                        data-id="<?php echo $p['id']; ?>" data-name="<?php echo htmlspecialchars($p['name']); ?>"
-                                        data-unit="<?php echo htmlspecialchars($p['unit']); ?>" data-stock="<?php echo $p['stock_quantity']; ?>"
-                                        <?php echo $isAvailable ? '' : 'disabled'; ?>>
-                                    <?php echo $isAvailable ? 'Avail' : 'Unavailable'; ?>
-                                </button>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="svc-mobile-only">
+        <div class="svc-product-grid">
             <?php foreach ($products as $p): ?>
-                <?php $isAvailable = $p['status'] === 'available' && (float)$p['stock_quantity'] > 0; ?>
-                <div class="svc-mobile-product-card">
-                    <p class="svc-mobile-product-name"><?php echo htmlspecialchars($p['name']); ?></p>
-                    <p class="svc-mobile-product-meta">
-                        ₱<?php echo number_format($p['price'], 2); ?> / <?php echo htmlspecialchars($p['unit']); ?><br>
-                        <?php echo $isAvailable ? number_format($p['stock_quantity'], 0) . ' ' . htmlspecialchars($p['unit']) . ' avail.' : 'Out of stock'; ?>
-                    </p>
-                    <button type="button" class="svc-request-btn request-product-btn" style="width:100%;"
-                            data-id="<?php echo $p['id']; ?>" data-name="<?php echo htmlspecialchars($p['name']); ?>"
-                            data-unit="<?php echo htmlspecialchars($p['unit']); ?>" data-stock="<?php echo $p['stock_quantity']; ?>"
-                            <?php echo $isAvailable ? '' : 'disabled'; ?>>
-                        <?php echo $isAvailable ? 'Avail' : 'Unavailable'; ?>
-                    </button>
+                <?php
+                    $isAvailable = $p['status'] === 'available' && (float)$p['stock_quantity'] > 0;
+                    $hasPhoto = !empty($p['photo_path']);
+                    $photoUrl = $hasPhoto ? BASE_URL . '/' . ltrim($p['photo_path'], '/') : '';
+                ?>
+                <div class="svc-product-card">
+                    <div class="svc-product-photo">
+                        <?php if ($hasPhoto): ?>
+                            <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="<?php echo htmlspecialchars($p['name']); ?>">
+                        <?php else: ?>
+                            <span class="material-icons">inventory_2</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="svc-product-body">
+                        <p class="svc-product-name"><?php echo htmlspecialchars($p['name']); ?></p>
+                        <p class="svc-product-cat"><?php echo htmlspecialchars($p['category']); ?></p>
+                        <p class="svc-product-price">₱<?php echo number_format($p['price'], 2); ?> / <?php echo htmlspecialchars($p['unit']); ?></p>
+                        <p class="svc-product-stock <?php echo $isAvailable ? '' : 'is-out'; ?>">
+                            <?php echo $isAvailable ? number_format($p['stock_quantity'], 0) . ' ' . htmlspecialchars($p['unit']) . ' available' : 'Out of stock'; ?>
+                        </p>
+                    </div>
+                    <div class="svc-product-footer">
+                        <button type="button" class="svc-request-btn svc-request-btn-full request-product-btn"
+                                data-id="<?php echo $p['id']; ?>" data-name="<?php echo htmlspecialchars($p['name']); ?>"
+                                data-unit="<?php echo htmlspecialchars($p['unit']); ?>" data-stock="<?php echo $p['stock_quantity']; ?>"
+                                <?php echo $isAvailable ? '' : 'disabled'; ?>>
+                            <?php echo $isAvailable ? 'Avail' : 'Unavailable'; ?>
+                        </button>
+                    </div>
                 </div>
             <?php endforeach; ?>
         </div>
