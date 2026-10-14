@@ -744,6 +744,4 @@ renderHeader($pageTitle);
         <div class="error">Account not found.</div>
     <?php endif; ?>
 
-</div>sss
-
 <?php renderFooter(); ?>
