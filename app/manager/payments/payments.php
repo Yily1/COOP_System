@@ -163,6 +163,25 @@ renderHeader('Payments');
 /* Bright green buttons (same as the "Add product" button) */
 #openModalBtn:hover,
 #submitBtn:hover { background: #2e5a0d !important; }
+
+/* Proof of payment popup */
+#proofModalBackdrop {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; padding: 16px;
+}
+#proofModalBox {
+    position: relative; background: #fff; border-radius: 10px; padding: 16px;
+    max-width: 90vw; max-height: 90vh; box-sizing: border-box; display: flex; flex-direction: column;
+}
+#proofModalBox h3 { margin: 0 36px 10px 0; font-size: 16px; font-weight: 500; color: #1b3a24; }
+#proofModalImg { display: block; max-width: 100%; max-height: calc(90vh - 90px); margin: 0 auto; border-radius: 6px; object-fit: contain; }
+#closeProofModalBtn {
+    position: absolute !important; top: 12px !important; right: 12px !important;
+    width: 28px !important; height: 28px !important; max-width: 28px !important; padding: 0 !important; margin: 0 !important;
+    display: inline-flex !important; align-items: center; justify-content: center;
+    background: none !important; border: none !important; font-size: 22px !important; line-height: 1 !important;
+    color: #333 !important; cursor: pointer; box-shadow: none !important;
+}
 </style>
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; position: relative; width: 100%;">
@@ -305,8 +324,8 @@ renderHeader('Payments');
                     <td style="padding: 10px 12px; color: #666;"><?php echo htmlspecialchars($payment['notes'] ?? '-'); ?></td>
                     <td style="padding: 10px 12px;">
                         <?php if ($proofUrl !== ''): ?>
-                            <a href="<?php echo htmlspecialchars($proofUrl); ?>" target="_blank" rel="noopener"
-                               style="color: #1976d2; text-decoration: underline; white-space: nowrap;">View image</a>
+                            <a href="<?php echo htmlspecialchars($proofUrl); ?>" class="viewProofLink" data-src="<?php echo htmlspecialchars($proofUrl); ?>"
+                               style="color: #1976d2; text-decoration: underline; white-space: nowrap; cursor: pointer;">View image</a>
                         <?php else: ?>
                             <span style="color: #ccc;">-</span>
                         <?php endif; ?>
@@ -333,6 +352,15 @@ renderHeader('Payments');
         <?php endif; ?>
     </tbody>
 </table>
+</div>
+
+<!-- MODAL - Proof of payment image -->
+<div id="proofModalBackdrop">
+    <div id="proofModalBox">
+        <h3>Proof of payment</h3>
+        <span id="closeProofModalBtn" role="button" tabindex="0" aria-label="Close">&times;</span>
+        <img id="proofModalImg" src="" alt="Proof of payment">
+    </div>
 </div>
 
 <!-- MODAL - Add Payment -->
@@ -446,7 +474,9 @@ renderHeader('Payments');
         ['loan_repayment', 'Loan Repayment'],
         ['product', 'Product']
     ];
-    const NON_MEMBER_TYPES = MEMBER_TYPES;
+    const NON_MEMBER_TYPES = [
+        ['rental', 'Rental']
+    ];
 
     function toggleProductFields() {
         const isProduct = typeInput.value === 'product';
@@ -580,6 +610,35 @@ renderHeader('Payments');
     cancelBtn.addEventListener('click', closeModal);
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
 
+    const proofBackdrop = document.getElementById('proofModalBackdrop');
+    const proofImg = document.getElementById('proofModalImg');
+    const closeProofBtn = document.getElementById('closeProofModalBtn');
+
+    function openProofModal(src) {
+        proofImg.src = src;
+        proofBackdrop.style.display = 'flex';
+    }
+    function closeProofModal() {
+        proofBackdrop.style.display = 'none';
+        proofImg.src = '';
+    }
+
+    tableBody.addEventListener('click', function(e) {
+        const link = e.target.closest('.viewProofLink');
+        if (!link) return;
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
+        e.preventDefault();
+        openProofModal(link.dataset.src || link.href);
+    });
+    closeProofBtn.addEventListener('click', closeProofModal);
+    closeProofBtn.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeProofModal(); }
+    });
+    proofBackdrop.addEventListener('click', function(e) { if (e.target === proofBackdrop) closeProofModal(); });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && proofBackdrop.style.display === 'flex') closeProofModal();
+    });
+
     const TYPE_META = {
         registration:   { label: 'Registration',   bg: '#d4edda', text: '#155724' },
         investment:     { label: 'Investment',     bg: '#cce5ff', text: '#004085' },
@@ -677,9 +736,9 @@ renderHeader('Payments');
             <td style="padding: 10px 12px;">
                 <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: #d4edda; color: #155724;">Confirmed</span>
             </td>
-            <td style="padding: 10px 12px; color: #666;">${payment.notes || '-'}</td>
+            <td style="padding: 10px 12px; color: #666;">${escapeHtml(payment.notes || '-')}</td>
             <td style="padding: 10px 12px;"><span style="color: #ccc;">-</span></td>
-            <td style="padding: 10px 12px; color: #666;">${payment.recorded_by_email || '-'}</td>
+            <td style="padding: 10px 12px; color: #666;">${escapeHtml(payment.recorded_by_email || '-')}</td>
             <td style="padding: 10px 12px;"><span style="color: #ccc;">-</span></td>
         `;
         return tr;

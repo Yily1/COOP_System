@@ -20,7 +20,7 @@ $productName = trim($_POST['product_name'] ?? '');
 
 if ($payerType === 'non_member') {
     $memberId = null;
-    $allowedTypes = ['registration', 'investment', 'rental', 'loan_repayment', 'product'];
+    $allowedTypes = ['rental'];
 
     if ($payerName === '') {
         $response['errors'][] = 'Ilagay ang pangalan ng nagbayad.';
@@ -68,8 +68,6 @@ if (empty($response['errors'])) {
     recordPayment($pdo, $memberId, $paymentType, $amount, $paymentDate, $recordedBy, $notes ?: null, $productName, $payerName);
     $newId = $pdo->lastInsertId();
 
-    // Kunin ulit ang buong record kasama ang member name at recorder email,
-    // para maidagdag agad sa table sa frontend nang walang extra fetch
     $stmt = $pdo->prepare("
         SELECT p.*, m.first_name, m.last_name, m.membership_id, u.email as recorded_by_email
         FROM payments p

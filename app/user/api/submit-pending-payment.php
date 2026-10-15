@@ -9,65 +9,82 @@ header('Content-Type: application/json');
 
 $response = ['success' => false, 'errors' => []];
 
-$paymentType = $_POST['payment_type'] ?? '';
-$amount = $_POST['amount'] ?? '';
-
-if (!in_array($paymentType, ['registration', 'investment', 'rental', 'loan_repayment'])) {
-    $response['errors'][] = 'Piliin ang tamang payment type.';
-}
-if (!is_numeric($amount) || $amount <= 0) {
-    $response['errors'][] = 'Ilagay ang tamang amount.';
-}
-
-// ---- Proof of payment (REQUIRED) ----
-$file = $_FILES['proof_of_payment'] ?? null;
-$allowedTypes = ['image/jpeg' => 'jpg', 'image/png' => 'png'];
-$maxBytes = 5 * 1024 * 1024; // 5 MB
-$proofExt = null;
-
-if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
-    $response['errors'][] = 'Mag-upload muna ng screenshot ng payment (proof of payment).';
-} elseif ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) {
-    $response['errors'][] = 'Masyadong malaki ang file. Subukan ang mas maliit na screenshot.';
-} elseif ($file['error'] !== UPLOAD_ERR_OK) {
-    $response['errors'][] = 'Hindi na-upload ang file. Subukan ulit.';
-} else {
-    // Check the actual file content, not just the filename extension.
-    $mimeType = mime_content_type($file['tmp_name']);
-    if (!isset($allowedTypes[$mimeType])) {
-        $response['errors'][] = 'PNG o JPG lang ang pwedeng i-upload.';
-    } elseif ($file['size'] > $maxBytes) {
-        $response['errors'][] = 'Hanggang 5MB lang ang pwedeng i-upload.';
-    } else {
-        $proofExt = $allowedTypes[$mimeType];
-    }
-}
-
-if (empty($response['errors'])) {
-    // Kunin ang member_id ng kasalukuyang naka-login na user
+try {
     $userId = $_SESSION['user_id'];
+
     $stmt = $pdo->prepare("SELECT member_id FROM users WHERE id = ?");
     $stmt->execute([$userId]);
-    $memberId = $stmt->fetch(PDO::FETCH_ASSOC)['member_id'] ?? null;
+    $memberId = $stmt->fetchColumn();
 
-    if (empty($memberId)) {
-        $response['errors'][] = 'Walang naka-link na member profile sa account mo.';
-    } else {
-        // I-save muna ang file bago i-INSERT ang payment.
-        $uploadDir = __DIR__ . '/../../../assets/uploads/payment-proofs/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+    if (!$memberId) {
+        $response['errors'][] = 'Walang member profile na naka-link sa account mo.';
+        echo json_encode($response);
+        exit;
+    }
+
+    $paymentType = $_POST['payment_type'] ?? '';
+    $amount = $_POST['amount'] ?? '';
+    $productName = trim($_POST['product_name'] ?? '');
+
+    $allowedTypes = ['registration', 'investment', 'rental', 'loan_repayment', 'product'];
+    if (!in_array($paymentType, $allowedTypes, true)) {
+        $response['errors'][] = 'Piliin ang tamang payment type.';
+    }
+
+    if ($paymentType === 'product') {
+        if ($productName === '') {
+            $response['errors'][] = 'Ilagay ang pangalan ng product.';
+        } elseif (mb_strlen($productName) > 150) {
+            $response['errors'][] = 'Masyadong mahaba ang pangalan ng product.';
         }
-        $filename = 'proof_' . bin2hex(random_bytes(8)) . '.' . $proofExt;
+    } else {
+        $productName = null;
+    }
 
-        if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
-            $response['errors'][] = 'Hindi ma-save ang na-upload na file. Subukan ulit.';
+    if (!is_numeric($amount) || $amount <= 0) {
+        $response['errors'][] = 'Ilagay ang tamang amount.';
+    }
+
+    $proofPath = null;
+    $file = $_FILES['proof_of_payment'] ?? null;
+    $ext = null;
+
+    if (!$file || $file['error'] === UPLOAD_ERR_NO_FILE) {
+        $response['errors'][] = 'Mag-upload ng screenshot ng payment.';
+    } elseif ($file['error'] !== UPLOAD_ERR_OK) {
+        $response['errors'][] = 'Hindi na-upload ang file. Subukan ulit.';
+    } elseif ($file['size'] > 5 * 1024 * 1024) {
+        $response['errors'][] = 'Hanggang 5MB lang ang pwedeng i-upload.';
+    } else {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($file['tmp_name']);
+        $allowedMimes = ['image/jpeg' => 'jpg', 'image/png' => 'png'];
+        if (!isset($allowedMimes[$mime])) {
+            $response['errors'][] = 'PNG o JPG lang ang pwedeng i-upload.';
         } else {
-            $proofPath = 'assets/uploads/payment-proofs/' . $filename;
-            submitPendingPayment($pdo, $memberId, $paymentType, $amount, $userId, $proofPath);
-            $response['success'] = true;
+            $ext = $allowedMimes[$mime];
         }
     }
+
+    if (empty($response['errors'])) {
+        $uploadDir = __DIR__ . '/../../../uploads/payment-proofs';
+        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true)) {
+            throw new RuntimeException('Hindi magawa ang upload folder.');
+        }
+
+        $fileName = 'proof_' . $memberId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $fileName)) {
+            throw new RuntimeException('Hindi ma-save ang na-upload na file.');
+        }
+        $proofPath = 'uploads/payment-proofs/' . $fileName;
+
+        submitPendingPayment($pdo, $memberId, $paymentType, $amount, $userId, $proofPath, $productName);
+
+        $response['success'] = true;
+    }
+} catch (Throwable $e) {
+    $response['success'] = false;
+    $response['errors'][] = 'Server error: ' . $e->getMessage();
 }
 
 echo json_encode($response);

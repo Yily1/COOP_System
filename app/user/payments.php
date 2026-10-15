@@ -39,16 +39,21 @@ renderHeader('Payments');
     width: 100%;
     max-width: 1000px;
     margin: 0 auto;
-    background: #ffffff;
-    padding: 25px 28px;
     box-sizing: border-box;
-    border-radius: 10px;
+}
+.history-card {
+    background: #ffffff;
+    padding: 18px 20px;
+    box-sizing: border-box;
+    border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
+.history-card h3 { margin: 0 0 8px; }
 .payment-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px; flex-wrap: wrap; }
 .payment-card-header-right { display: flex; align-items: center; gap: 14px; }
 .payment-card-header h1 { margin: 0; color: #2e7d32; font-size: 25px; font-weight: 500; }
 .payment-card h3 { color: #333; font-size: 18px; font-weight: 500; }
+.date-short { display: none; }
 .add-payment-btn {
     background: #2e7d32 !important;
     color: #fff !important;
@@ -66,10 +71,27 @@ renderHeader('Payments');
     flex: 0 0 auto !important;
     box-sizing: border-box !important;
 }
-.stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-bottom: 20px; }
-.stat-card { min-height: 100px; padding: 20px 22px; box-sizing: border-box; border-radius: 10px; color: white; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; justify-content: center; }
-.stat-number { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
-.stat-label { font-size: 14px; opacity: 0.95; }
+
+/* Summary cards: label on top, big number, small note below */
+.stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-card {
+    min-height: 92px;
+    padding: 16px 18px;
+    box-sizing: border-box;
+    border-radius: 12px;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+}
+.stat-label { font-size: 13px; opacity: 0.95; }
+.stat-number { font-size: 22px; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.stat-sub { font-size: 12px; opacity: 0.85; }
+.stat-green { background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%); }
+.stat-gray { background: linear-gradient(135deg, #bdbdbd 0%, #9e9e9e 100%); }
+.stat-blue { background: linear-gradient(135deg, #42a5f5 0%, #1976d2 100%); }
+
 .payment-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 .payment-table th { padding: 10px 12px; background: #f5f5f5; text-align: left; }
 .payment-table td { padding: 10px 12px; border-top: 1px solid #eee; }
@@ -99,11 +121,19 @@ renderHeader('Payments');
 .proof-done-ok { font-size: 12px; color: #155724; }
 .proof-remove { font-size: 12px; color: #c62828; cursor: pointer; flex-shrink: 0; }
 
-@media (max-width: 768px) {
-    .stat-grid { grid-template-columns: 1fr; }
-}
-
 @media (max-width: 480px) {
+    .history-card { padding: 12px 10px; }
+    .history-card h3 { font-size: 15px; margin-left: 4px; }
+    .payment-table { table-layout: fixed; font-size: 12px; }
+    .payment-table th, .payment-table td { padding: 8px 6px; }
+    .payment-table .col-type { width: 36%; }
+    .payment-table .col-amount { width: 24%; }
+    .payment-table .col-date { width: 18%; }
+    .payment-table .col-status { width: 22%; }
+    .date-full { display: none; }
+    .date-short { display: inline; }
+    .type-badge { font-size: 11px; padding: 2px 6px; }
+    .status-badge { font-size: 10.5px; padding: 2px 5px; }
     .payment-card-header {
         flex-wrap: nowrap !important;
         gap: 8px !important;
@@ -116,6 +146,12 @@ renderHeader('Payments');
         padding: 8px 14px !important;
         font-size: 13px !important;
     }
+
+    .stat-grid { gap: 10px; }
+    .stat-card { min-height: 84px; padding: 12px 12px; border-radius: 10px; }
+    .stat-label { font-size: 12px; }
+    .stat-number { font-size: 18px; }
+    .stat-sub { font-size: 11px; }
 }
 
 /* ============================================================
@@ -291,23 +327,25 @@ renderHeader('Payments');
         <p style="color: #666;">No member profile is linked to your account yet.</p>
     <?php else: ?>
 
-        <div class="stat-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
-            <div class="stat-card" style="background: <?php echo $eligibility['registration_paid'] ? 'linear-gradient(135deg, #66bb6a 0%, #43a047 100%)' : 'linear-gradient(135deg, #bdbdbd 0%, #9e9e9e 100%)'; ?>;">
-                <div class="stat-number">
-                    <?php echo $eligibility['registration_paid'] ? 'Paid ₱' . number_format($eligibility['registration_amount'], 0) : 'Not yet paid'; ?>
-                </div>
+        <div class="stat-grid">
+            <div class="stat-card <?php echo $eligibility['registration_paid'] ? 'stat-green' : 'stat-gray'; ?>">
                 <div class="stat-label">Registration Fee</div>
-            </div>
-            <div class="stat-card" style="background: linear-gradient(135deg, #42a5f5 0%, #1976d2 100%);">
                 <div class="stat-number">
-                    ₱<?php echo number_format($eligibility['total_investment'], 0); ?>
-                    <span style="font-size: 13px; opacity: .85;">/ ₱<?php echo number_format($eligibility['investment_target'], 0); ?></span>
+                    <?php echo $eligibility['registration_paid'] ? '₱' . number_format($eligibility['registration_amount'], 0) : 'Not yet paid'; ?>
                 </div>
+                <div class="stat-sub">
+                    <?php echo $eligibility['registration_paid'] ? 'Paid' : 'Required: ₱' . number_format(REGISTRATION_FEE_REQUIRED, 0); ?>
+                </div>
+            </div>
+            <div class="stat-card stat-blue">
                 <div class="stat-label">Total Investment</div>
+                <div class="stat-number">₱<?php echo number_format($eligibility['total_investment'], 0); ?></div>
+                <div class="stat-sub">of ₱<?php echo number_format($eligibility['investment_target'], 0); ?> target</div>
             </div>
         </div>
 
-        <h3 style="margin-top: 20px;">Payment History</h3>
+        <div class="history-card">
+        <h3>Payment History</h3>
         <?php if (empty($paymentHistory)): ?>
             <p style="color: #666;">Wala pang payment history.</p>
         <?php else: ?>
@@ -319,16 +357,17 @@ renderHeader('Payments');
                     'investment'     => ['label' => 'Investment',     'bg' => '#cce5ff', 'text' => '#004085'],
                     'rental'         => ['label' => 'Rental',          'bg' => '#eeedfe', 'text' => '#3c3489'],
                     'loan_repayment' => ['label' => 'Loan Repayment', 'bg' => '#faeeda', 'text' => '#633806'],
+                    'product'        => ['label' => 'Product',        'bg' => '#DDEAF6', 'text' => '#185FA5'],
                 ];
             ?>
             <div style="overflow-x:auto;">
                 <table class="payment-table">
                     <thead>
                         <tr>
-                            <th>Type</th>
-                            <th>Amount</th>
-                            <th>Date</th>
-                            <th>Status</th>
+                            <th class="col-type">Type</th>
+                            <th class="col-amount">Amount</th>
+                            <th class="col-date">Date</th>
+                            <th class="col-status">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -341,9 +380,15 @@ renderHeader('Payments');
                                     <span class="type-badge" style="background: <?php echo $tMeta['bg']; ?>; color: <?php echo $tMeta['text']; ?>;">
                                         <?php echo htmlspecialchars($tMeta['label']); ?>
                                     </span>
+                                    <?php if ($payment['payment_type'] === 'product' && !empty($payment['product_name'])): ?>
+                                        <div style="font-size: 11px; color: #666; margin-top: 3px;"><?php echo htmlspecialchars($payment['product_name']); ?></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="amount">₱<?php echo number_format($payment['amount'], 2); ?></td>
-                                <td><?php echo date('M d, Y', strtotime($payment['payment_date'])); ?></td>
+                                <td>
+                                    <span class="date-full"><?php echo date('M d, Y', strtotime($payment['payment_date'])); ?></span>
+                                    <span class="date-short"><?php echo date('M d', strtotime($payment['payment_date'])); ?></span>
+                                </td>
                                 <td>
                                     <?php if ($payment['status'] === 'pending'): ?>
                                         <span class="status-badge status-pending">Pending</span>
@@ -357,6 +402,7 @@ renderHeader('Payments');
                 </table>
             </div>
         <?php endif; ?>
+        </div>
 
     <?php endif; ?>
 </div>
@@ -383,12 +429,18 @@ renderHeader('Payments');
                     <option value="investment">Investment</option>
                     <option value="rental">Rental</option>
                     <option value="loan_repayment">Loan Repayment</option>
+                    <option value="product">Product</option>
                 </select>
             </div>
 
             <div class="form-group">
                 <label for="payAmountInput">Amount (₱)</label>
                 <input type="number" name="amount" id="payAmountInput" step="0.01" min="0" required>
+            </div>
+
+            <div class="form-group span-2" id="payProductGroup" style="display: none;">
+                <label for="payProductInput">Product <span style="color:#c62828;">*</span></label>
+                <input type="text" name="product_name" id="payProductInput" maxlength="150" placeholder="e.g. Pork meat">
             </div>
 
             <div class="gcash-box span-2">
@@ -451,6 +503,8 @@ renderHeader('Payments');
     const successEl = document.getElementById('payModalSuccess');
     const typeSelect = document.getElementById('payTypeSelect');
     const amountInput = document.getElementById('payAmountInput');
+    const productGroup = document.getElementById('payProductGroup');
+    const productInput = document.getElementById('payProductInput');
 
     const proofInput = document.getElementById('payProofInput');
     const proofDrop = document.getElementById('payProofDrop');
@@ -474,10 +528,18 @@ renderHeader('Payments');
         proofEmpty.style.display = 'block';
     }
 
+    function toggleProductField() {
+        const isProduct = typeSelect.value === 'product';
+        productGroup.style.display = isProduct ? 'block' : 'none';
+        productInput.required = isProduct;
+        if (!isProduct) productInput.value = '';
+    }
+
     function openModal() { backdrop.style.display = 'flex'; }
     function closeModal() {
         backdrop.style.display = 'none';
         form.reset();
+        toggleProductField();
         resetProofUI();
         errorsEl.style.display = 'none';
         successEl.style.display = 'none';
@@ -493,6 +555,7 @@ renderHeader('Payments');
 
     // Auto-fill ng ₱150 kapag "Registration Fee" ang pinili
     typeSelect.addEventListener('change', function() {
+        toggleProductField();
         if (typeSelect.value === 'registration') {
             amountInput.value = '150';
         }
@@ -561,6 +624,7 @@ renderHeader('Payments');
             if (data.success) {
                 successEl.style.display = 'block';
                 form.reset();
+                toggleProductField();
                 resetProofUI();
                 setTimeout(() => { window.location.reload(); }, 1200);
             } else {

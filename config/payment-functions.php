@@ -101,13 +101,14 @@ function getMemberEligibility($pdo, $memberId) {
 
 /**
  * I-record ang bagong payment bilang CONFIRMED - ginagamit ng MANAGER.
+ * $productName ay para sa product payments, $payerName ay para sa non-member.
  */
-function recordPayment($pdo, $memberId, $paymentType, $amount, $paymentDate, $recordedBy, $notes = null) {
+function recordPayment($pdo, $memberId, $paymentType, $amount, $paymentDate, $recordedBy, $notes = null, $productName = null, $payerName = null) {
     $stmt = $pdo->prepare("
-        INSERT INTO payments (member_id, payment_type, amount, payment_date, recorded_by, notes, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'confirmed')
+        INSERT INTO payments (member_id, payer_name, payment_type, product_name, amount, payment_date, recorded_by, notes, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed')
     ");
-    return $stmt->execute([$memberId, $paymentType, $amount, $paymentDate, $recordedBy, $notes]);
+    return $stmt->execute([$memberId, $payerName, $paymentType, $productName, $amount, $paymentDate, $recordedBy, $notes]);
 }
 
 /**
