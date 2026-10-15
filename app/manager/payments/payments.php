@@ -164,6 +164,29 @@ renderHeader('Payments');
 #openModalBtn:hover,
 #submitBtn:hover { background: #2e5a0d !important; }
 
+/* Print button: outlined green so "+ Add payment" stays the main action */
+.pay-print-btn {
+    background: #fff !important;
+    color: #3B6D11 !important;
+    border: 1px solid #3B6D11 !important;
+    padding: 10px 18px !important;
+    border-radius: 6px !important;
+    cursor: pointer;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    width: auto !important;
+    max-width: 220px !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    position: static !important;
+    float: none !important;
+    margin: 0 !important;
+}
+.pay-print-btn:hover { background: #f1f6ea !important; }
+
 /* Proof of payment popup */
 #proofModalBackdrop {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -182,10 +205,119 @@ renderHeader('Payments');
     background: none !important; border: none !important; font-size: 22px !important; line-height: 1 !important;
     color: #333 !important; cursor: pointer; box-shadow: none !important;
 }
+
+/* ============================================================
+   PRINT REPORT
+   Hidden on screen. The rows are built from the table on the
+   page right before printing, so the printout follows the
+   current filters and search. Columns: Name, Type, Amount, Date
+   ============================================================ */
+#payPrintReport { display: none; }
+
+@page {
+    size: A4 landscape;
+    margin: 14mm 12mm 16mm;
+    /* Blank top margin boxes so the browser's own header
+       (date/time and page title) is not printed */
+    @top-left   { content: ""; }
+    @top-center { content: ""; }
+    @top-right  { content: ""; }
+    @bottom-left {
+        content: "Printed on <?php echo date('F j, Y'); ?>";
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10px;
+        color: #000;
+    }
+    @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10px;
+        color: #000;
+    }
+}
+
+@media print {
+    /* Remove the page's own content so it doesn't create blank pages */
+    .pay-screen-only,
+    .pay-summary-grid,
+    #proofModalBackdrop,
+    #paymentModalBackdrop {
+        display: none !important;
+    }
+
+    /* Hide everything else (sidebar, top bar, etc.), show only the report */
+    body * { visibility: hidden !important; }
+    #payPrintReport,
+    #payPrintReport * { visibility: visible !important; }
+
+    #payPrintReport {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        color: #000;
+        background: #fff;
+        font-family: Arial, Helvetica, sans-serif;
+        -webkit-font-smoothing: auto;
+    }
+
+    .pay-pr-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #000;
+    }
+    .pay-pr-title { font-size: 16px; font-weight: 700; }
+    .pay-pr-sub, .pay-pr-total { font-size: 12px; color: #333; }
+
+    .pay-pr-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        table-layout: fixed;
+    }
+    .pay-pr-table thead { display: table-header-group; } /* repeats on every page */
+    .pay-pr-table th {
+        text-align: left;
+        padding: 8px 6px;
+        border-bottom: 1px solid #000;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .pay-pr-table td {
+        padding: 7px 6px;
+        border-bottom: 1px solid #ddd;
+        vertical-align: top;
+        word-wrap: break-word;
+        color: #000;
+    }
+    .pay-pr-table tr { page-break-inside: avoid; }
+
+    /* Column widths (4 columns) */
+    .pay-pr-table th:nth-child(1) { width: 32%; } /* Name */
+    .pay-pr-table th:nth-child(2) { width: 24%; } /* Type */
+    .pay-pr-table th:nth-child(3) { width: 22%; } /* Amount */
+    .pay-pr-table th:nth-child(4) { width: 22%; } /* Date */
+
+    /* Amount on the right with a gap, Date on the left, so they stay clearly separate */
+    .pay-pr-table th.pay-pr-amt,
+    .pay-pr-table td.pay-pr-amt { text-align: right; padding-right: 34px; }
+    .pay-pr-table th.pay-pr-date,
+    .pay-pr-table td.pay-pr-date { padding-left: 10px; }
+
+    .pay-pr-sub-line { font-size: 10px; color: #444; margin-top: 2px; }
+}
 </style>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; position: relative; width: 100%;">
+<div class="pay-screen-only" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; position: relative; width: 100%;">
     <h1 style="margin: 0; flex: 1 1 auto; min-width: 0; position: static !important;">Payments</h1>
+    <button type="button" class="pay-print-btn" id="payPrintBtn">
+        <span class="material-icons" style="font-size: 18px;">print</span>
+        Print
+    </button>
     <button id="openModalBtn"
             style="background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; border: none !important; padding: 10px 18px !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important; display: inline-block !important; width: auto !important; max-width: 200px !important; flex: 0 0 auto !important; white-space: nowrap !important; position: static !important; top: auto !important; left: auto !important; right: auto !important; float: none !important; margin-left: auto !important;">
         + Add payment
@@ -222,9 +354,9 @@ renderHeader('Payments');
     </div>
 </div>
 
-<h2 style="margin: 0 0 12px 0;">Payment history</h2>
+<h2 class="pay-screen-only" style="margin: 0 0 12px 0;">Payment history</h2>
 
-<div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+<div class="pay-screen-only" style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
     <input type="text" id="memberSearchInput" placeholder="Search by name or membership ID"
            style="padding: 8px; border-radius: 6px; border: 1px solid #ccc; width: 240px; max-width: 240px; flex: 0 0 auto; box-sizing: border-box;">
 
@@ -244,7 +376,7 @@ renderHeader('Payments');
     </select>
 </div>
 
-<div style="overflow-x: auto;">
+<div class="pay-screen-only" style="overflow-x: auto;">
 <table style="width: 100%; border-collapse: collapse; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;" id="paymentsTable">
     <thead>
         <tr style="background: #f5f5f5; text-align: left;">
@@ -352,6 +484,32 @@ renderHeader('Payments');
         <?php endif; ?>
     </tbody>
 </table>
+</div>
+
+<!-- ============================================================
+     PRINT REPORT (hidden on screen, shown only when printing)
+     Rows are filled in by JS right before printing.
+     Columns: Name, Type, Amount, Date
+     ============================================================ -->
+<div id="payPrintReport">
+    <div class="pay-pr-head">
+        <div>
+            <div class="pay-pr-title">SJFMC Cooperative</div>
+            <div class="pay-pr-sub">Payments list</div>
+        </div>
+        <div class="pay-pr-total" id="payPrintTotal">Total: 0 payments</div>
+    </div>
+    <table class="pay-pr-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th class="pay-pr-amt">Amount</th>
+                <th class="pay-pr-date">Date</th>
+            </tr>
+        </thead>
+        <tbody id="payPrintBody"></tbody>
+    </table>
 </div>
 
 <!-- MODAL - Proof of payment image -->
@@ -871,6 +1029,74 @@ renderHeader('Payments');
             const matches = !q || (row.dataset.search || '').indexOf(q) !== -1;
             row.style.display = matches ? '' : 'none';
         });
+    });
+
+    // ---------- Print ----------
+    // The report (Name, Type, Amount, Date) is built from the rows that are
+    // visible in the table right now, so it follows the type/payer filters,
+    // the search box, newly added payments, and removed ones.
+    const printBtn = document.getElementById('payPrintBtn');
+    const printBody = document.getElementById('payPrintBody');
+    const printTotal = document.getElementById('payPrintTotal');
+
+    function makeCell(text, className) {
+        const td = document.createElement('td');
+        if (className) td.className = className;
+        td.textContent = text;
+        return td;
+    }
+
+    function buildPrintReport() {
+        printBody.textContent = '';
+        let count = 0;
+
+        tableBody.querySelectorAll('tr[data-payment-id]').forEach(function(row) {
+            if (row.style.display === 'none') return; // hidden by the search box
+
+            const cells = row.children;
+            const nameEl = cells[0].querySelector('p');
+            const typeLabelEl = cells[1].querySelector('span');
+            const productEl = cells[1].querySelector('div');
+
+            const tr = document.createElement('tr');
+
+            // Name only (members: "Last, First" / non-members: the typed name)
+            tr.appendChild(makeCell(nameEl ? nameEl.textContent.trim() : '-'));
+
+            // Type (+ product name underneath for product payments)
+            const typeTd = makeCell(typeLabelEl ? typeLabelEl.textContent.trim() : '-');
+            if (productEl && productEl.textContent.trim() !== '') {
+                const sub = document.createElement('div');
+                sub.className = 'pay-pr-sub-line';
+                sub.textContent = productEl.textContent.trim();
+                typeTd.appendChild(sub);
+            }
+            tr.appendChild(typeTd);
+
+            tr.appendChild(makeCell(cells[2].textContent.trim(), 'pay-pr-amt'));
+            tr.appendChild(makeCell(cells[3].textContent.trim(), 'pay-pr-date'));
+
+            printBody.appendChild(tr);
+            count++;
+        });
+
+        if (count === 0) {
+            const tr = document.createElement('tr');
+            const td = makeCell('No payment records.');
+            td.colSpan = 4;
+            tr.appendChild(td);
+            printBody.appendChild(tr);
+        }
+
+        printTotal.textContent = 'Total: ' + count + (count === 1 ? ' payment' : ' payments');
+    }
+
+    // Also runs when printing with Ctrl+P instead of the button
+    window.addEventListener('beforeprint', buildPrintReport);
+
+    printBtn.addEventListener('click', function() {
+        buildPrintReport();
+        window.print();
     });
 })();
 </script>
