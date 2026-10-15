@@ -5,7 +5,7 @@ requireRole('admin');
 
 $currentRole = $_SESSION['role'];
 $currentUserId = $_SESSION['user_id'];
-$pageTitle = 'Users';
+$pageTitle = 'User Management';
 
 // Deterministic avatar color per user, based on id so it stays the
 // same across page loads instead of being random each time.
@@ -20,16 +20,20 @@ function umInitials($name) {
     return implode('', array_slice($letters, 0, 2));
 }
 
-// Admin manages staff accounts (Admin/Manager)
+// Admin manages staff accounts (Admin/Manager) and can VIEW member (User)
+// accounts created by Managers. Members are view-only: canEditUser() and
+// canDeleteUser() in functions.php return false for role 'user' when the
+// current role is admin, so no Edit/Delete is shown or allowed.
 $baseSelect = "SELECT u.id, u.username, u.email, u.role, u.account_status, u.is_verified, u.created_at,
                       m.membership_id, m.last_name, m.first_name, m.middle_name
                FROM users u
                LEFT JOIN members m ON u.member_id = m.id";
 
-$stmt = $pdo->prepare("$baseSelect WHERE u.role IN ('admin', 'manager') ORDER BY
+$stmt = $pdo->prepare("$baseSelect WHERE u.role IN ('admin', 'manager', 'user') ORDER BY
     CASE u.role
         WHEN 'admin' THEN 1
         WHEN 'manager' THEN 2
+        WHEN 'user' THEN 3
     END, u.created_at DESC");
 $stmt->execute();
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -283,7 +287,7 @@ renderHeader($pageTitle);
 </div>
 
 <div class="um-toolbar">
-    <p>Showing all staff accounts (<span id="umVisibleCount"><?php echo count($users); ?></span> total)</p>
+    <p>Showing all accounts (<span id="umVisibleCount"><?php echo count($users); ?></span> total)</p>
 </div>
 
 <table id="umTable">
@@ -308,6 +312,7 @@ renderHeader($pageTitle);
             $rowSearchText = strtolower($rowName . ' ' . $user['membership_id'] . ' ' . $rowUsername . ' ' . $user['email']);
             $canEditThisUser = canEditUser($currentRole, $currentUserId, $user['role'], $user['id']);
             $canChangeThisUserRole = canChangeRole($currentRole, $currentUserId, $user['id']);
+            $canDeleteThisUser = canDeleteUser($currentRole, $currentUserId, $user['role'], $user['id']);
         ?>
         <tr data-search="<?php echo htmlspecialchars($rowSearchText); ?>">
             <td><?php echo $user['membership_id'] ? htmlspecialchars($user['membership_id']) : '<span style="color:#999;">Staff</span>'; ?></td>
@@ -346,7 +351,7 @@ renderHeader($pageTitle);
                     </a>
                 <?php endif; ?>
 
-                <?php if (canDeleteUser($currentRole, $currentUserId, $user['role'], $user['id'])): ?>
+                <?php if ($canDeleteThisUser): ?>
                     <a href="#"
                          onclick="openDeleteUserModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($rowUsername !== '' ? $rowUsername : $user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role']), ENT_QUOTES); ?>); return false;"
                          style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#a6322f !important; text-decoration:none !important; cursor:pointer;">
@@ -357,6 +362,10 @@ renderHeader($pageTitle);
                           style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#999 !important;">
                         <span class="material-icons" style="font-size:14px !important;">delete</span>Delete
                     </span>
+                <?php endif; ?>
+
+                <?php if ($user['role'] === 'user'): ?>
+                    <span style="color:#999; font-size:12px;">View only</span>
                 <?php endif; ?>
             </td>
         </tr>

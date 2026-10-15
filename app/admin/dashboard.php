@@ -22,8 +22,8 @@ $unverifiedUsers = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
 
 // Get activity statistics for charts
 $stmt = $pdo->query("
-    SELECT DATE(created_at) as date, COUNT(*) as count 
-    FROM activity_logs 
+    SELECT DATE(created_at) as date, COUNT(*) as count
+    FROM activity_logs
     WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     GROUP BY DATE(created_at)
     ORDER BY date ASC
@@ -32,20 +32,20 @@ $dailyActivity = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get action distribution
 $stmt = $pdo->query("
-    SELECT action, COUNT(*) as count 
-    FROM activity_logs 
+    SELECT action, COUNT(*) as count
+    FROM activity_logs
     WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    GROUP BY action 
-    ORDER BY count DESC 
+    GROUP BY action
+    ORDER BY count DESC
     LIMIT 10
 ");
 $actionStats = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get role-based activity
 $stmt = $pdo->query("
-    SELECT 
-        COALESCE(u.role, 'unknown') as role, 
-        COUNT(*) as count 
+    SELECT
+        COALESCE(u.role, 'unknown') as role,
+        COUNT(*) as count
     FROM activity_logs al
     LEFT JOIN users u ON al.user_id = u.id
     WHERE al.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
@@ -53,28 +53,22 @@ $stmt = $pdo->query("
 ");
 $roleStats = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Recent activity logs (latest 10)
+$stmt = $pdo->query("
+    SELECT email, action, status, created_at
+    FROM activity_logs
+    ORDER BY created_at DESC, id DESC
+    LIMIT 10
+");
+$recentLogs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 renderHeader('Admin Dashboard');
 ?>
 
-<!-- DataTables CSS -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
-
 <style>
-
-/* ============================================================
-   DEFENSIVE WIDTH FIX (page-level)
-   Forces the box/main/container chain to fill the viewport
-   regardless of whether functions.php has the global fix yet.
-============================================================ */
-.box {
-    width: 100% !important;
-    min-height: 100vh;
-}
-.main {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-}
+/* Defensive width fix */
+.box { width: 100% !important; min-height: 100vh; }
+.main { flex: 1 1 auto !important; min-width: 0 !important; }
 .main > .container {
     max-width: 1300px !important;
     width: 100% !important;
@@ -90,23 +84,54 @@ renderHeader('Admin Dashboard');
     width: 100%;
     min-width: 0;
 }
+/* Flat cards: solid fills, no shadow, label on top, serif number below */
 .stat-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    padding: 18px 20px;
+    border-radius: 14px;
+    border: none;
+    box-shadow: none;
     min-width: 0;
     box-sizing: border-box;
 }
+.stat-card p  { margin: 0 0 6px; font-size: 14px; }
 .stat-card h3 {
     margin: 0;
-    font-size: 32px;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.1;
+    font-family: Georgia, 'Times New Roman', serif;
 }
-.stat-card p {
-    margin: 5px 0 0;
-    opacity: 0.9;
+.stat-card,
+.stat-card p,
+.stat-card h3    { color: #ffffff !important; }
+.stat-total      { background: #335230; }
+.stat-admin      { background: #B07A1E; }
+.stat-manager    { background: #4A8250; }
+.stat-user       { background: #B5504A; }
+.stat-unverified { background: #A8761F; }
+
+/* ===== Activity logs list ===== */
+.log-list {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 4px 16px;
+    margin: 12px 0 24px;
 }
+.log-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+}
+.log-row:last-child { border-bottom: none; }
+.log-row .log-main { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.log-row .log-status { color: #888; white-space: nowrap; }
+.log-empty { padding: 20px 0; text-align: center; color: #888; font-size: 14px; }
+
 .chart-container {
     background: white;
     padding: 20px;
@@ -124,14 +149,7 @@ renderHeader('Admin Dashboard');
     width: 100%;
     min-width: 0;
 }
-table.dataTable {
-    width: 100% !important;
-}
-.chart-container canvas {
-    max-width: 100%;
-}
-.badge-success { background: #28a745; }
-.badge-failed { background: #dc3545; }
+.chart-container canvas { max-width: 100%; }
 </style>
 
 <h1>Admin Dashboard</h1>
@@ -144,29 +162,29 @@ table.dataTable {
 <h2>System Statistics</h2>
 
 <div class="stat-grid">
-    <div class="stat-card" style="background: #3F51B5; color: #fff;">
-        <h3><?php echo $totalUsers; ?></h3>
+    <div class="stat-card stat-total">
         <p>Total Users</p>
+        <h3><?php echo $totalUsers; ?></h3>
     </div>
 
-    <div class="stat-card" style="background: #E53935; color: #fff;">
-        <h3><?php echo $totalAdmins; ?></h3>
+    <div class="stat-card stat-admin">
         <p>Admins</p>
+        <h3><?php echo $totalAdmins; ?></h3>
     </div>
 
-    <div class="stat-card" style="background: #FB8C00; color: #fff;">
-        <h3><?php echo $totalManagers; ?></h3>
+    <div class="stat-card stat-manager">
         <p>Managers</p>
+        <h3><?php echo $totalManagers; ?></h3>
     </div>
 
-    <div class="stat-card" style="background: #43A047; color: #fff;">
-        <h3><?php echo $totalRegularUsers; ?></h3>
+    <div class="stat-card stat-user">
         <p>Regular Users</p>
+        <h3><?php echo $totalRegularUsers; ?></h3>
     </div>
 
-    <div class="stat-card" style="background: #FBC02D; color: #212121;">
-        <h3><?php echo $unverifiedUsers; ?></h3>
+    <div class="stat-card stat-unverified">
         <p>Unverified</p>
+        <h3><?php echo $unverifiedUsers; ?></h3>
     </div>
 </div>
 
@@ -187,17 +205,31 @@ table.dataTable {
     </div>
 </div>
 
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<h2>Activity Logs</h2>
+
+<div class="log-list">
+    <?php if (empty($recentLogs)): ?>
+        <div class="log-empty">No activity yet.</div>
+    <?php else: ?>
+        <?php foreach ($recentLogs as $log): ?>
+            <div class="log-row" title="<?php echo htmlspecialchars($log['created_at']); ?>">
+                <span class="log-main">
+                    <?php echo htmlspecialchars($log['email'] ?: 'Unknown'); ?>
+                    &middot; <?php echo htmlspecialchars($log['action']); ?>
+                </span>
+                <span class="log-status"><?php echo htmlspecialchars($log['status']); ?></span>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
 // Daily Activity Chart
-const dailyCtx = document.getElementById('dailyActivityChart').getContext('2d');
 const dailyData = <?php echo json_encode($dailyActivity); ?>;
-new Chart(dailyCtx, {
+new Chart(document.getElementById('dailyActivityChart').getContext('2d'), {
     type: 'line',
     data: {
         labels: dailyData.map(d => d.date),
@@ -213,19 +245,14 @@ new Chart(dailyCtx, {
     options: {
         responsive: true,
         maintainAspectRatio: true,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            y: { beginAtZero: true }
-        }
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
     }
 });
 
-// Action Distribution Chart
-const actionCtx = document.getElementById('actionChart').getContext('2d');
+// Top Actions Chart
 const actionData = <?php echo json_encode($actionStats); ?>;
-new Chart(actionCtx, {
+new Chart(document.getElementById('actionChart').getContext('2d'), {
     type: 'bar',
     data: {
         labels: actionData.map(d => d.action),
@@ -233,95 +260,37 @@ new Chart(actionCtx, {
             label: 'Count',
             data: actionData.map(d => d.count),
             backgroundColor: [
-                'rgba(255, 99, 132, 0.7)',
-                'rgba(54, 162, 235, 0.7)',
-                'rgba(255, 206, 86, 0.7)',
-                'rgba(75, 192, 192, 0.7)',
-                'rgba(153, 102, 255, 0.7)',
-                'rgba(255, 159, 64, 0.7)',
-                'rgba(199, 199, 199, 0.7)',
-                'rgba(83, 102, 255, 0.7)',
-                'rgba(255, 99, 255, 0.7)',
-                'rgba(99, 255, 132, 0.7)'
+                'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)',
+                'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)',
+                'rgba(199, 199, 199, 0.7)', 'rgba(83, 102, 255, 0.7)',
+                'rgba(255, 99, 255, 0.7)', 'rgba(99, 255, 132, 0.7)'
             ]
         }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: true,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            y: { beginAtZero: true }
-        }
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
     }
 });
 
-// Role Distribution Chart
-const roleCtx = document.getElementById('roleChart').getContext('2d');
+// Activity by Role Chart
 const roleData = <?php echo json_encode($roleStats); ?>;
-new Chart(roleCtx, {
+new Chart(document.getElementById('roleChart').getContext('2d'), {
     type: 'doughnut',
     data: {
         labels: roleData.map(d => d.role.toUpperCase()),
         datasets: [{
             data: roleData.map(d => d.count),
             backgroundColor: [
-                'rgba(255, 99, 132, 0.7)',
-                'rgba(54, 162, 235, 0.7)',
-                'rgba(255, 206, 86, 0.7)',
-                'rgba(75, 192, 192, 0.7)'
+                'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)'
             ]
         }]
     },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true
-    }
-});
-
-// DataTable for Activity Logs
-$(document).ready(function() {
-    $('#activityTable').DataTable({
-        processing: true,
-        serverSide: false,
-        responsive: true,
-        ajax: {
-            url: '../../api/get-activity-logs.php',
-            type: 'POST',
-            data: { role: 'admin' }
-        },
-        columns: [
-            { data: 'id' },
-            { data: 'email' },
-            { 
-                data: 'user_role',
-                render: function(data) {
-                    if (!data) return '<span class="badge" style="background: #999;">Unknown</span>';
-                    return '<span class="badge badge-' + data + '">' + data.toUpperCase() + '</span>';
-                }
-            },
-            { data: 'action' },
-            { 
-                data: 'status',
-                render: function(data) {
-                    const badgeClass = data === 'success' ? 'badge-success' : 'badge-failed';
-                    return '<span class="badge ' + badgeClass + '">' + data + '</span>';
-                }
-            },
-            { data: 'ip_address' },
-            { 
-                data: 'created_at',
-                render: function(data) {
-                    return new Date(data).toLocaleString();
-                }
-            }
-        ],
-        order: [[0, 'desc']],
-        pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]]
-    });
+    options: { responsive: true, maintainAspectRatio: true }
 });
 </script>
 
