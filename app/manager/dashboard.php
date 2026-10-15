@@ -6,22 +6,13 @@ requireRole('manager');
 
 date_default_timezone_set('Asia/Manila');
 
-$T = [
-    'members'          => 'members',
-    'users'            => 'users',
-    'crops'            => 'crops',
-    'payments'         => 'payments',
-    'loans'            => 'loans',
-    'meetings'         => 'meetings',
-    'equipment'        => 'equipment',
-    'rentals'          => 'equipment_bookings',
-    'resources'        => 'resource_distributions',
-    'products'         => 'products',
-    'product_requests' => 'product_requests',
-];
-
 $GLOBALS['dash_errors'] = [];
 
+/* ------------------------------------------------------------
+   Small helpers. A failed query never breaks the page: it returns a
+   default value and the error is listed when you open
+   dashboard.php?debug=1
+------------------------------------------------------------ */
 function dash_query(PDO $pdo, string $sql) {
     try {
         $stmt = $pdo->query($sql);
@@ -45,405 +36,330 @@ function dash_rows(PDO $pdo, string $sql): array {
     return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 }
 function dash_e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+function dash_peso($v) { return '₱' . number_format((float)$v, 2); }
+function dash_peso0($v) { return '₱' . number_format((float)$v, 0); }
 
-/* Welcome */
-$hour  = (int) date('G');
-$greet = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
-$managerName = $_SESSION['name'] ?? $_SESSION['full_name'] ?? 'Manager';
+/* ------------------------------------------------------------
+   The last 6 months (oldest first), used by the month charts
+------------------------------------------------------------ */
+$months = [];
+for ($i = 5; $i >= 0; $i--) {
+    $d = new DateTime('first day of this month');
+    $d->modify("-$i months");
+    $months[] = ['key' => $d->format('Y-m'), 'label' => $d->format('M')];
+}
+$windowStart = $months[0]['key'] . '-01';
 
-/* Counts */
-$totalMembers   = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['members']}");
-$linkedMembers  = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['members']} m INNER JOIN {$T['users']} u ON u.member_id = m.id");
-$totalUsers     = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['users']} WHERE role = 'user'");
-$activeUsers    = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['users']} WHERE role = 'user' AND LOWER(status) = 'active'");
+/* ============================================================
+   #1  TOTAL INCOME  (confirmed payments)
+   ============================================================ */
+$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM payments WHERE status = 'confirmed'");
 
-$totalCrops     = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['crops']}");
-$harvestedCrops = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['crops']} WHERE LOWER(status) = 'harvested'");
+$thisMonthIncome = (float) dash_scalar($pdo, "
+    SELECT COALESCE(SUM(amount),0) FROM payments
+    WHERE status = 'confirmed'
+      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')");
+$lastMonthIncome = (float) dash_scalar($pdo, "
+    SELECT COALESCE(SUM(amount),0) FROM payments
+    WHERE status = 'confirmed'
+      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')");
 
-$paymentsTotal  = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM {$T['payments']} WHERE LOWER(status) = 'confirmed'");
-
-$loanStats      = function_exists('getLoanPortfolioStats') ? getLoanPortfolioStats($pdo) : ['pending'=>0,'active_members'=>0,'total_outstanding'=>0];
-$totalLoans     = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['loans']}");
-$pendingLoans   = $loanStats['pending'] ?? 0;
-$activeLoanMembers = $loanStats['active_members'] ?? 0;
-
-$totalMeetings  = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['meetings']}");
-$todayMeetings  = dash_rows($pdo, "SELECT title, meeting_time, location FROM {$T['meetings']} WHERE meeting_date = CURDATE() ORDER BY meeting_time ASC LIMIT 3");
-
-$totalEquipment = function_exists('getTotalEquipmentCount') ? getTotalEquipmentCount($pdo) : (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['equipment']}");
-$rentalsMonth   = function_exists('getRentedThisMonthCount') ? getRentedThisMonthCount($pdo) : 0;
-
-$totalResources = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['resources']}");
-
-$productStats     = function_exists('getProductPortfolioStats') ? getProductPortfolioStats($pdo) : ['total'=>0,'out_of_stock'=>0,'pending_requests'=>0];
-$totalProducts     = $productStats['total'] ?? 0;
-$outOfStockCount   = $productStats['out_of_stock'] ?? 0;
-$pendingProductReqs = $productStats['pending_requests'] ?? 0;
-$outOfStock = dash_rows($pdo, "SELECT name FROM {$T['products']} WHERE status = 'out_of_stock' LIMIT 3");
-$readyPickup    = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM {$T['product_requests']} WHERE status = 'ready_for_pickup'");
-
-/* Collections by type */
-$typeTotals = ['registration' => 0, 'investment' => 0, 'rental' => 0, 'loan_repayment' => 0];
-foreach (dash_rows($pdo, "SELECT LOWER(payment_type) AS t, SUM(amount) AS total FROM {$T['payments']} WHERE LOWER(status) = 'confirmed' GROUP BY LOWER(payment_type)") as $r) {
-    $key = str_replace(' ', '_', $r['t']);
-    if (isset($typeTotals[$key])) $typeTotals[$key] = (float) $r['total'];
+$incomeByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
+foreach (dash_rows($pdo, "
+    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM(amount) AS total
+    FROM payments
+    WHERE status = 'confirmed' AND payment_date >= '{$windowStart}'
+    GROUP BY ym") as $r) {
+    if (isset($incomeByMonth[$r['ym']])) $incomeByMonth[$r['ym']] = (float) $r['total'];
 }
 
-/* Needs attention */
-$attention = [];
-foreach ($todayMeetings as $m) {
-    $sub = trim(($m['meeting_time'] ? date('g:i A', strtotime($m['meeting_time'])) : '') . ($m['location'] ? ', ' . $m['location'] : ''), ', ');
-    $attention[] = ['purple', 'Meeting today: ' . $m['title'], $sub, ''];
+$incomeByType = ['investment' => 0.0, 'loan_repayment' => 0.0, 'rental' => 0.0, 'registration' => 0.0];
+foreach (dash_rows($pdo, "
+    SELECT LOWER(payment_type) AS t, SUM(amount) AS total
+    FROM payments WHERE status = 'confirmed' GROUP BY LOWER(payment_type)") as $r) {
+    $k = str_replace(' ', '_', $r['t']);
+    if (isset($incomeByType[$k])) $incomeByType[$k] = (float) $r['total'];
 }
-if ($readyPickup > 0)   $attention[] = ['blue', 'Requests ready for pickup', '', $readyPickup];
-if ($outOfStockCount > 0) {
-    $names = implode(', ', array_column($outOfStock, 'name'));
-    $attention[] = ['red', 'Out of stock', $names, $outOfStockCount];
-}
-if ($pendingLoans > 0)  $attention[] = ['amber', 'Loan requests waiting approval', '', $pendingLoans];
-if ($pendingProductReqs > 0) $attention[] = ['amber', 'Product requests waiting review', '', $pendingProductReqs];
-$attentionCount = count($attention);
+$typeMeta = [
+    'investment'     => ['Investment',     '#2a78d6'],
+    'loan_repayment' => ['Loan repayment', '#1baf7a'],
+    'rental'         => ['Rental',         '#eda100'],
+    'registration'   => ['Registration',   '#e87ba4'],
+];
 
-/* Recent activity */
+if ($lastMonthIncome > 0) {
+    $diff = $thisMonthIncome - $lastMonthIncome;
+    $deltaUp = $diff >= 0;
+    $deltaText = dash_peso0(abs($diff)) . ($deltaUp ? ' more' : ' less') . ' than last month';
+} elseif ($thisMonthIncome > 0) {
+    $deltaUp = true;
+    $deltaText = dash_peso0($thisMonthIncome) . ' collected this month';
+} else {
+    $deltaUp = null;
+    $deltaText = 'No confirmed payments this month';
+}
+
+/* ============================================================
+   #2  OPERATIONAL EXPENSES  (expenses table)
+   ============================================================ */
+$expensesReady = !empty(dash_rows($pdo, "SHOW TABLES LIKE 'expenses'"));
+$totalExpenses = 0.0;
+$expenseByCategory = [];
+if ($expensesReady) {
+    $totalExpenses = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses");
+    foreach (dash_rows($pdo, "
+        SELECT category, SUM(amount) AS total
+        FROM expenses GROUP BY category ORDER BY total DESC LIMIT 6") as $r) {
+        $expenseByCategory[$r['category']] = (float) $r['total'];
+    }
+}
+
+/* ============================================================
+   #3  SERVICES UTILIZED
+   ============================================================ */
+$services = [
+    'Products'  => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM product_requests WHERE status <> 'rejected'"),
+    'Equipment' => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM equipment_bookings WHERE status NOT IN ('rejected','cancelled')"),
+    'Resources' => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM resource_distributions"),
+    'Loans'     => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM loans WHERE status <> 'rejected'"),
+    'Crops'     => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM crops WHERE status <> 'rejected'"),
+];
+$serviceColors = ['Products' => '#2a78d6', 'Equipment' => '#eb6834', 'Resources' => '#1baf7a', 'Loans' => '#eda100', 'Crops' => '#6250d6'];
+$servicesTotal = array_sum($services);
+
+/* ============================================================
+   #4  ACTIVE MEMBERS
+   ============================================================ */
+$totalMembers  = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM members");
+$activeMembers = (int) dash_scalar($pdo, "
+    SELECT COUNT(DISTINCT m.id) FROM members m
+    INNER JOIN users u ON u.member_id = m.id
+    WHERE u.account_status = 'Active'");
+
+// Cumulative number of members at the end of each of the last 6 months
+$membersBefore = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM members WHERE created_at < '{$windowStart}'");
+$newByMonth = array_fill_keys(array_column($months, 'key'), 0);
+foreach (dash_rows($pdo, "
+    SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym, COUNT(*) AS c
+    FROM members WHERE created_at >= '{$windowStart}' GROUP BY ym") as $r) {
+    if (isset($newByMonth[$r['ym']])) $newByMonth[$r['ym']] = (int) $r['c'];
+}
+$memberGrowth = [];
+$running = $membersBefore;
+foreach ($newByMonth as $c) { $running += $c; $memberGrowth[] = $running; }
+
+/* ============================================================
+   RECENT ACTIVITY
+   ============================================================ */
 $recentActivity = dash_rows($pdo, "
     SELECT al.created_at, al.action, u.email, u.role,
            TRIM(CONCAT(COALESCE(m.last_name,''), ', ', COALESCE(m.first_name,''))) AS full_name
     FROM activity_logs al
-    LEFT JOIN {$T['users']} u ON al.user_id = u.id
-    LEFT JOIN {$T['members']} m ON u.member_id = m.id
+    LEFT JOIN users u ON al.user_id = u.id
+    LEFT JOIN members m ON u.member_id = m.id
     WHERE (u.role IN ('manager','user') OR u.role IS NULL)
     ORDER BY al.created_at DESC LIMIT 8");
-
-/* Summary cards */
-$cards = [
-    ['Members',   $totalMembers,   "$linkedMembers with accounts", '#2f4f2f'],
-    ['Users',     $totalUsers,     "$activeUsers active accounts", '#2f4f2f'],
-    ['Crops',     $totalCrops,     "$harvestedCrops harvested",    '#2f4f2f'],
-    ['Payments',  '₱' . number_format($paymentsTotal, 2), 'Confirmed total', '#274c80'],
-    ['Loans',     $totalLoans,     "$pendingLoans pending", '#274c80'],
-    ['Meetings',  $totalMeetings,  count($todayMeetings) . ' today', '#4a3f7a'],
-    ['Equipment', $totalEquipment, "$rentalsMonth rented", '#a6701c'],
-    ['Resources', $totalResources, 'distributions released',   '#a6701c'],
-    ['Products',  $totalProducts,  "$outOfStockCount out of stock", '#a84438'],
-];
-
-$attnColors = [
-    'purple' => ['#EEEDFE', '#3C3489'], 'blue'  => ['#E6F1FB', '#0C447C'],
-    'red'    => ['#FAECE7', '#712B13'], 'amber' => ['#FAEEDA', '#633806'],
-];
 
 $title = 'Manager Dashboard';
 renderHeader($title);
 ?>
 
 <style>
-    /* =========================================================
-       DASHBOARD — Manager
-       ========================================================= */
-    .db-wrap {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 0 4px;
-    }
+    .db-wrap { max-width: 1280px; margin: 0 auto; padding: 0 4px; }
 
-    /* ---------- HERO ---------- */
-    .db-hero {
-        background: linear-gradient(135deg, #2f4f2f 0%, #3d6b3d 100%);
-        color: #fff;
-        border-radius: 16px;
-        padding: 26px 30px;
-        margin-bottom: 22px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 20px;
-        flex-wrap: wrap;
-        position: relative;
-        overflow: hidden;
-    }
-    .db-hero::after {
-        content: '';
-        position: absolute;
-        right: -60px;
-        bottom: -60px;
-        width: 200px;
-        height: 200px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.05);
-        pointer-events: none;
-    }
-    .db-hero-left { flex: 1; min-width: 240px; position: relative; z-index: 1; }
-    .db-hero h2 {
-        margin: 0 0 6px;
-        color: #fff !important;
-        background: none !important;
-        font-size: 24px !important;
-        font-weight: 600 !important;
-        letter-spacing: -0.3px;
-    }
-    .db-hero p { margin: 0; color: rgba(255,255,255,.92); font-size: 14px; }
-    .db-hero small { display: block; margin-top: 6px; color: rgba(255,255,255,.7); font-size: 12px; }
-    .db-hero-badge {
-        background: rgba(255, 255, 255, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        border-radius: 12px;
-        padding: 12px 20px;
-        text-align: center;
-        min-width: 130px;
-        position: relative;
-        z-index: 1;
-    }
-    .db-hero-badge .num { font-size: 28px; font-weight: 700; line-height: 1; display: block; color: #fff; }
-    .db-hero-badge .lbl { font-size: 11px; color: rgba(255,255,255,.85); margin-top: 4px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
-
-    /* ---------- KPI CARDS ---------- */
-    .db-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 12px;
-        margin-bottom: 22px;
-    }
-    .db-card {
-        display: block;
-        color: #fff;
-        border-radius: 12px;
-        padding: 14px 16px;
-        position: relative;
-        overflow: hidden;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-        text-decoration: none;
-    }
-    .db-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 14px rgba(0,0,0,0.12);
-        color: #fff;
-    }
-    .db-card .l {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        color: rgba(255,255,255,.85);
-        font-weight: 600;
-        margin-bottom: 4px;
-    }
-    .db-card .v {
-        font-size: 22px;
-        font-weight: 700;
-        line-height: 1.2;
-        margin-bottom: 2px;
-    }
-    .db-card .s {
-        font-size: 11px;
-        color: rgba(255,255,255,.85);
-    }
-
-    /* ---------- PANELS ---------- */
     .db-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-        gap: 16px;
-        margin-bottom: 22px;
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+        gap: 14px;
+        margin-bottom: 14px;
     }
-    .db-panel {
+    .db-card {
         background: #fff;
-        border-radius: 14px;
-        padding: 18px 20px;
         border: 1px solid #e8ede0;
+        border-radius: 14px;
+        padding: 16px 18px;
         min-width: 0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        box-sizing: border-box;
     }
-    .db-panel h3 {
-        margin: 0 0 16px !important;
-        padding: 0 0 0 12px !important;
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        color: #2c3e2c !important;
-        background: none !important;
-        border: none !important;
-        position: relative;
-    }
-    .db-panel h3::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 3px;
-        width: 4px;
-        height: 16px;
-        background: #2f4f2f;
-        border-radius: 2px;
-    }
+    .db-big { grid-row: span 3; display: flex; flex-direction: column; }
 
-    .db-chart-wrap {
-        position: relative;
-        height: 230px;
+    .db-head {
+        display: flex; align-items: center; gap: 8px;
+        margin: 0 0 6px; font-size: 13px; color: #667066;
     }
+    .db-head .material-icons { font-size: 18px; color: #2f4f2f; }
+    .db-head a { margin-left: auto; font-size: 12px; font-weight: 600; color: #3B6D11; text-decoration: none; }
+    .db-head a:hover { text-decoration: underline; }
+    .db-num {
+        margin-left: auto; font-size: 11px; color: #9aa39a;
+        border: 1px solid #e8ede0; border-radius: 10px; padding: 0 7px;
+    }
+    .db-head a + .db-num { margin-left: 8px; }
 
-    /* ---------- ATTENTION ---------- */
-    .db-attn {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 0;
-        border-bottom: 1px solid #f0f2ea;
-        font-size: 13px;
-        text-decoration: none;
-        color: inherit;
-        transition: background 0.12s ease;
+    .db-hero-num {
+        font-family: 'Fraunces', 'Times New Roman', Times, serif;
+        font-size: 44px; line-height: 1.1; color: #1b3a24; margin: 0;
+        font-variant-numeric: lining-nums tabular-nums;
     }
-    .db-attn:hover {
-        background: #f8faf5;
-        margin: 0 -8px;
-        padding-left: 8px;
-        padding-right: 8px;
-        border-radius: 6px;
-    }
-    .db-attn:last-child { border-bottom: none; }
-    .db-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-    .db-attn .txt { flex: 1; min-width: 0; }
-    .db-attn .txt > div:first-child { font-weight: 500; color: #2c3e2c; }
-    .db-attn .sub { font-size: 11px; color: #888; margin-top: 2px; }
-    .db-pill {
-        font-size: 11px;
-        padding: 3px 9px;
-        border-radius: 7px;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-    .db-clear {
-        color: #2e7d32;
-        padding: 24px 0;
-        font-size: 13px;
-        text-align: center;
-    }
-    .db-clear::before {
-        content: '✓ ';
-        font-weight: bold;
-    }
+    .db-small-num { font-size: 26px; font-weight: 600; color: #1b3a24; margin: 0; }
+    .db-delta { font-size: 12px; margin: 4px 0 12px; }
+    .db-delta.up { color: #2e7d32; }
+    .db-delta.down { color: #a6322f; }
+    .db-delta.flat { color: #667066; }
+    .db-sub { font-size: 12px; color: #667066; }
 
-    /* ---------- TABLE ---------- */
+    .db-chart-big { position: relative; height: 210px; }
+    .db-chart-sm  { position: relative; height: 84px; margin-top: 6px; }
+    .db-chart-line { position: relative; height: 70px; margin-top: 6px; }
+
+    .db-legend-grid {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px;
+        margin-top: 14px; padding-top: 12px; border-top: 1px solid #f0f2ea;
+    }
+    .db-lg { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #667066; min-width: 0; }
+    .db-lg b { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+    .db-lg span.v { margin-left: auto; color: #1b3a24; font-weight: 500; white-space: nowrap; }
+
+    .db-donut-row { display: flex; align-items: center; gap: 14px; }
+    .db-donut { position: relative; width: 92px; height: 92px; flex: none; }
+    .db-donut-center {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        font-size: 20px; font-weight: 600; color: #1b3a24;
+    }
+    .db-donut-legend { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+
+    .db-empty-note {
+        font-size: 12.5px; color: #667066; background: #f7f8f5; border-radius: 8px;
+        padding: 10px 12px; margin-top: 8px; line-height: 1.5;
+    }
+    .db-empty-note a { color: #3B6D11; font-weight: 600; }
+
+    /* Recent activity */
+    .db-card h3 { margin: 0 0 10px !important; font-size: 15px !important; font-weight: 600 !important; color: #2c3e2c !important; background: none !important; }
     .db-table-wrap { overflow-x: auto; }
-    .db-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px;
-    }
+    .db-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .db-table th {
-        text-align: left;
-        font-weight: 600;
-        font-size: 11px;
-        color: #888;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 8px 10px;
-        border-bottom: 2px solid #e8ede0;
-    }
-    .db-table td {
-        padding: 11px 10px;
-        border-bottom: 1px solid #f0f2ea;
-        color: #2c3e2c;
-    }
-    .db-table tbody tr:hover { background: #f8faf5; }
-    .db-empty {
-        color: #999;
-        text-align: center;
-        padding: 28px 0;
-        font-style: italic;
-    }
-
-    /* ---------- DEBUG ---------- */
-    .db-debug {
-        border-left: 4px solid #a84438 !important;
-        background: #fdf6f5;
-        margin-bottom: 20px;
-    }
-    .db-debug pre {
-        white-space: pre-wrap;
-        font-size: 11px;
-        margin: 0 0 8px;
-        color: #712b13;
+        text-align: left; font-weight: 600; font-size: 11px; color: #888;
+        text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 10px; border-bottom: 2px solid #e8ede0;
         background: #fff;
-        padding: 10px;
-        border-radius: 6px;
-        border: 1px solid #f0d5d0;
-        font-family: 'Consolas', monospace;
+    }
+    .db-table td { padding: 11px 10px; border-bottom: 1px solid #f0f2ea; color: #2c3e2c; }
+    .db-table tbody tr:hover td { background: #f8faf5; }
+    .db-pill { font-size: 11px; padding: 3px 9px; border-radius: 7px; font-weight: 600; white-space: nowrap; }
+    .db-empty { color: #999; text-align: center; padding: 28px 0; font-style: italic; }
+
+    .db-debug { border-left: 4px solid #a84438 !important; background: #fdf6f5; margin-top: 14px; }
+    .db-debug pre {
+        white-space: pre-wrap; font-size: 11px; margin: 0 0 8px; color: #712b13; background: #fff;
+        padding: 10px; border-radius: 6px; border: 1px solid #f0d5d0; font-family: Consolas, monospace;
     }
 
-    /* ---------- RESPONSIVE ---------- */
-    @media (max-width: 900px) {
-        .db-grid { grid-template-columns: 1fr; }
-        .db-hero { padding: 20px 22px; }
-        .db-hero h2 { font-size: 20px !important; }
-    }
-    @media (max-width: 560px) {
-        .db-cards { grid-template-columns: 1fr 1fr; gap: 8px; }
-        .db-card { padding: 12px; }
-        .db-card .v { font-size: 18px; }
-        .db-hero-badge { display: none; }
+    @media (max-width: 760px) {
+        .db-grid { grid-template-columns: minmax(0, 1fr); }
+        .db-big { grid-row: auto; }
+        .db-hero-num { font-size: 36px; }
+        .db-chart-big { height: 180px; }
     }
 </style>
 
 <div class="db-wrap">
 
-    <!-- ============ HERO ============ -->
-    <div class="db-hero">
-        <div class="db-hero-left">
-            <h2><?php echo dash_e($greet); ?>, <?php echo dash_e($managerName); ?> 👋</h2>
-            <p>
-                <?php if ($attentionCount > 0): ?>
-                    You have <strong><?php echo $attentionCount; ?></strong> item<?php echo $attentionCount > 1 ? 's' : ''; ?> needing attention today.
-                <?php else: ?>
-                    Everything is up to date. Great job! 🎉
-                <?php endif; ?>
-            </p>
-            <small><?php echo dash_e($_SESSION['email'] ?? ''); ?></small>
-        </div>
-        <div class="db-hero-badge">
-            <span class="num"><?php echo $attentionCount; ?></span>
-            <span class="lbl">Pending</span>
-        </div>
-    </div>
-
-    <!-- ============ KPI CARDS ============ -->
-    <div class="db-cards">
-        <?php foreach ($cards as [$label, $value, $sub, $color]): ?>
-            <div class="db-card" style="background-color:<?php echo $color; ?>;">
-                <div class="l"><?php echo dash_e($label); ?></div>
-                <div class="v"><?php echo is_int($value) ? number_format($value) : dash_e($value); ?></div>
-                <div class="s"><?php echo dash_e($sub); ?></div>
-            </div>
-        <?php endforeach; ?>
-    </div>
-
-    <!-- ============ CHART + ATTENTION ============ -->
     <div class="db-grid">
-        <div class="db-panel">
-            <h3>Collections by type</h3>
-            <div class="db-chart-wrap">
-                <canvas id="collectionsChart"></canvas>
+
+        <!-- ================= #1 TOTAL INCOME ================= -->
+        <div class="db-card db-big">
+            <div class="db-head">
+                <span class="material-icons">payments</span>Total income
+                <span class="db-num">1</span>
+            </div>
+            <p class="db-hero-num"><?php echo dash_peso0($totalIncome); ?></p>
+            <div class="db-delta <?php echo $deltaUp === null ? 'flat' : ($deltaUp ? 'up' : 'down'); ?>">
+                <?php echo dash_e($deltaText); ?>
+            </div>
+            <div class="db-chart-big">
+                <canvas id="incomeChart" role="img" aria-label="Bar chart of income per month for the last six months"></canvas>
+            </div>
+            <div class="db-legend-grid">
+                <?php foreach ($typeMeta as $key => [$label, $color]): ?>
+                    <div class="db-lg">
+                        <b style="background:<?php echo $color; ?>;"></b><?php echo dash_e($label); ?>
+                        <span class="v"><?php echo dash_peso0($incomeByType[$key]); ?></span>
+                    </div>
+                <?php endforeach; ?>
             </div>
         </div>
 
-        <div class="db-panel">
-            <h3>Needs attention</h3>
-            <?php if ($attention): foreach ($attention as [$color, $text, $sub, $count]): ?>
-                <div class="db-attn">
-                    <span class="db-dot" style="background:<?php echo $attnColors[$color][1]; ?>;"></span>
-                    <div class="txt">
-                        <div><?php echo dash_e($text); ?></div>
-                        <?php if ($sub): ?><div class="sub"><?php echo dash_e($sub); ?></div><?php endif; ?>
-                    </div>
-                    <?php if ($count !== ''): ?>
-                        <span class="db-pill" style="background:<?php echo $attnColors[$color][0]; ?>; color:<?php echo $attnColors[$color][1]; ?>;"><?php echo dash_e($count); ?></span>
-                    <?php endif; ?>
+        <!-- ================= #2 OPERATIONAL EXPENSES ================= -->
+        <div class="db-card">
+            <div class="db-head">
+                <span class="material-icons">receipt_long</span>Operational expenses
+                <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Manage</a>
+                <span class="db-num">2</span>
+            </div>
+            <p class="db-small-num"><?php echo dash_peso0($totalExpenses); ?></p>
+            <?php if (!$expensesReady): ?>
+                <div class="db-empty-note">
+                    The expenses table isn&rsquo;t set up yet. Run the SQL for it, then
+                    <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">record your first expense</a>.
                 </div>
-            <?php endforeach; else: ?>
-                <div class="db-clear">All clear. Nothing needs your attention.</div>
+            <?php elseif (empty($expenseByCategory)): ?>
+                <div class="db-empty-note">
+                    No expenses recorded yet.
+                    <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Add an expense</a>.
+                </div>
+            <?php else: ?>
+                <div class="db-chart-sm">
+                    <canvas id="expenseChart" role="img" aria-label="Bar chart of expenses by category"></canvas>
+                </div>
             <?php endif; ?>
         </div>
+
+        <!-- ================= #3 SERVICES UTILIZED ================= -->
+        <div class="db-card">
+            <div class="db-head">
+                <span class="material-icons">build</span>Services utilized
+                <span class="db-num">3</span>
+            </div>
+            <?php if ($servicesTotal > 0): ?>
+                <div class="db-donut-row">
+                    <div class="db-donut">
+                        <canvas id="servicesChart" role="img" aria-label="Donut chart of services used"></canvas>
+                        <div class="db-donut-center"><?php echo $servicesTotal; ?></div>
+                    </div>
+                    <div class="db-donut-legend">
+                        <?php foreach ($services as $name => $count): ?>
+                            <div class="db-lg">
+                                <b style="background:<?php echo $serviceColors[$name]; ?>;"></b><?php echo dash_e($name); ?>
+                                <span class="v"><?php echo $count; ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php else: ?>
+                <p class="db-small-num">0</p>
+                <div class="db-empty-note">No services have been used yet.</div>
+            <?php endif; ?>
+        </div>
+
+        <!-- ================= #4 ACTIVE MEMBERS ================= -->
+        <div class="db-card">
+            <div class="db-head">
+                <span class="material-icons">groups</span>Active members
+                <span class="db-num">4</span>
+            </div>
+            <div style="display:flex; align-items:baseline; gap:8px;">
+                <p class="db-small-num"><?php echo $activeMembers; ?></p>
+                <span class="db-sub">of <?php echo $totalMembers; ?> member<?php echo $totalMembers === 1 ? '' : 's'; ?></span>
+            </div>
+            <div class="db-chart-line">
+                <canvas id="membersChart" role="img" aria-label="Line chart of total members over the last six months"></canvas>
+            </div>
+        </div>
+
     </div>
 
-    <!-- ============ RECENT ACTIVITY ============ -->
-    <div class="db-panel" style="margin-bottom:22px;">
+    <!-- ================= RECENT ACTIVITY ================= -->
+    <div class="db-card">
         <h3>Recent activity</h3>
         <div class="db-table-wrap">
             <table class="db-table">
@@ -480,9 +396,8 @@ renderHeader($title);
         </div>
     </div>
 
-    <!-- ============ DEBUG ============ -->
     <?php if (isset($_GET['debug'])): ?>
-    <div class="db-panel db-debug">
+    <div class="db-card db-debug">
         <h3>Debug: failed queries</h3>
         <?php if ($GLOBALS['dash_errors']): ?>
             <?php foreach ($GLOBALS['dash_errors'] as $err): ?>
@@ -499,43 +414,99 @@ renderHeader($title);
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 (function() {
-    const ctx = document.getElementById('collectionsChart');
-    if (!ctx) return;
+    const TICK = '#6b7280';
+    const GRID = '#e8ede0';
+    const peso = v => '₱' + (v >= 1000 ? (Math.round(v / 100) / 10) + 'k' : v);
+    const tip  = { callbacks: { label: c => '₱' + Number(c.raw).toLocaleString('en-PH') } };
+    const base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
 
-    const typeData = <?php echo json_encode(array_values($typeTotals)); ?>;
-
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['Registration', 'Investment', 'Rental', 'Loan repayment'],
-            datasets: [{
-                data: typeData,
-                backgroundColor: ['#2f4f2f', '#274c80', '#4a3f7a', '#a6701c'],
-                borderRadius: 6,
-                maxBarThickness: 48
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: (c) => '₱' + Number(c.raw).toLocaleString('en-PH', { minimumFractionDigits: 2 })
-                    }
-                }
+    // #1 Income per month
+    const income = document.getElementById('incomeChart');
+    if (income) {
+        new Chart(income, {
+            type: 'bar',
+            data: {
+                labels: <?php echo json_encode(array_column($months, 'label')); ?>,
+                datasets: [{
+                    data: <?php echo json_encode(array_values($incomeByMonth)); ?>,
+                    backgroundColor: '#2a78d6', borderRadius: 4, maxBarThickness: 28
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { callback: v => '₱' + Number(v).toLocaleString('en-PH') },
-                    grid: { color: '#f0f2ea' }
-                },
-                x: { grid: { display: false } }
-            }
-        }
-    });
+            options: Object.assign({}, base, {
+                plugins: { legend: { display: false }, tooltip: tip },
+                scales: {
+                    y: { beginAtZero: true, ticks: { color: TICK, callback: peso }, grid: { color: GRID } },
+                    x: { ticks: { color: TICK }, grid: { display: false } }
+                }
+            })
+        });
+    }
+
+    // #2 Expenses per category
+    const expense = document.getElementById('expenseChart');
+    if (expense) {
+        new Chart(expense, {
+            type: 'bar',
+            data: {
+                labels: <?php echo json_encode(array_keys($expenseByCategory)); ?>,
+                datasets: [{
+                    data: <?php echo json_encode(array_values($expenseByCategory)); ?>,
+                    backgroundColor: '#eb6834', borderRadius: 4, maxBarThickness: 26
+                }]
+            },
+            options: Object.assign({}, base, {
+                plugins: { legend: { display: false }, tooltip: tip },
+                scales: {
+                    y: { display: false, beginAtZero: true },
+                    x: { ticks: { color: TICK, font: { size: 10 }, maxRotation: 0, autoSkip: false,
+                                  callback: function(v) { const l = this.getLabelForValue(v); return l.length > 9 ? l.slice(0, 8) + '…' : l; } },
+                         grid: { display: false } }
+                }
+            })
+        });
+    }
+
+    // #3 Services utilized
+    const services = document.getElementById('servicesChart');
+    if (services) {
+        new Chart(services, {
+            type: 'doughnut',
+            data: {
+                labels: <?php echo json_encode(array_keys($services)); ?>,
+                datasets: [{
+                    data: <?php echo json_encode(array_values($services)); ?>,
+                    backgroundColor: <?php echo json_encode(array_values($serviceColors)); ?>,
+                    borderWidth: 2, borderColor: '#ffffff'
+                }]
+            },
+            options: Object.assign({}, base, { cutout: '66%' })
+        });
+    }
+
+    // #4 Members growth
+    const members = document.getElementById('membersChart');
+    if (members) {
+        const growth = <?php echo json_encode($memberGrowth); ?>;
+        new Chart(members, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode(array_column($months, 'label')); ?>,
+                datasets: [{
+                    data: growth,
+                    borderColor: '#1baf7a', backgroundColor: 'rgba(27,175,122,0.10)',
+                    fill: true, tension: 0.3, borderWidth: 2,
+                    pointRadius: growth.map((_, i) => i === growth.length - 1 ? 4 : 0),
+                    pointBackgroundColor: '#1baf7a'
+                }]
+            },
+            options: Object.assign({}, base, {
+                scales: {
+                    y: { display: false, beginAtZero: true },
+                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
+                }
+            })
+        });
+    }
 })();
 </script>
 
