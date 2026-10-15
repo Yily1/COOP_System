@@ -270,7 +270,6 @@ renderHeader($title);
         <div class="db-card db-big">
             <div class="db-head">
                 <span class="material-icons">payments</span>Total income
-                <span class="db-num">1</span>
             </div>
             <p class="db-hero-num"><?php echo dash_peso0($totalIncome); ?></p>
             <div class="db-delta <?php echo $deltaUp === null ? 'flat' : ($deltaUp ? 'up' : 'down'); ?>">
@@ -294,7 +293,6 @@ renderHeader($title);
             <div class="db-head">
                 <span class="material-icons">receipt_long</span>Operational expenses
                 <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Manage</a>
-                <span class="db-num">2</span>
             </div>
             <p class="db-small-num"><?php echo dash_peso0($totalExpenses); ?></p>
             <?php if (!$expensesReady): ?>
@@ -317,8 +315,7 @@ renderHeader($title);
         <!-- ================= #3 SERVICES UTILIZED ================= -->
         <div class="db-card">
             <div class="db-head">
-                <span class="material-icons">build</span>Services utilized
-                <span class="db-num">3</span>
+                <span class="material-icons">build</span>Services utilize
             </div>
             <?php if ($servicesTotal > 0): ?>
                 <div class="db-donut-row">
@@ -345,7 +342,6 @@ renderHeader($title);
         <div class="db-card">
             <div class="db-head">
                 <span class="material-icons">groups</span>Active members
-                <span class="db-num">4</span>
             </div>
             <div style="display:flex; align-items:baseline; gap:8px;">
                 <p class="db-small-num"><?php echo $activeMembers; ?></p>
