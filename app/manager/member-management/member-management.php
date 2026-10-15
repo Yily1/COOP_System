@@ -404,7 +404,7 @@ renderHeader('Member Management');
 </style>
 
 <div class="mm-header">
-    <h1 style="margin: 0;">Members</h1>
+    <h1 style="margin: 0;">List of Registered Members</h1>
     <div class="mm-header-actions">
         <div class="mm-search-wrap">
             <span class="material-icons">search</span>

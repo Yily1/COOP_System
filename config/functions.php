@@ -1038,15 +1038,15 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/admin/user-management/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/admin/user-management/user-management.php">User Management</a>
                         <?php elseif ($currentRole === 'manager'): ?>
                             <a class="<?php echo navActive('/app/manager/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/dashboard.php">Dashboard</a>
-                            <a class="<?php echo navActive('/app/manager/member-management/member-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/member-management/member-management.php">Member Management</a>
-                            <a class="<?php echo navActive('/app/manager/user-management/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/user-management/user-management.php">User Management</a>
+                            <a class="<?php echo navActive('/app/manager/member-management/member-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/member-management/member-management.php">Member Registration</a>
+                            <a class="<?php echo navActive('/app/manager/user-management/user-management.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/user-management/user-management.php">Member Management</a>
                             <a class="<?php echo navActive('/app/manager/meetings/meeting.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/meetings/meeting.php">Meetings</a>
                             <a class="<?php echo navActive('/app/manager/payments/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/manager/products/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/products/products.php">Products</a>
                             <a class="<?php echo navActive('/app/manager/equipment/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.php">Equipment</a>
                             <a class="<?php echo navActive('/app/manager/loans/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/loans/loans.php">Loans</a>
                             <a class="<?php echo navActive('/app/manager/crops/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/crops/crops.php">Crops</a>
-                            <a class="<?php echo navActive('/app/manager/resources/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/resources/resources.php">Resources Distribution</a>
+                            <a class="<?php echo navActive('/app/manager/resources/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/resources/resources.php">Agriculture Resources</a>
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/user/profile.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/profile.php">My Account</a>
@@ -1056,7 +1056,7 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/user/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/equipment.php">Equipment</a>
                             <a class="<?php echo navActive('/app/user/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/loans.php">Loans</a>
                             <a class="<?php echo navActive('/app/user/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/crops.php">Crops</a>
-                            <a class="<?php echo navActive('/app/user/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/resources.php">Resources</a>
+                            <a class="<?php echo navActive('/app/user/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/resources.php">Agri Resources</a>
                         <?php endif; ?>
                         <a class="mobile-logout" href="<?php echo BASE_URL; ?>/app/auth/signout.php">Logout</a>
                     </div>

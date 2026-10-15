@@ -275,7 +275,7 @@ renderHeader('Resource Distribution');
 
     <div class="rd-header">
         <div>
-            <h1>Resource Distribution</h1>
+            <h1>Agriculture Resources Distribution</h1>
         </div>
         <button class="rd-btn" id="add-distribution-btn" type="button">
             <span class="material-icons">add</span> Add distribution

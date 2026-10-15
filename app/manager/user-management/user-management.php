@@ -5,7 +5,7 @@ requireRole('manager');
 
 $currentRole = $_SESSION['role'];
 $currentUserId = $_SESSION['user_id'];
-$pageTitle = 'Users';
+$pageTitle = 'Members';
 
 // Deterministic avatar color per user, based on id so it stays the
 // same across page loads instead of being random each time.
