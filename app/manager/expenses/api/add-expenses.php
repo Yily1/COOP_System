@@ -60,10 +60,11 @@ try {
     ");
     $stmt->execute([$date, $category, $description, round((float)$amount, 2), $_SESSION['user_id']]);
 
-    aeLog('expense_added', 'success');
+    // Fixed: $pdo is now passed as the first argument (aeLog needs 3 arguments)
+    aeLog($pdo, 'expense_added', 'success');
     aeRespond(true, 'Expense added.');
 } catch (PDOException $e) {
     error_log('add-expense: ' . $e->getMessage());
-    aeLog('expense_added', 'failed');
+    aeLog($pdo, 'expense_added', 'failed');
     aeRespond(false, 'Could not save the expense. Please try again.');
 }
