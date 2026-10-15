@@ -178,7 +178,7 @@ renderHeader('Admin Dashboard');
     </div>
 
     <div class="stat-card stat-user">
-        <p>Regular Users</p>
+        <p>Members</p>
         <h3><?php echo $totalRegularUsers; ?></h3>
     </div>
 
