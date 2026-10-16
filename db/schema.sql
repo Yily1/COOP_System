@@ -385,3 +385,14 @@ ALTER TABLE payments ADD COLUMN product_name VARCHAR(150) NULL AFTER payment_typ
 ALTER TABLE payments MODIFY member_id INT(11) NULL;
 ALTER TABLE payments ADD COLUMN payer_name VARCHAR(150) NULL AFTER member_id;
 ALTER TABLE payments DROP COLUMN product_id;
+
+
+CREATE TABLE expenses (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  expense_date DATE NOT NULL,
+  description VARCHAR(255) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  recorded_by INT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_expense_date (expense_date)
+);

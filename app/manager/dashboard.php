@@ -104,13 +104,13 @@ if ($lastMonthIncome > 0) {
    ============================================================ */
 $expensesReady = !empty(dash_rows($pdo, "SHOW TABLES LIKE 'expenses'"));
 $totalExpenses = 0.0;
-$expenseByCategory = [];
+$expenseByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 if ($expensesReady) {
     $totalExpenses = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses");
     foreach (dash_rows($pdo, "
-        SELECT category, SUM(amount) AS total
-        FROM expenses GROUP BY category ORDER BY total DESC LIMIT 6") as $r) {
-        $expenseByCategory[$r['category']] = (float) $r['total'];
+        SELECT DATE_FORMAT(expense_date, '%Y-%m') AS ym, SUM(amount) AS total
+        FROM expenses WHERE expense_date >= '{$windowStart}' GROUP BY ym") as $r) {
+        if (isset($expenseByMonth[$r['ym']])) $expenseByMonth[$r['ym']] = (float) $r['total'];
     }
 }
 
@@ -300,14 +300,14 @@ renderHeader($title);
                     The expenses table isn&rsquo;t set up yet. Run the SQL for it, then
                     <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">record your first expense</a>.
                 </div>
-            <?php elseif (empty($expenseByCategory)): ?>
+            <?php elseif ($totalExpenses <= 0): ?>
                 <div class="db-empty-note">
                     No expenses recorded yet.
                     <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Add an expense</a>.
                 </div>
             <?php else: ?>
                 <div class="db-chart-sm">
-                    <canvas id="expenseChart" role="img" aria-label="Bar chart of expenses by category"></canvas>
+                    <canvas id="expenseChart" role="img" aria-label="Bar chart of expenses per month for the last six months"></canvas>
                 </div>
             <?php endif; ?>
         </div>
@@ -315,7 +315,7 @@ renderHeader($title);
         <!-- ================= #3 SERVICES UTILIZED ================= -->
         <div class="db-card">
             <div class="db-head">
-                <span class="material-icons">build</span>Services utilize
+                <span class="material-icons">build</span>Services utilized
             </div>
             <?php if ($servicesTotal > 0): ?>
                 <div class="db-donut-row">
@@ -438,15 +438,15 @@ renderHeader($title);
         });
     }
 
-    // #2 Expenses per category
+    // #2 Expenses per month
     const expense = document.getElementById('expenseChart');
     if (expense) {
         new Chart(expense, {
             type: 'bar',
             data: {
-                labels: <?php echo json_encode(array_keys($expenseByCategory)); ?>,
+                labels: <?php echo json_encode(array_column($months, 'label')); ?>,
                 datasets: [{
-                    data: <?php echo json_encode(array_values($expenseByCategory)); ?>,
+                    data: <?php echo json_encode(array_values($expenseByMonth)); ?>,
                     backgroundColor: '#eb6834', borderRadius: 4, maxBarThickness: 26
                 }]
             },
@@ -454,9 +454,7 @@ renderHeader($title);
                 plugins: { legend: { display: false }, tooltip: tip },
                 scales: {
                     y: { display: false, beginAtZero: true },
-                    x: { ticks: { color: TICK, font: { size: 10 }, maxRotation: 0, autoSkip: false,
-                                  callback: function(v) { const l = this.getLabelForValue(v); return l.length > 9 ? l.slice(0, 8) + '…' : l; } },
-                         grid: { display: false } }
+                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
                 }
             })
         });
