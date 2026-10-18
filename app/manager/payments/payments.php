@@ -2,6 +2,7 @@
 require_once '../../../config/config.php';
 require_once '../../../config/functions.php';
 require_once '../../../config/payment-functions.php';
+require_once '../../../config/rental-split.php';
 
 requireRole('manager');
 
@@ -45,6 +46,10 @@ $membersForJs = array_map(function($m) {
         'name' => $m['last_name'] . ', ' . $m['first_name'],
     ];
 }, $members);
+
+// Equipment rates (per hectare / per sack) taken from the Equipment page,
+// so the Amount in the Add payment form can be filled in automatically.
+$equipmentRates = rentalEquipmentRates($pdo);
 
 // ============================================================
 // PAYMENT TYPE METADATA (label + badge colors)
@@ -116,6 +121,8 @@ function payerInitials($name) {
 // SUMMARY TOTALS (confirmed payments only, respects current filters)
 // ============================================================
 $totals = ['registration' => 0, 'investment' => 0, 'rental' => 0, 'loan_repayment' => 0, 'product' => 0];
+$operatorTotal = 0.0;   // operator share of confirmed rental payments
+$repairTotal = 0.0;     // repair and maintenance share of confirmed rental payments
 
 foreach ($payments as $payment) {
     if ($payment['status'] !== 'confirmed') {
@@ -124,21 +131,27 @@ foreach ($payments as $payment) {
     if (isset($totals[$payment['payment_type']])) {
         $totals[$payment['payment_type']] += $payment['amount'];
     }
+    $operatorTotal += (float) ($payment['operator_share'] ?? 0);
+    $repairTotal += (float) ($payment['repair_share'] ?? 0);
 }
 
-$grandTotal = array_sum($totals);
+$grandTotal = array_sum($totals); // everything collected
 
 renderHeader('Payments');
 ?>
 
 <style>
 /* Summary cards: flat colors, same style as the Equipment rental page */
-.pay-summary-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
+/* All 8 cards sit side by side in one row; they share the width equally.
+   On smaller screens they wrap into 4 and then 2 per row. */
+.pay-summary-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
 .pay-summary-card {
-    border-radius: 12px; padding: 0 18px; flex: 0 0 160px; width: 160px; height: 92px;
+    border-radius: 12px; padding: 0 14px; min-width: 0; height: 92px;
     box-sizing: border-box; box-shadow: none;
     display: flex; flex-direction: column; justify-content: center;
 }
+@media (max-width: 1100px) { .pay-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 560px)  { .pay-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .pay-summary-card .pay-card-label { margin: 0 0 6px; font-size: 13px; }
 .pay-summary-card .pay-card-value {
     margin: 0; font-size: 22px; font-weight: 700; line-height: 1.15;
@@ -159,6 +172,10 @@ renderHeader('Payments');
 .pay-card-sand   .pay-card-label, .pay-card-sand   .pay-card-value { color: #C1892B; }
 .pay-card-blue   { background: #DDEAF6; }
 .pay-card-blue   .pay-card-label, .pay-card-blue   .pay-card-value { color: #185FA5; }
+.pay-card-purple { background: #EAE6FB; }
+.pay-card-purple .pay-card-label, .pay-card-purple .pay-card-value { color: #4b2f9c; }
+.pay-card-teal   { background: #DDF1EE; }
+.pay-card-teal   .pay-card-label, .pay-card-teal   .pay-card-value { color: #0F6E56; }
 
 /* Bright green buttons (same as the "Add product" button) */
 #openModalBtn:hover,
@@ -205,6 +222,12 @@ renderHeader('Payments');
     background: none !important; border: none !important; font-size: 22px !important; line-height: 1 !important;
     color: #333 !important; cursor: pointer; box-shadow: none !important;
 }
+
+/* Rental split preview inside the Add payment modal */
+#splitPreview { background: #F4F9EC; border: 1px solid #C0DD97; border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-size: 13px; display: none; }
+#splitPreview .sp-row { display: flex; justify-content: space-between; padding: 2px 0; color: #444; }
+#splitPreview .sp-total { border-top: 1px solid #C0DD97; margin-top: 4px; padding-top: 5px; font-weight: 600; color: #27500A; }
+#splitPreview .sp-note { font-size: 12px; color: #667066; margin-top: 6px; }
 
 /* ============================================================
    PRINT REPORT
@@ -326,10 +349,12 @@ renderHeader('Payments');
 
 <!-- ============================================================
      OVERALL PAYMENT TOTALS
+     Total collected = everything paid in.
+     Operator and Repair and maintenance = the shares set aside from rentals.
      ============================================================ -->
 <div class="pay-summary-grid">
     <div class="pay-summary-card pay-card-dark">
-        <p class="pay-card-label">Grand total</p>
+        <p class="pay-card-label">Total collected</p>
         <p class="pay-card-value">₱<?php echo number_format($grandTotal, 2); ?></p>
     </div>
     <div class="pay-summary-card pay-card-amber">
@@ -351,6 +376,14 @@ renderHeader('Payments');
     <div class="pay-summary-card pay-card-blue">
         <p class="pay-card-label">Products</p>
         <p class="pay-card-value">₱<?php echo number_format($totals['product'], 2); ?></p>
+    </div>
+    <div class="pay-summary-card pay-card-purple">
+        <p class="pay-card-label">Operator</p>
+        <p class="pay-card-value">₱<?php echo number_format($operatorTotal, 2); ?></p>
+    </div>
+    <div class="pay-summary-card pay-card-teal">
+        <p class="pay-card-label">Repair and maintenance</p>
+        <p class="pay-card-value">₱<?php echo number_format($repairTotal, 2); ?></p>
     </div>
 </div>
 
@@ -443,6 +476,16 @@ renderHeader('Payments');
                                 <?php echo htmlspecialchars($payment['product_name']); ?>
                             </div>
                         <?php endif; ?>
+                        <?php if ($payment['payment_type'] === 'rental' && !empty($payment['equipment'])): ?>
+                            <div style="font-size: 11px; color: #666; margin-top: 3px;">
+                                <?php
+                                    echo htmlspecialchars(rentalEquipmentLabel($payment['equipment']));
+                                    if (!empty($payment['quantity'])) {
+                                        echo ' &middot; ' . htmlspecialchars(rtrim(rtrim(number_format((float) $payment['quantity'], 2), '0'), '.')) . ' ' . rentalEquipmentUnit($payment['equipment']);
+                                    }
+                                ?>
+                            </div>
+                        <?php endif; ?>
                     </td>
                     <td style="padding: 10px 12px; font-weight: 600;">₱<?php echo number_format($payment['amount'], 2); ?></td>
                     <td style="padding: 10px 12px;"><?php echo date('M d, Y', strtotime($payment['payment_date'])); ?></td>
@@ -522,8 +565,8 @@ renderHeader('Payments');
 </div>
 
 <!-- MODAL - Add Payment -->
-<div id="paymentModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
-    <div style="background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 420px; box-sizing: border-box; position: relative;">
+<div id="paymentModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box;">
+    <div style="background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 420px; box-sizing: border-box; position: relative; max-height: 92vh; overflow-y: auto;">
         <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Add payment</h2>
         <button id="closeModalBtn"
                 style="position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important; font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important; max-width: 28px !important; flex: 0 0 auto !important; color: #333 !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;">&times;</button>
@@ -569,9 +612,28 @@ renderHeader('Payments');
                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
             </div>
 
+            <!-- Rental only: which equipment, and how many hectares / sacks -->
+            <div id="rentalFields" style="display: none; margin-bottom: 14px;">
+                <label for="equipmentInput" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Equipment</label>
+                <select name="equipment" id="equipmentInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                    <option value="">-- Select equipment --</option>
+                    <?php foreach (rentalEquipmentOptions() as $key => $label): ?>
+                        <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($label); ?></option>
+                    <?php endforeach; ?>
+                </select>
+
+                <div id="qtyBox" style="display: none; margin-top: 12px;">
+                    <label for="quantityInput" id="qtyLabel" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Hectares</label>
+                    <input type="number" name="quantity" id="quantityInput" min="0" step="0.5"
+                           style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                </div>
+
+                <div id="splitPreview"></div>
+            </div>
+
             <div style="margin-bottom: 14px;">
                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Amount (₱)</label>
-                <input type="number" name="amount" step="0.01" min="0" required
+                <input type="number" name="amount" id="amountInput" step="0.01" min="0" required
                        style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
             </div>
 
@@ -622,20 +684,129 @@ renderHeader('Payments');
     const memberResults = document.getElementById('memberResults');
     const memberChosen = document.getElementById('memberChosen');
     const payerNameInput = document.getElementById('payerNameInput');
+    const amountInput = document.getElementById('amountInput');
+    const rentalFields = document.getElementById('rentalFields');
+    const equipmentInput = document.getElementById('equipmentInput');
+    const qtyBox = document.getElementById('qtyBox');
+    const qtyLabel = document.getElementById('qtyLabel');
+    const quantityInput = document.getElementById('quantityInput');
+    const splitPreview = document.getElementById('splitPreview');
 
     const MEMBERS = <?php echo json_encode($membersForJs, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    const EQUIP_RATES = <?php echo json_encode($equipmentRates ?: new stdClass()); ?>;
+    const EQUIP_LABELS = <?php echo json_encode(rentalEquipmentOptions()); ?>;
+    const SPLIT = {
+        harvesterOperatorPerHa: <?php echo (float) RENTAL_HARVESTER_OPERATOR_PER_HECTARE; ?>,
+        harvesterRepairRate: <?php echo (float) RENTAL_HARVESTER_REPAIR_RATE; ?>,
+        shellerOperatorRate: <?php echo (float) RENTAL_SHELLER_OPERATOR_RATE; ?>,
+        shellerRepairRate: <?php echo (float) RENTAL_SHELLER_REPAIR_RATE; ?>
+    };
 
     const MEMBER_TYPES = [
         ['registration', 'Registration fee (₱150)'],
         ['investment', 'Investment'],
         ['rental', 'Rental'],
-        ['loan_repayment', 'Loan Repayment'],
         ['product', 'Product']
     ];
     const NON_MEMBER_TYPES = [
         ['rental', 'Rental']
     ];
 
+    // true when the Amount was filled in automatically (not typed by the manager)
+    let amountAuto = false;
+
+    function equipUnit(key) { return key === 'corn_harvester' ? 'ha' : 'sack'; }
+    function peso(n) {
+        return '\u20B1' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // ---------- Rental: equipment, quantity, auto amount, split preview ----------
+    function calcSplit(equipment, amount, quantity) {
+        let operator = 0, repair = 0;
+        if (equipment === 'corn_harvester') {
+            operator = Math.min(amount, SPLIT.harvesterOperatorPerHa * quantity);
+            repair = Math.max(0, (amount - operator) * SPLIT.harvesterRepairRate);
+        } else if (equipment === 'corn_sheller') {
+            operator = amount * SPLIT.shellerOperatorRate;
+            repair = amount * SPLIT.shellerRepairRate;
+        }
+        return { operator: operator, repair: repair, income: amount - operator - repair };
+    }
+
+    function updateSplitPreview() {
+        const equipment = equipmentInput.value;
+        const amount = parseFloat(amountInput.value) || 0;
+        const qty = parseFloat(quantityInput.value) || 0;
+        if (typeInput.value !== 'rental' || !equipment || amount <= 0) {
+            splitPreview.style.display = 'none';
+            return;
+        }
+        const s = calcSplit(equipment, amount, qty);
+        let html =
+            '<div class="sp-row"><span>Operator</span><span>' + peso(s.operator) + '</span></div>' +
+            '<div class="sp-row"><span>Repair and maintenance</span><span>' + peso(s.repair) + '</span></div>' +
+            '<div class="sp-row sp-total"><span>Coop income</span><span>' + peso(s.income) + '</span></div>';
+        if (s.operator === 0 && s.repair === 0) {
+            html += '<div class="sp-note">No operator or repair share set for the ' + (EQUIP_LABELS[equipment] || equipment) + '.</div>';
+        }
+        splitPreview.innerHTML = html;
+        splitPreview.style.display = 'block';
+    }
+
+    // Amount = rate x hectares/sacks. When there is no rate (for example a
+    // non-member Dryer) or no quantity, an auto-filled amount is cleared so an
+    // old value from another equipment is never saved by mistake.
+    function autofillAmount() {
+        const equipment = equipmentInput.value;
+        const qty = parseFloat(quantityInput.value) || 0;
+        const rates = EQUIP_RATES[equipment];
+        const rate = rates ? (payerTypeInput.value === 'member' ? rates.member : rates.non_member) : 0;
+
+        if (typeInput.value === 'rental' && equipment && rate > 0 && qty > 0) {
+            amountInput.value = (qty * rate).toFixed(2);
+            amountAuto = true;
+        } else if (amountAuto) {
+            amountInput.value = '';
+            amountAuto = false;
+        }
+        updateSplitPreview();
+    }
+
+    function updateRentalUI() {
+        const equipment = equipmentInput.value;
+        qtyBox.style.display = equipment ? 'block' : 'none';
+        if (equipment === 'corn_harvester') {
+            qtyLabel.textContent = 'Hectares';
+            quantityInput.step = '0.5';
+            quantityInput.required = true;
+        } else if (equipment) {
+            qtyLabel.textContent = 'Sacks (optional)';
+            quantityInput.step = '1';
+            quantityInput.required = false;
+        } else {
+            quantityInput.required = false;
+        }
+        updateSplitPreview();
+    }
+
+    function toggleRentalFields() {
+        const isRental = typeInput.value === 'rental';
+        rentalFields.style.display = isRental ? 'block' : 'none';
+        equipmentInput.required = isRental;
+        if (!isRental) {
+            equipmentInput.value = '';
+            quantityInput.value = '';
+        }
+        updateRentalUI();
+        autofillAmount();
+    }
+
+    typeInput.addEventListener('change', toggleRentalFields);
+    equipmentInput.addEventListener('change', function() { updateRentalUI(); autofillAmount(); });
+    quantityInput.addEventListener('input', autofillAmount);
+    amountInput.addEventListener('input', function() { amountAuto = false; updateSplitPreview(); });
+
+    // ---------- Product field ----------
     function toggleProductFields() {
         const isProduct = typeInput.value === 'product';
         productFields.style.display = isProduct ? 'block' : 'none';
@@ -681,6 +852,7 @@ renderHeader('Payments');
             typeInput.appendChild(opt);
         });
         toggleProductFields();
+        toggleRentalFields();
     }
 
     function chooseMember(m) {
@@ -759,6 +931,7 @@ renderHeader('Payments');
     function closeModal() {
         backdrop.style.display = 'none';
         form.reset();
+        amountAuto = false;
         setPayerMode('member');
         modalErrors.style.display = 'none';
     }
@@ -869,6 +1042,11 @@ renderHeader('Payments');
         const productLine = (payment.payment_type === 'product' && payment.product_name)
             ? `<div style="font-size: 11px; color: #666; margin-top: 3px;">${escapeHtml(payment.product_name)}</div>`
             : '';
+        let equipLine = '';
+        if (payment.payment_type === 'rental' && payment.equipment) {
+            const qty = parseFloat(payment.quantity);
+            equipLine = `<div style="font-size: 11px; color: #666; margin-top: 3px;">${escapeHtml(EQUIP_LABELS[payment.equipment] || payment.equipment)}${qty > 0 ? ' \u00b7 ' + escapeHtml(String(qty)) + ' ' + equipUnit(payment.equipment) : ''}</div>`;
+        }
         const tr = document.createElement('tr');
         tr.style.borderTop = '1px solid #eee';
         tr.dataset.paymentId = payment.id;
@@ -878,7 +1056,7 @@ renderHeader('Payments');
         tr.innerHTML = `
             <td style="padding: 10px 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: ${avatar.bg}; color: ${avatar.text}; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px;">${initials}</div>
+                    <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: ${avatar.bg}; color: ${avatar.text}; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px;">${escapeHtml(initials)}</div>
                     <div>
                         <p style="margin: 0; font-weight: 600;">${escapeHtml(displayName)}</p>
                         ${subLine}
@@ -886,8 +1064,8 @@ renderHeader('Payments');
                 </div>
             </td>
             <td style="padding: 10px 12px;">
-                <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: ${meta.bg}; color: ${meta.text}; white-space: nowrap;">${meta.label}</span>
-                ${productLine}
+                <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: ${meta.bg}; color: ${meta.text}; white-space: nowrap;">${escapeHtml(meta.label)}</span>
+                ${productLine}${equipLine}
             </td>
             <td style="padding: 10px 12px; font-weight: 600;">₱${formatAmount(payment.amount)}</td>
             <td style="padding: 10px 12px;">${formatDate(payment.payment_date)}</td>
@@ -941,6 +1119,8 @@ renderHeader('Payments');
             if (data.success) {
                 prependRow(data.payment);
                 closeModal();
+                // Reload so the summary cards (Operator, Repair and maintenance, totals) update too
+                setTimeout(function() { window.location.reload(); }, 600);
             } else {
                 modalErrors.innerHTML = (data.errors || ['An error occurred, please try again.']).join('<br>');
                 modalErrors.style.display = 'block';
@@ -989,6 +1169,8 @@ renderHeader('Payments');
                     // Action is now the 9th column (Proof was added before "Recorded by").
                     const actionCell = row.children[8];
                     actionCell.innerHTML = '<span style="color: #ccc;">-</span>';
+                    // Reload so the summary cards include the newly confirmed payment
+                    setTimeout(function() { window.location.reload(); }, 600);
                 } else {
                     row.remove();
                 }
@@ -1056,19 +1238,19 @@ renderHeader('Payments');
             const cells = row.children;
             const nameEl = cells[0].querySelector('p');
             const typeLabelEl = cells[1].querySelector('span');
-            const productEl = cells[1].querySelector('div');
+            const subLineEl = cells[1].querySelector('div');
 
             const tr = document.createElement('tr');
 
             // Name only (members: "Last, First" / non-members: the typed name)
             tr.appendChild(makeCell(nameEl ? nameEl.textContent.trim() : '-'));
 
-            // Type (+ product name underneath for product payments)
+            // Type (+ product name or equipment underneath)
             const typeTd = makeCell(typeLabelEl ? typeLabelEl.textContent.trim() : '-');
-            if (productEl && productEl.textContent.trim() !== '') {
+            if (subLineEl && subLineEl.textContent.trim() !== '') {
                 const sub = document.createElement('div');
                 sub.className = 'pay-pr-sub-line';
-                sub.textContent = productEl.textContent.trim();
+                sub.textContent = subLineEl.textContent.trim();
                 typeTd.appendChild(sub);
             }
             tr.appendChild(typeTd);

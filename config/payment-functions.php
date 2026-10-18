@@ -1,10 +1,12 @@
 <?php
 /**
  * ============================================================
- * PAYMENT & ATTENDANCE HELPER FUNCTIONS (v3 - may proof of payment)
+ * PAYMENT & ATTENDANCE HELPER FUNCTIONS (v4 - rental split)
  * Ito ang laman ng config/payment-functions.php
  * ============================================================
  */
+
+require_once __DIR__ . '/rental-split.php';
 
 const REGISTRATION_FEE_REQUIRED = 150.00;
 const INVESTMENT_TARGET_FOR_REGULAR = 1500.00;
@@ -100,15 +102,37 @@ function getMemberEligibility($pdo, $memberId) {
 }
 
 /**
+ * Para sa Rental: ibalik ang equipment, quantity, operator share at repair share
+ * na ilalagay sa INSERT. Para sa ibang type, puro NULL.
+ * Returns [equipment, quantity, operator, repair].
+ */
+function rentalColumnsForInsert($paymentType, $amount, $equipment, $quantity) {
+    if ($paymentType !== 'rental' || !$equipment) {
+        return [null, null, null, null];
+    }
+    $split = calculateRentalSplit($equipment, $amount, $quantity);
+    $qty = ($quantity !== null && $quantity !== '') ? (float) $quantity : null;
+    return [$equipment, $qty, $split['operator'], $split['repair']];
+}
+
+/**
  * I-record ang bagong payment bilang CONFIRMED - ginagamit ng MANAGER.
  * $productName ay para sa product payments, $payerName ay para sa non-member.
+ * $equipment at $quantity ay para sa rental; ang hati (operator / repair) ay
+ * kinukuwenta at sine-save sa iisang INSERT, kaya hindi nagkakahiwalay.
+ * Returns ang bagong payment ID, o false kapag nabigo.
  */
-function recordPayment($pdo, $memberId, $paymentType, $amount, $paymentDate, $recordedBy, $notes = null, $productName = null, $payerName = null) {
+function recordPayment($pdo, $memberId, $paymentType, $amount, $paymentDate, $recordedBy, $notes = null, $productName = null, $payerName = null, $equipment = null, $quantity = null) {
+    list($equip, $qty, $operator, $repair) = rentalColumnsForInsert($paymentType, $amount, $equipment, $quantity);
+
     $stmt = $pdo->prepare("
-        INSERT INTO payments (member_id, payer_name, payment_type, product_name, amount, payment_date, recorded_by, notes, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed')
+        INSERT INTO payments
+            (member_id, payer_name, payment_type, product_name, equipment, quantity, operator_share, repair_share,
+             amount, payment_date, recorded_by, notes, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed')
     ");
-    return $stmt->execute([$memberId, $payerName, $paymentType, $productName, $amount, $paymentDate, $recordedBy, $notes]);
+    $ok = $stmt->execute([$memberId, $payerName, $paymentType, $productName, $equip, $qty, $operator, $repair, $amount, $paymentDate, $recordedBy, $notes]);
+    return $ok ? (int) $pdo->lastInsertId() : false;
 }
 
 /**
@@ -116,29 +140,40 @@ function recordPayment($pdo, $memberId, $paymentType, $amount, $paymentDate, $re
  * $submittedBy ay ang user_id ng member (para malaman kung sino nag-submit).
  * $proofOfPayment ay ang file path (relative sa project root) ng na-upload
  * na screenshot ng GCash payment.
+ * Para sa Rental, kasama ang equipment, quantity at hati sa INSERT.
+ * Returns ang bagong payment ID, o false kapag nabigo.
  */
-function submitPendingPayment($pdo, $memberId, $paymentType, $amount, $submittedBy, $proofOfPayment = null) {
+function submitPendingPayment($pdo, $memberId, $paymentType, $amount, $submittedBy, $proofOfPayment = null, $productName = null, $equipment = null, $quantity = null) {
+    list($equip, $qty, $operator, $repair) = rentalColumnsForInsert($paymentType, $amount, $equipment, $quantity);
+
     $stmt = $pdo->prepare("
-        INSERT INTO payments (member_id, payment_type, amount, payment_date, recorded_by, notes, proof_of_payment, status)
-        VALUES (?, ?, ?, CURDATE(), ?, 'Submitted via GCash by member', ?, 'pending')
+        INSERT INTO payments
+            (member_id, payment_type, product_name, equipment, quantity, operator_share, repair_share,
+             amount, payment_date, recorded_by, notes, proof_of_payment, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), ?, 'Submitted via GCash by member', ?, 'pending')
     ");
-    return $stmt->execute([$memberId, $paymentType, $amount, $submittedBy, $proofOfPayment]);
+    $ok = $stmt->execute([$memberId, $paymentType, $productName, $equip, $qty, $operator, $repair, $amount, $submittedBy, $proofOfPayment]);
+    return $ok ? (int) $pdo->lastInsertId() : false;
 }
 
 /**
  * I-confirm ang isang pending payment - MANAGER lang ang pwede.
+ * True lang kapag may talagang na-update na row.
  */
 function confirmPayment($pdo, $paymentId) {
     $stmt = $pdo->prepare("UPDATE payments SET status = 'confirmed' WHERE id = ? AND status = 'pending'");
-    return $stmt->execute([$paymentId]);
+    $stmt->execute([$paymentId]);
+    return $stmt->rowCount() > 0;
 }
 
 /**
  * I-reject/tanggalin ang isang pending payment - MANAGER lang ang pwede.
+ * True lang kapag may talagang natanggal na row.
  */
 function rejectPayment($pdo, $paymentId) {
     $stmt = $pdo->prepare("DELETE FROM payments WHERE id = ? AND status = 'pending'");
-    return $stmt->execute([$paymentId]);
+    $stmt->execute([$paymentId]);
+    return $stmt->rowCount() > 0;
 }
 
 /**

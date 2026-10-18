@@ -1,6 +1,7 @@
 <?php
 require_once '../../config/config.php';
 require_once '../../config/functions.php';
+require_once '../../config/rental-split.php';
 require_once '../../includes/activity-logger.php';
 requireRole('manager');
 
@@ -51,40 +52,46 @@ for ($i = 5; $i >= 0; $i--) {
 $windowStart = $months[0]['key'] . '-01';
 
 /* ============================================================
-   #1  TOTAL INCOME  (confirmed payments)
+   #1  TOTAL INCOME  (confirmed payments, COOP SHARE only)
+   Income = amount minus the operator share and the repair and
+   maintenance share. Non-rental payments and old rentals have no
+   share, so their full amount counts.
    ============================================================ */
-$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM payments WHERE status = 'confirmed'");
+$coop = coopIncomeSql();
+
+$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE status = 'confirmed'");
 
 $thisMonthIncome = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM(amount),0) FROM payments
+    SELECT COALESCE(SUM($coop),0) FROM payments
     WHERE status = 'confirmed'
       AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')");
 $lastMonthIncome = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM(amount),0) FROM payments
+    SELECT COALESCE(SUM($coop),0) FROM payments
     WHERE status = 'confirmed'
       AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')");
 
 $incomeByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 foreach (dash_rows($pdo, "
-    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM(amount) AS total
+    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total
     FROM payments
     WHERE status = 'confirmed' AND payment_date >= '{$windowStart}'
     GROUP BY ym") as $r) {
     if (isset($incomeByMonth[$r['ym']])) $incomeByMonth[$r['ym']] = (float) $r['total'];
 }
 
-$incomeByType = ['investment' => 0.0, 'loan_repayment' => 0.0, 'rental' => 0.0, 'registration' => 0.0];
+$incomeByType = ['investment' => 0.0, 'loan_repayment' => 0.0, 'rental' => 0.0, 'registration' => 0.0, 'product' => 0.0];
 foreach (dash_rows($pdo, "
-    SELECT LOWER(payment_type) AS t, SUM(amount) AS total
+    SELECT LOWER(payment_type) AS t, SUM($coop) AS total
     FROM payments WHERE status = 'confirmed' GROUP BY LOWER(payment_type)") as $r) {
     $k = str_replace(' ', '_', $r['t']);
     if (isset($incomeByType[$k])) $incomeByType[$k] = (float) $r['total'];
 }
 $typeMeta = [
-    'investment'     => ['Investment',     '#2a78d6'],
-    'loan_repayment' => ['Loan repayment', '#1baf7a'],
-    'rental'         => ['Rental',         '#eda100'],
-    'registration'   => ['Registration',   '#e87ba4'],
+    'investment'     => ['Investment',          '#2a78d6'],
+    'loan_repayment' => ['Loan repayment',      '#1baf7a'],
+    'rental'         => ['Rental (coop share)', '#eda100'],
+    'registration'   => ['Registration',        '#e87ba4'],
+    'product'        => ['Product',             '#7f77dd'],
 ];
 
 if ($lastMonthIncome > 0) {
@@ -149,6 +156,22 @@ $running = $membersBefore;
 foreach ($newByMonth as $c) { $running += $c; $memberGrowth[] = $running; }
 
 /* ============================================================
+   #5  REPAIR AND MAINTENANCE  (share set aside from rentals)
+   The operator share is NOT shown here; it is on the Payments page.
+   ============================================================ */
+$repairTotal = (float) dash_scalar($pdo, "
+    SELECT COALESCE(SUM(repair_share),0) FROM payments WHERE status = 'confirmed'");
+
+$repairByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
+foreach (dash_rows($pdo, "
+    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM(COALESCE(repair_share,0)) AS total
+    FROM payments
+    WHERE status = 'confirmed' AND payment_date >= '{$windowStart}'
+    GROUP BY ym") as $r) {
+    if (isset($repairByMonth[$r['ym']])) $repairByMonth[$r['ym']] = (float) $r['total'];
+}
+
+/* ============================================================
    RECENT ACTIVITY
    ============================================================ */
 $recentActivity = dash_rows($pdo, "
@@ -181,7 +204,8 @@ renderHeader($title);
         min-width: 0;
         box-sizing: border-box;
     }
-    .db-big { grid-row: span 3; display: flex; flex-direction: column; }
+    /* Total income sits on the left and spans the 4 small cards on the right */
+    .db-big { grid-row: span 4; display: flex; flex-direction: column; }
 
     .db-head {
         display: flex; align-items: center; gap: 8px;
@@ -207,8 +231,12 @@ renderHeader($title);
     .db-delta.down { color: #a6322f; }
     .db-delta.flat { color: #667066; }
     .db-sub { font-size: 12px; color: #667066; }
+    .db-tag {
+        margin-left: auto; font-size: 11px; color: #854F0B; background: #FAEEDA;
+        border-radius: 10px; padding: 1px 8px; font-weight: 600;
+    }
 
-    .db-chart-big { position: relative; height: 210px; }
+    .db-chart-big { position: relative; height: 210px; flex: 1 1 auto; min-height: 210px; }
     .db-chart-sm  { position: relative; height: 84px; margin-top: 6px; }
     .db-chart-line { position: relative; height: 70px; margin-top: 6px; }
 
@@ -258,7 +286,7 @@ renderHeader($title);
         .db-grid { grid-template-columns: minmax(0, 1fr); }
         .db-big { grid-row: auto; }
         .db-hero-num { font-size: 36px; }
-        .db-chart-big { height: 180px; }
+        .db-chart-big { height: 180px; min-height: 180px; flex: none; }
     }
 </style>
 
@@ -266,10 +294,11 @@ renderHeader($title);
 
     <div class="db-grid">
 
-        <!-- ================= #1 TOTAL INCOME ================= -->
+        <!-- ================= #1 TOTAL INCOME (coop share) ================= -->
         <div class="db-card db-big">
             <div class="db-head">
                 <span class="material-icons">payments</span>Total income
+                <span class="db-tag">Coop share only</span>
             </div>
             <p class="db-hero-num"><?php echo dash_peso0($totalIncome); ?></p>
             <div class="db-delta <?php echo $deltaUp === null ? 'flat' : ($deltaUp ? 'up' : 'down'); ?>">
@@ -309,6 +338,22 @@ renderHeader($title);
                 <div class="db-chart-sm">
                     <canvas id="expenseChart" role="img" aria-label="Bar chart of expenses per month for the last six months"></canvas>
                 </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- ================= #5 REPAIR AND MAINTENANCE ================= -->
+        <div class="db-card">
+            <div class="db-head">
+                <span class="material-icons">handyman</span>Repair and maintenance
+                <a href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php?payment_type=rental">View</a>
+            </div>
+            <p class="db-small-num"><?php echo dash_peso0($repairTotal); ?></p>
+            <?php if ($repairTotal > 0): ?>
+                <div class="db-chart-sm">
+                    <canvas id="repairChart" role="img" aria-label="Bar chart of repair and maintenance share per month for the last six months"></canvas>
+                </div>
+            <?php else: ?>
+                <div class="db-empty-note">No repair share yet. It appears once rentals are confirmed.</div>
             <?php endif; ?>
         </div>
 
@@ -415,14 +460,15 @@ renderHeader($title);
     const peso = v => '₱' + (v >= 1000 ? (Math.round(v / 100) / 10) + 'k' : v);
     const tip  = { callbacks: { label: c => '₱' + Number(c.raw).toLocaleString('en-PH') } };
     const base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+    const monthLabels = <?php echo json_encode(array_column($months, 'label')); ?>;
 
-    // #1 Income per month
+    // #1 Income per month (coop share)
     const income = document.getElementById('incomeChart');
     if (income) {
         new Chart(income, {
             type: 'bar',
             data: {
-                labels: <?php echo json_encode(array_column($months, 'label')); ?>,
+                labels: monthLabels,
                 datasets: [{
                     data: <?php echo json_encode(array_values($incomeByMonth)); ?>,
                     backgroundColor: '#2a78d6', borderRadius: 4, maxBarThickness: 28
@@ -444,10 +490,32 @@ renderHeader($title);
         new Chart(expense, {
             type: 'bar',
             data: {
-                labels: <?php echo json_encode(array_column($months, 'label')); ?>,
+                labels: monthLabels,
                 datasets: [{
                     data: <?php echo json_encode(array_values($expenseByMonth)); ?>,
                     backgroundColor: '#eb6834', borderRadius: 4, maxBarThickness: 26
+                }]
+            },
+            options: Object.assign({}, base, {
+                plugins: { legend: { display: false }, tooltip: tip },
+                scales: {
+                    y: { display: false, beginAtZero: true },
+                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
+                }
+            })
+        });
+    }
+
+    // #5 Repair and maintenance per month
+    const repair = document.getElementById('repairChart');
+    if (repair) {
+        new Chart(repair, {
+            type: 'bar',
+            data: {
+                labels: monthLabels,
+                datasets: [{
+                    data: <?php echo json_encode(array_values($repairByMonth)); ?>,
+                    backgroundColor: '#0F6E56', borderRadius: 4, maxBarThickness: 26
                 }]
             },
             options: Object.assign({}, base, {
@@ -484,7 +552,7 @@ renderHeader($title);
         new Chart(members, {
             type: 'line',
             data: {
-                labels: <?php echo json_encode(array_column($months, 'label')); ?>,
+                labels: monthLabels,
                 datasets: [{
                     data: growth,
                     borderColor: '#1baf7a', backgroundColor: 'rgba(27,175,122,0.10)',

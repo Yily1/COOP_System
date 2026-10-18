@@ -9,25 +9,31 @@ header('Content-Type: application/json');
 
 $response = ['success' => false, 'errors' => []];
 
-$paymentId = $_POST['payment_id'] ?? '';
+$paymentId = (int) ($_POST['payment_id'] ?? 0);
 $action = $_POST['action'] ?? '';
 
-if (empty($paymentId) || !in_array($action, ['confirm', 'reject'])) {
+if ($paymentId <= 0 || !in_array($action, ['confirm', 'reject'], true)) {
     $response['errors'][] = 'Invalid request.';
     echo json_encode($response);
     exit;
 }
 
-if ($action === 'confirm') {
-    $ok = confirmPayment($pdo, $paymentId);
-} else {
-    $ok = rejectPayment($pdo, $paymentId);
-}
+try {
+    if ($action === 'confirm') {
+        $ok = confirmPayment($pdo, $paymentId);
+    } else {
+        $ok = rejectPayment($pdo, $paymentId);
+    }
 
-if ($ok) {
-    $response['success'] = true;
-} else {
-    $response['errors'][] = 'Hindi na-update. Baka na-confirm/reject na ito ng iba.';
+    if ($ok) {
+        $response['success'] = true;
+    } else {
+        // No row changed: it was already confirmed or removed
+        $response['errors'][] = 'Hindi na-update. Baka na-confirm/reject na ito ng iba.';
+    }
+} catch (Throwable $e) {
+    error_log('update-payment-status: ' . $e->getMessage());
+    $response['errors'][] = 'May error sa server. Subukan ulit mamaya.';
 }
 
 echo json_encode($response);

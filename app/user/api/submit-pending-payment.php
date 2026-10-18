@@ -2,6 +2,7 @@
 require_once '../../../config/config.php';
 require_once '../../../config/functions.php';
 require_once '../../../config/payment-functions.php';
+require_once '../../../config/rental-split.php';
 
 requireRole('user');
 
@@ -25,6 +26,8 @@ try {
     $paymentType = $_POST['payment_type'] ?? '';
     $amount = $_POST['amount'] ?? '';
     $productName = trim($_POST['product_name'] ?? '');
+    $equipment = trim($_POST['equipment'] ?? '');
+    $quantity = $_POST['quantity'] ?? '';
 
     $allowedTypes = ['registration', 'investment', 'rental', 'loan_repayment', 'product'];
     if (!in_array($paymentType, $allowedTypes, true)) {
@@ -39,6 +42,18 @@ try {
         }
     } else {
         $productName = null;
+    }
+
+    // Rental: which equipment, and how many hectares / sacks
+    if ($paymentType === 'rental') {
+        $rentalCheck = validateRentalInput($equipment, $quantity);
+        foreach ($rentalCheck['errors'] as $err) {
+            $response['errors'][] = $err;
+        }
+        $quantity = $rentalCheck['quantity'];
+    } else {
+        $equipment = null;
+        $quantity = null;
     }
 
     if (!is_numeric($amount) || $amount <= 0) {
@@ -78,13 +93,31 @@ try {
         }
         $proofPath = 'uploads/payment-proofs/' . $fileName;
 
-        submitPendingPayment($pdo, $memberId, $paymentType, $amount, $userId, $proofPath, $productName);
+        // Saves the payment together with its equipment, quantity and
+        // operator / repair split (counted once the manager confirms it).
+        $newId = submitPendingPayment(
+            $pdo,
+            $memberId,
+            $paymentType,
+            (float) $amount,
+            $userId,
+            $proofPath,
+            $productName,
+            $equipment,
+            $quantity
+        );
+
+        if (!$newId) {
+            @unlink($uploadDir . '/' . $fileName);
+            throw new RuntimeException('Payment was not saved.');
+        }
 
         $response['success'] = true;
     }
 } catch (Throwable $e) {
+    error_log('submit-pending-payment: ' . $e->getMessage());
     $response['success'] = false;
-    $response['errors'][] = 'Server error: ' . $e->getMessage();
+    $response['errors'][] = 'May error sa server. Subukan ulit mamaya.';
 }
 
 echo json_encode($response);

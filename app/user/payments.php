@@ -2,6 +2,7 @@
 require_once '../../config/config.php';
 require_once '../../config/functions.php';
 require_once '../../config/payment-functions.php';
+require_once '../../config/rental-split.php';
 
 requireRole('user');
 
@@ -29,6 +30,12 @@ if ($myProfile && !empty($myProfile['member_db_id'])) {
     $memberDbId = $myProfile['member_db_id'];
     $eligibility = getMemberEligibility($pdo, $memberDbId);
     $paymentHistory = getPaymentHistory($pdo, $memberDbId);
+}
+
+// Member rate per hectare / per sack from the Equipment page (for the auto-amount)
+$memberRates = [];
+foreach (rentalEquipmentRates($pdo) as $key => $r) {
+    $memberRates[$key] = $r['member'];
 }
 
 renderHeader('Payments');
@@ -383,6 +390,16 @@ renderHeader('Payments');
                                     <?php if ($payment['payment_type'] === 'product' && !empty($payment['product_name'])): ?>
                                         <div style="font-size: 11px; color: #666; margin-top: 3px;"><?php echo htmlspecialchars($payment['product_name']); ?></div>
                                     <?php endif; ?>
+                                    <?php if ($payment['payment_type'] === 'rental' && !empty($payment['equipment'])): ?>
+                                        <div style="font-size: 11px; color: #666; margin-top: 3px;">
+                                            <?php
+                                                echo htmlspecialchars(rentalEquipmentLabel($payment['equipment']));
+                                                if (!empty($payment['quantity'])) {
+                                                    echo ' &middot; ' . htmlspecialchars(rtrim(rtrim(number_format((float) $payment['quantity'], 2), '0'), '.')) . ' ' . rentalEquipmentUnit($payment['equipment']);
+                                                }
+                                            ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="amount">₱<?php echo number_format($payment['amount'], 2); ?></td>
                                 <td>
@@ -441,6 +458,22 @@ renderHeader('Payments');
             <div class="form-group span-2" id="payProductGroup" style="display: none;">
                 <label for="payProductInput">Product <span style="color:#c62828;">*</span></label>
                 <input type="text" name="product_name" id="payProductInput" maxlength="150" placeholder="e.g. Pork meat">
+            </div>
+
+            <!-- Rental only: which equipment, and how many hectares / sacks -->
+            <div class="form-group span-2" id="payEquipGroup" style="display: none;">
+                <label for="payEquipSelect">Equipment <span style="color:#c62828;">*</span></label>
+                <select name="equipment" id="payEquipSelect">
+                    <option value="">-- Piliin --</option>
+                    <?php foreach (rentalEquipmentOptions() as $key => $label): ?>
+                        <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($label); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="form-group span-2" id="payQtyGroup" style="display: none;">
+                <label for="payQtyInput" id="payQtyLabel">Hectares</label>
+                <input type="number" name="quantity" id="payQtyInput" min="0" step="0.5">
             </div>
 
             <div class="gcash-box span-2">
@@ -506,6 +539,12 @@ renderHeader('Payments');
     const productGroup = document.getElementById('payProductGroup');
     const productInput = document.getElementById('payProductInput');
 
+    const equipGroup = document.getElementById('payEquipGroup');
+    const equipSelect = document.getElementById('payEquipSelect');
+    const qtyGroup = document.getElementById('payQtyGroup');
+    const qtyLabel = document.getElementById('payQtyLabel');
+    const qtyInput = document.getElementById('payQtyInput');
+
     const proofInput = document.getElementById('payProofInput');
     const proofDrop = document.getElementById('payProofDrop');
     const proofEmpty = document.getElementById('payProofEmpty');
@@ -516,6 +555,10 @@ renderHeader('Payments');
     if (!openBtn) return; // walang member profile, wala ring button
 
     const MAX_PROOF_BYTES = 5 * 1024 * 1024;
+    // Member rate per hectare / per sack, from the Equipment page
+    const EQUIP_RATES = <?php echo json_encode($memberRates); ?>;
+    // true kapag ang Amount ay galing sa auto-fill (hindi tinype ng member)
+    let amountAuto = false;
 
     function showError(msg) {
         errorsEl.innerHTML = msg;
@@ -535,12 +578,58 @@ renderHeader('Payments');
         if (!isProduct) productInput.value = '';
     }
 
+    // Amount = rate x hectares/sacks. If there is no rate or no quantity,
+    // an auto-filled amount is cleared so an old value is never left behind.
+    function autofillAmount() {
+        const rate = EQUIP_RATES[equipSelect.value] || 0;
+        const qty = parseFloat(qtyInput.value) || 0;
+        if (typeSelect.value === 'rental' && rate > 0 && qty > 0) {
+            amountInput.value = (rate * qty).toFixed(2);
+            amountAuto = true;
+        } else if (amountAuto) {
+            amountInput.value = '';
+            amountAuto = false;
+        }
+    }
+
+    function toggleRentalFields() {
+        const isRental = typeSelect.value === 'rental';
+        const eq = equipSelect.value;
+
+        equipGroup.style.display = isRental ? 'block' : 'none';
+        equipSelect.required = isRental;
+        qtyGroup.style.display = (isRental && eq) ? 'block' : 'none';
+
+        if (eq === 'corn_harvester') {
+            qtyLabel.textContent = 'Hectares';
+            qtyInput.step = '0.5';
+            qtyInput.required = true;
+        } else {
+            qtyLabel.textContent = 'Sacks (optional)';
+            qtyInput.step = '1';
+            qtyInput.required = false;
+        }
+
+        if (!isRental) {
+            equipSelect.value = '';
+            qtyInput.value = '';
+            qtyInput.required = false;
+        }
+        autofillAmount();
+    }
+
+    function resetFormState() {
+        form.reset();
+        amountAuto = false;
+        toggleProductField();
+        toggleRentalFields();
+        resetProofUI();
+    }
+
     function openModal() { backdrop.style.display = 'flex'; }
     function closeModal() {
         backdrop.style.display = 'none';
-        form.reset();
-        toggleProductField();
-        resetProofUI();
+        resetFormState();
         errorsEl.style.display = 'none';
         successEl.style.display = 'none';
     }
@@ -553,13 +642,18 @@ renderHeader('Payments');
     });
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
 
-    // Auto-fill ng ₱150 kapag "Registration Fee" ang pinili
     typeSelect.addEventListener('change', function() {
         toggleProductField();
+        toggleRentalFields();
+        // Auto-fill ng ₱150 kapag "Registration Fee" ang pinili
         if (typeSelect.value === 'registration') {
             amountInput.value = '150';
+            amountAuto = true;
         }
     });
+    equipSelect.addEventListener('change', toggleRentalFields);
+    qtyInput.addEventListener('input', autofillAmount);
+    amountInput.addEventListener('input', function() { amountAuto = false; });
 
     // ---- Proof of payment upload ----
     proofDrop.addEventListener('click', function() { proofInput.click(); });
@@ -623,9 +717,7 @@ renderHeader('Payments');
 
             if (data.success) {
                 successEl.style.display = 'block';
-                form.reset();
-                toggleProductField();
-                resetProofUI();
+                resetFormState();
                 setTimeout(() => { window.location.reload(); }, 1200);
             } else {
                 showError((data.errors || ['May error, subukan ulit.']).join('<br>'));
