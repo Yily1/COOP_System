@@ -143,9 +143,12 @@ renderHeader($pageTitle);
     .checkins-stat-card.not-checked-in { background: #a6322f; }
     .checkins-stat-card.not-checked-in .checkins-stat-label { color: #f5dcdb; }
 
+    /* Mobile: keep 3 columns (centered), just a bit more compact */
     @media (max-width: 420px) {
-        .checkins-stat-grid { grid-template-columns: 1fr; }
-        .checkins-stat-card { flex-direction: row; text-align: left; justify-content: flex-start; gap: 10px; }
+        .checkins-stat-grid { gap: 8px; }
+        .checkins-stat-card { padding: 14px 6px; }
+        .checkins-stat-count { font-size: 20px; }
+        .checkins-stat-label { font-size: 10.5px; }
     }
 
     .meeting-preview-list {
