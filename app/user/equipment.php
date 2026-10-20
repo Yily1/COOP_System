@@ -341,7 +341,7 @@ renderHeader('Equipment Rental');
                     <p class="eq-price">₱<?php echo number_format($eq['rate_member'], 0); ?> per <?php echo htmlspecialchars($unitLabel); ?></p>
                     <div class="eq-status-readonly">
                         <span class="eq-dot <?php echo $isAvailable ? 'eq-dot-success' : 'eq-dot-danger'; ?>"></span>
-                        <span><?php echo $isAvailable ? 'Available' : 'Not available'; ?></span>
+                        <span><?php echo $isAvailable ? 'Available' : 'Under repair'; ?></span>
                     </div>
                 </div>
             </div>
