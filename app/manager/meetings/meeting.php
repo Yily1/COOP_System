@@ -1,14 +1,5 @@
 <?php
-/**
- * app/manager/meetings/meeting.php
- * Single-page meetings module, styled to match the rest of the app
- * (uses renderHeader/renderFooter from config/functions.php).
- *
- * - No ?id in URL  -> list view: search, create meeting, upcoming list, calendar
- * - ?id=<number>   -> detail view: meeting info + member search/check-in
- *
- * Uses the JSON API in ./api/ (checkins.php, members.php).
- */
+
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/functions.php';
 
@@ -372,20 +363,41 @@ $today = date('Y-m-d');
 renderHeader('Meetings');
 ?>
 <style>
+    /* ===== Page header: same as Members page ===== */
     .mtg-page-head {
-        display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
-        margin-bottom:20px;
+        display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+        margin-bottom:16px;
     }
-    .mtg-page-head h1 { display:flex; align-items:center; gap:8px; font-size:24px; color:#2c2c2a; margin:0; }
-    button.mtg-btn-create,
-    .mtg-page-head button.mtg-btn-create {
-        display:inline-flex !important; width:auto !important; max-width:none !important;
-        align-items:center; gap:6px; background:#3B6D11; color:#fff; border:none;
-        border-radius:6px !important; padding:11px 18px !important; font-size:13px !important;
-        font-weight:600; cursor:pointer; white-space:nowrap; text-transform:none !important;
-        letter-spacing:normal !important; line-height:normal;
+    .mtg-page-head h1 { margin:0; } /* no override: follows the global h1 style, like Members */
+
+    /* Same as Members "Create account" button */
+    .mtg-page-head .mtg-btn-create {
+        display:inline-flex !important;
+        align-items:center !important;
+        gap:6px !important;
+        width:auto !important;
+        flex:none !important;
+        background:#3B6D11 !important;
+        color:#fff !important;
+        border:none !important;
+        padding:10px 18px !important;
+        border-radius:6px !important;
+        font-size:14px !important;
+        font-weight:600 !important;
+        box-shadow:0 2px 4px rgba(0,0,0,0.2) !important;
+        cursor:pointer;
+        white-space:nowrap;
     }
-    button.mtg-btn-create:hover { background:#2e5a0d; }
+    .mtg-page-head .mtg-btn-create:hover { background:#2e5a0d !important; }
+
+    /* "Save meeting" button inside the modal keeps its original style */
+    .mtg-modal button.mtg-btn-create {
+        display:inline-flex !important; width:auto !important; align-items:center; gap:6px;
+        background:#3B6D11; color:#fff; border:none; border-radius:6px !important;
+        padding:11px 18px !important; font-size:13px !important; font-weight:600; cursor:pointer;
+        text-transform:none !important; letter-spacing:normal !important;
+    }
+    .mtg-modal button.mtg-btn-create:hover { background:#2e5a0d; }
 
     .mtg-layout { display:grid; grid-template-columns: 1fr 1fr; gap:24px; align-items:start; }
     @media (max-width:880px) { .mtg-layout { grid-template-columns:1fr; } }
@@ -513,10 +525,11 @@ renderHeader('Meetings');
 </style>
 
 <div class="mtg-page-head">
-    <div>
-        <h1>Meetings</h1>
-    </div>
-    <button type="button" class="mtg-btn-create" onclick="document.getElementById('create-modal').style.display='flex'">+ Create meeting</button>
+    <h1>Meetings</h1>
+    <button type="button" class="mtg-btn-create" onclick="document.getElementById('create-modal').style.display='flex'">
+        <span class="material-icons" style="font-size:18px;">add</span>
+        Create meeting
+    </button>
 </div>
 
 <div class="mtg-layout">
