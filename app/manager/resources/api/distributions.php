@@ -24,7 +24,7 @@ switch ($action) {
         }
 
         // Server-side eligibility check — don't trust the dropdown alone.
-        $eligibleIds = array_column(getEligibleMembersForDistribution($pdo), 'id');
+        $eligibleIds = array_map('intval', array_column(getEligibleMembersForDistribution($pdo), 'id'));
         if (!in_array($memberId, $eligibleIds, true)) {
             http_response_code(422);
             echo json_encode(['success' => false, 'message' => 'This member does not currently have an active crop planting.']);

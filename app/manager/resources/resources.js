@@ -37,16 +37,18 @@
         try {
             payload = await res.json();
         } catch (e) {
+            console.error('Non-JSON response from server. Status:', res.status);
             throw new Error('Unexpected server response.');
         }
 
-        if (!res.ok) {
-            throw new Error(payload.error || 'Something went wrong.');
+        if (!res.ok || payload.success === false) {
+            // The PHP API returns { success: false, message: "..." }
+            throw new Error(payload.message || payload.error || 'Something went wrong.');
         }
         return payload;
     }
 
-    // ---------- ADD DISTRIBUTION (POST) ----------
+    // ---------- ADD DISTRIBUTION ----------
     const addBtn = document.getElementById('add-distribution-btn');
     if (addBtn) {
         addBtn.addEventListener('click', () => openModal('add-distribution-modal-wrap'));
@@ -65,6 +67,7 @@
 
             const formData = new FormData(addForm);
             const data = Object.fromEntries(formData.entries());
+            data.action = 'add'; // tells distributions.php which case to run
 
             if (!data.member_id) {
                 showError('add-distribution-error', 'Please select a member.');
@@ -80,12 +83,12 @@
         });
     }
 
-    // ---------- CONFIRM (PATCH status = released) ----------
+    // ---------- CONFIRM (released) ----------
     document.querySelectorAll('.rd-confirm-btn').forEach((btn) => {
         btn.addEventListener('click', async () => {
             if (!confirm('Confirm this distribution as released?')) return;
             try {
-                await apiRequest('PATCH', API_URL, { id: Number(btn.dataset.id), status: 'released' });
+                await apiRequest('POST', API_URL, { action: 'confirm', id: Number(btn.dataset.id) });
                 window.location.reload();
             } catch (err) {
                 alert(err.message);
@@ -93,12 +96,12 @@
         });
     });
 
-    // ---------- DECLINE (PATCH status = not_released) ----------
+    // ---------- DECLINE (not released) ----------
     document.querySelectorAll('.rd-decline-btn').forEach((btn) => {
         btn.addEventListener('click', async () => {
             if (!confirm('Decline this distribution? It will stay marked as not released.')) return;
             try {
-                await apiRequest('PATCH', API_URL, { id: Number(btn.dataset.id), status: 'not_released' });
+                await apiRequest('POST', API_URL, { action: 'decline', id: Number(btn.dataset.id) });
                 window.location.reload();
             } catch (err) {
                 alert(err.message);
