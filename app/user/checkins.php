@@ -22,10 +22,10 @@ $totalMeetings = (int) $pdo->query("SELECT COUNT(*) FROM meetings")->fetchColumn
 
 // ============================================================
 // GET CHECK-IN HISTORY FOR THIS MEMBER
-// NOTE: uses the "attendance" table - this is the same table
-// app/manager/meetings/ajax/checkin.php writes to. An earlier
-// version of this page queried "meeting_attendance" instead,
-// a different table that check-ins never actually get saved to.
+// NOTE: uses the "meeting_attendance" table - this is the same
+// table the manager side (app/manager/meetings/api/checkins.php
+// via markAttendance()) reads and writes, so check-ins made by
+// the manager show up here.
 // ============================================================
 
 $checkins = [];
@@ -38,7 +38,7 @@ if ($linkedMemberId) {
             me.`time`,
             me.location,
             me.description
-        FROM attendance a
+        FROM meeting_attendance a
         JOIN meetings me ON me.id = a.meeting_id
         WHERE a.member_id = ?
         ORDER BY me.meeting_date DESC, me.`time` DESC
