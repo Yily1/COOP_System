@@ -34,29 +34,46 @@ renderHeader('Expenses');
 ?>
 
 <style>
-.ex-head { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
-.ex-head h1 { font-size: 24px; color: #2c2c2a; margin: 0; font-weight: 600; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Page header: same size as the Products page */
+.ex-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; gap: 16px; position: relative; width: 100%;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+.ex-head h1 {
+    margin: 0; flex: 1 1 auto; min-width: 0; position: static !important;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif; color: #222; font-size: 26px; font-weight: 600;
+}
 
 .ex-btn {
-    display: inline-flex !important; align-items: center; gap: 6px; width: auto !important; flex: 0 0 auto !important;
-    border-radius: 6px !important; padding: 9px 16px !important; font-size: 13px !important; font-weight: 600 !important;
-    cursor: pointer !important; border: none !important; text-transform: none !important; letter-spacing: normal !important;
-    background: #3B6D11 !important; color: #fff !important;
+    background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+    font-weight: 600 !important; color: #fff !important; border: none !important;
+    padding: 11px 22px !important; border-radius: 10px !important; cursor: pointer;
+    font-size: 14px !important; font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
+    display: inline-block !important; width: auto !important; max-width: 220px !important;
+    flex: 0 0 auto !important; white-space: nowrap !important;
+    position: static !important; float: none !important; margin-left: auto !important;
+    text-transform: none !important; letter-spacing: normal !important;
 }
 .ex-btn:hover { background: #2e5a0d !important; }
 
-.ex-stats { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 24px; }
-.ex-stat { border-radius: 10px; padding: 16px 18px; color: #fff; flex: 0 0 170px; width: 170px; box-sizing: border-box; }
+/* Summary cards: same size as the Products page */
+.ex-stats { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; }
+.ex-stat {
+    border-radius: 12px; padding: 0 18px; color: #fff; flex: 0 0 160px; width: 160px; height: 92px;
+    box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;
+}
 .ex-stat p { margin: 0; }
-.ex-stat .l { font-size: 12.5px; opacity: .9; margin-bottom: 6px; }
-.ex-stat .v { font-size: 22px; font-weight: 600; }
+.ex-stat .l { font-size: 13px; opacity: .9; margin-bottom: 6px; }
+.ex-stat .v {
+    font-size: 28px; font-weight: 700; line-height: 1.1;
+    font-family: 'Fraunces', 'Times New Roman', Times, serif;
+    font-variant-numeric: lining-nums tabular-nums; white-space: nowrap;
+}
 .ex-stat-total { background: #a84438; }
 .ex-stat-month { background: #C1892B; }
-
-.ex-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.ex-toolbar input {
-    padding: 8px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; width: 240px !important; max-width: 100%; box-sizing: border-box;
-}
 
 .ex-table-wrap { overflow-x: auto; border: 1px solid #e2e0d5; border-radius: 10px; background: #fff; }
 .ex-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -163,10 +180,6 @@ renderHeader('Expenses');
         </div>
     </div>
 
-    <div class="ex-toolbar">
-        <input type="search" id="exSearch" placeholder="Search expenses">
-    </div>
-
     <?php if (empty($expenses)): ?>
         <div class="ex-table-wrap"><p class="ex-empty">No expenses recorded yet. Click &ldquo;+ Add expense&rdquo; to add the first one.</p></div>
     <?php else: ?>
@@ -182,7 +195,7 @@ renderHeader('Expenses');
                 </thead>
                 <tbody>
                     <?php foreach ($expenses as $e): ?>
-                        <tr data-search="<?php echo htmlspecialchars(mb_strtolower($e['description'])); ?>">
+                        <tr>
                             <td data-label="Date" style="white-space:nowrap;"><?php echo date('M j, Y', strtotime($e['expense_date'])); ?></td>
                             <td data-label="Description"><?php echo htmlspecialchars($e['description']); ?></td>
                             <td data-label="Amount" class="ex-amount">₱<?php echo number_format($e['amount'], 2); ?></td>
@@ -271,17 +284,6 @@ renderHeader('Expenses');
                 submitBtn.disabled = false;
             }
         });
-
-        // Search (client-side)
-        const search = document.getElementById('exSearch');
-        if (search) {
-            search.addEventListener('input', function() {
-                const q = search.value.trim().toLowerCase();
-                document.querySelectorAll('#exTable tbody tr').forEach(function(row) {
-                    row.style.display = (!q || row.dataset.search.indexOf(q) !== -1) ? '' : 'none';
-                });
-            });
-        }
     })();
     </script>
 

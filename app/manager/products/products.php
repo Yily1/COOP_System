@@ -9,27 +9,98 @@ $productRequests = getAllProductRequests($pdo);
 $pendingRequestCount = count(array_filter($productRequests, fn($r) => in_array($r['status'], ['pending', 'under_review'], true)));
 $stats = getProductPortfolioStats($pdo);
 
+// Member avatar (same colors and initials logic as the Payments page)
+if (!function_exists('svcSimpleHash')) {
+    function svcSimpleHash($str) {
+        $hash = 0;
+        $len = strlen($str);
+        for ($i = 0; $i < $len; $i++) {
+            $hash = ($hash << 5) - $hash + ord($str[$i]);
+            $hash = $hash & 0xFFFFFFFF;
+            if ($hash > 0x7FFFFFFF) {
+                $hash -= 0x100000000;
+            }
+        }
+        return abs($hash);
+    }
+}
+if (!function_exists('svcAvatarColor')) {
+    function svcAvatarColor($seed) {
+        $palette = [
+            ['bg' => '#534AB7', 'text' => '#F4F3FE'],
+            ['bg' => '#0F6E56', 'text' => '#E1F5EE'],
+            ['bg' => '#993C1D', 'text' => '#FAECE7'],
+            ['bg' => '#993556', 'text' => '#FBEAF0'],
+            ['bg' => '#185FA5', 'text' => '#E6F1FB'],
+            ['bg' => '#3B6D11', 'text' => '#EAF3DE'],
+            ['bg' => '#854F0B', 'text' => '#FAEEDA'],
+            ['bg' => '#791F1F', 'text' => '#FCEBEB'],
+        ];
+        return $palette[svcSimpleHash((string) $seed) % count($palette)];
+    }
+}
+if (!function_exists('svcInitials')) {
+    function svcInitials($firstName, $lastName) {
+        return mb_strtoupper(mb_substr(trim($lastName), 0, 1) . mb_substr(trim($firstName), 0, 1));
+    }
+}
+
 renderHeader('Products');
 ?>
 
 <style>
-.svc-page-head {
-    display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-    margin-bottom: 20px; padding-bottom: 18px;
-}
-.svc-page-head h1 { font-size: 24px; color: #2c2c2a; margin: 0 0 4px; font-weight: 600; }
-.svc-page-head p { font-size: 13px; color: #6b7280; margin: 0; }
-.svc-page-head .svc-badge { background: #fdecea; color: #c62828; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* STAT CARDS (same fixed size as the Crops page cards) */
+/* Inter font, same as the Equipment rental page (top part only) */
+.svc-page-head, .svc-stat-grid {
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+.svc-page-head h1 { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; color: #222; font-size: 26px; font-weight: 600; }
+
+/* Page header: same layout as the Payments page */
+.svc-page-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; gap: 16px; position: relative; width: 100%;
+}
+.svc-page-head h1 { margin: 0; flex: 1 1 auto; min-width: 0; position: static !important; }
+
+/* Add product button: same size as "+ Add payment" */
+.svc-add-btn {
+    background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+    font-weight: 600 !important; color: #fff !important; border: none !important;
+    padding: 11px 22px !important; border-radius: 10px !important; cursor: pointer;
+    font-size: 14px !important; font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
+    display: inline-block !important; width: auto !important;
+    max-width: 220px !important; flex: 0 0 auto !important; white-space: nowrap !important;
+    position: static !important; top: auto !important; left: auto !important; right: auto !important;
+    float: none !important; margin-left: auto !important;
+    text-transform: none !important; letter-spacing: normal !important;
+}
+.svc-add-btn:hover { background: #2e5a0d !important; }
+
+/* Summary cards: same style and size as the Payments page */
 .svc-stat-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
-.svc-stat-card { border-radius: 10px; padding: 16px 18px; color: #fff; flex: 0 0 160px; width: 160px; }
-.svc-stat-card p.svc-stat-label { margin: 0 0 6px; font-size: 12.5px; opacity: 0.9; }
-.svc-stat-card p.svc-stat-value { margin: 0; font-size: 22px; font-weight: 600; }
+.svc-stat-card {
+    border-radius: 12px; padding: 0 18px; min-width: 0; height: 92px; flex: 0 0 160px; width: 160px;
+    box-sizing: border-box; box-shadow: none;
+    display: flex; flex-direction: column; justify-content: center;
+}
+.svc-stat-card p.svc-stat-label { margin: 0 0 6px; font-size: 13px; }
+.svc-stat-card p.svc-stat-value {
+    margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1;
+    font-family: 'Fraunces', 'Times New Roman', Times, serif;
+    font-variant-numeric: lining-nums tabular-nums;
+    white-space: nowrap;
+}
 .svc-stat-total { background: #33502F; }
-.svc-stat-available { background: #3E7A4B; }
-.svc-stat-outofstock { background: #B54A3C; }
+.svc-stat-total p { color: #fff; }
+.svc-stat-available { background: #E1EFDE; }
+.svc-stat-available .svc-stat-label { color: #3F7D52; }
+.svc-stat-available .svc-stat-value { color: #2F6B43; }
+.svc-stat-outofstock { background: #F6E1DC; }
+.svc-stat-outofstock p { color: #B54A3C; }
 .svc-stat-pending { background: #C1892B; }
+.svc-stat-pending p { color: #3E2A07; }
 
 .svc-section-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 28px 0 14px; }
 .svc-section-head:first-of-type { margin-top: 0; }
@@ -85,11 +156,16 @@ renderHeader('Products');
 }
 .svc-mini-btn-reject { color: #c62828 !important; }
 
-.svc-table-wrap { overflow-x: auto; border: 1px solid #e2e0d5; border-radius: 10px; margin-bottom: 8px; }
-.svc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.svc-table th { text-align: left; padding: 12px 14px; background: #fff; border-bottom: 1px solid #e2e0d5; color: #6b7280; font-weight: 600; }
-.svc-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0ea; color: #2c2c2a; vertical-align: top; }
-.svc-table tbody tr:last-child td { border-bottom: none; }
+.svc-table-wrap { overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; background: #fff; }
+.svc-table { width: 100%; border-collapse: collapse; }
+.svc-table th { text-align: left; padding: 10px 12px; background: #fff; border-bottom: 1px solid #eee; color: #222; font-weight: 700; white-space: nowrap; }
+.svc-table td { padding: 10px 12px; border-top: 1px solid #eee; color: #222; vertical-align: middle; }
+.svc-table tbody tr:first-child td { border-top: none; }
+.svc-member-cell { display: flex; align-items: center; gap: 10px; }
+.svc-avatar { width: 32px; height: 32px; min-width: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
+.svc-member-name { margin: 0; font-weight: 600; }
+.svc-member-id { margin: 0; font-size: 12px; color: #888; }
+.svc-muted { color: #666; }
 .svc-empty { padding: 20px; text-align: center; color: #6b7280; font-size: 13px; }
 
 #svcModalBackdrop, #svcRequestModalBackdrop {
@@ -123,7 +199,7 @@ renderHeader('Products');
     .svc-table, .svc-table tbody, .svc-table tr, .svc-table td { display: block; width: 100%; }
     .svc-table tr { border-bottom: 1px solid #f0f0ea; padding: 10px 0; }
     .svc-table tbody tr:last-child { border-bottom: none; }
-    .svc-table td { border-bottom: none !important; padding: 4px 14px; }
+    .svc-table td { border-top: none !important; border-bottom: none !important; padding: 4px 14px; }
     .svc-table td::before {
         content: attr(data-label); display: block; font-size: 11px; font-weight: 600;
         color: #6b7280; text-transform: uppercase; margin-bottom: 2px;
@@ -143,10 +219,8 @@ renderHeader('Products');
 </style>
 
 <div class="svc-page-head">
-    <div>
-        <h1>Products</h1>
-    </div>
-    <button type="button" class="svc-btn svc-btn-primary" id="openAddProductBtn">+ Add product</button>
+    <h1>Products</h1>
+    <button type="button" class="svc-add-btn" id="openAddProductBtn">+ Add product</button>
 </div>
 
 <div class="svc-stat-grid">
@@ -248,14 +322,26 @@ renderHeader('Products');
             </thead>
             <tbody>
                 <?php foreach ($productRequests as $r): ?>
-                    <?php $productLabel = $r['product_name'] ?? ($r['requested_product_name'] . ' (not yet carried)'); ?>
+                    <?php
+                        $productLabel = $r['product_name'] ?? ($r['requested_product_name'] . ' (not yet carried)');
+                        $avatar = svcAvatarColor($r['membership_id']);
+                        $initials = svcInitials($r['first_name'], $r['last_name']);
+                    ?>
                     <tr>
-                        <td data-label="Member"><?php echo htmlspecialchars($r['last_name'] . ', ' . $r['first_name']); ?> <br><span style="color:#9ca3af;font-size:12px;"><?php echo htmlspecialchars($r['membership_id']); ?></span></td>
+                        <td data-label="Member">
+                            <div class="svc-member-cell">
+                                <div class="svc-avatar" style="background: <?php echo $avatar['bg']; ?>; color: <?php echo $avatar['text']; ?>;"><?php echo htmlspecialchars($initials); ?></div>
+                                <div>
+                                    <p class="svc-member-name"><?php echo htmlspecialchars($r['last_name'] . ', ' . $r['first_name']); ?></p>
+                                    <p class="svc-member-id"><?php echo htmlspecialchars($r['membership_id']); ?></p>
+                                </div>
+                            </div>
+                        </td>
                         <td data-label="Product"><?php echo htmlspecialchars($productLabel); ?></td>
                         <td data-label="Qty"><?php echo htmlspecialchars(rtrim(rtrim(number_format($r['quantity'], 2), '0'), '.')); ?> <?php echo htmlspecialchars($r['product_unit'] ?? ''); ?></td>
-                        <td data-label="Pickup"><?php echo date('M j, Y', strtotime($r['pickup_date'])); ?></td>
-                        <td data-label="Notes"><?php echo htmlspecialchars($r['notes'] ?: '—'); ?></td>
-                        <td data-label="Manager Note"><?php echo htmlspecialchars($r['manager_note'] ?: '—'); ?></td>
+                        <td data-label="Pickup"><?php echo date('M d, Y', strtotime($r['pickup_date'])); ?></td>
+                        <td data-label="Notes" class="svc-muted"><?php echo htmlspecialchars($r['notes'] ?: '-'); ?></td>
+                        <td data-label="Manager Note" class="svc-muted"><?php echo htmlspecialchars($r['manager_note'] ?: '-'); ?></td>
                         <td data-label="Status"><?php echo productRequestStatusBadge($r['status']); ?></td>
                         <td data-label="Action">
                             <button type="button" class="svc-mini-btn update-request-btn"
