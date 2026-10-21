@@ -396,3 +396,18 @@ CREATE TABLE expenses (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_expense_date (expense_date)
 );
+
+
+
+UPDATE activity_logs SET user_id = NULL
+WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users);
+
+ALTER TABLE activity_logs
+  ADD CONSTRAINT fk_activity_logs_user
+  FOREIGN KEY (user_id) REFERENCES users(id)
+  ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE expenses
+  ADD CONSTRAINT fk_expenses_recorded_by
+  FOREIGN KEY (recorded_by) REFERENCES users(id)
+  ON DELETE RESTRICT ON UPDATE CASCADE;
