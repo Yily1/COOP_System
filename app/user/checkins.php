@@ -414,18 +414,18 @@ renderHeader($pageTitle);
 
     <div class="checkins-stat-grid">
         <div class="checkins-stat-card total">
-            <p class="checkins-stat-count"><?php echo $totalMeetings; ?></p>
             <p class="checkins-stat-label">Total meetings</p>
+            <p class="checkins-stat-count"><?php echo $totalMeetings; ?></p>
         </div>
 
         <div class="checkins-stat-card checked-in">
-            <p class="checkins-stat-count"><?php echo $checkedInCount; ?></p>
             <p class="checkins-stat-label">Checked in</p>
+            <p class="checkins-stat-count"><?php echo $checkedInCount; ?></p>
         </div>
 
         <div class="checkins-stat-card not-checked-in">
-            <p class="checkins-stat-count"><?php echo $notCheckedInCount; ?></p>
             <p class="checkins-stat-label">Not checked in</p>
+            <p class="checkins-stat-count"><?php echo $notCheckedInCount; ?></p>
         </div>
     </div>
 
