@@ -506,7 +506,7 @@ renderHeader('Crops Management');
     <!-- PAGE HEADER -->
     <div class="cm-header">
         <div>
-            <h1>Crops</h1>
+            <h1>Crops Information List</h1>
         </div>
 
         <div class="cm-header-actions">

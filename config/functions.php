@@ -1045,7 +1045,7 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/manager/products/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/products/products.php">Products</a>
                             <a class="<?php echo navActive('/app/manager/equipment/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.php">Equipment</a>
                             <a class="<?php echo navActive('/app/manager/loans/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/loans/loans.php">Loans</a>
-                            <a class="<?php echo navActive('/app/manager/crops/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/crops/crops.php">Crops</a>
+                            <a class="<?php echo navActive('/app/manager/crops/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/crops/crops.php">Crops information</a>
                             <a class="<?php echo navActive('/app/manager/resources/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/resources/resources.php">Agriculture Resources </a>
                             <a class="<?php echo navActive('/app/manager/expenses/expenses.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Expenses</a>
                         <?php elseif ($currentRole === 'user'): ?>
