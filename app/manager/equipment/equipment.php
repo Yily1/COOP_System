@@ -350,6 +350,31 @@ renderHeader('Equipment Rental');
 }
 .eq-section-header h2 { font-size: 19px; }
 
+/* Title + filter dropdowns beside it */
+.eq-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.eq-filter {
+    width: auto !important;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: none !important;
+    letter-spacing: normal;
+    padding: 7px 10px;
+    border: 1.5px solid var(--eq-line);
+    border-radius: var(--eq-radius);
+    background-color: var(--eq-card);
+    color: var(--eq-ink);
+    box-shadow: none;
+    cursor: pointer;
+}
+.eq-filter:focus { outline: none; border-color: var(--eq-forest); }
+
 /* =========================
    CALENDAR (inside a modal now, not an in-page panel)
    ========================= */
@@ -793,7 +818,23 @@ renderHeader('Equipment Rental');
     <!-- CURRENTLY RENTED -->
     <div class="eq-section">
         <div class="eq-section-header">
-            <h2>Currently rented</h2>
+            <div class="eq-section-title">
+                <h2>Currently rented</h2>
+
+                <select id="filter-renter" class="eq-filter" aria-label="Filter by renter type">
+                    <option value="all">All renters</option>
+                    <option value="member">Member</option>
+                    <option value="nonmember">Non-member</option>
+                </select>
+
+                <select id="filter-equipment" class="eq-filter" aria-label="Filter by equipment">
+                    <option value="all">All equipment</option>
+                    <?php foreach ($equipmentList as $eq): ?>
+                        <option value="<?php echo htmlspecialchars($eq['name']); ?>"><?php echo htmlspecialchars($eq['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
             <div class="eq-btn-group">
                 <button class="eq-btn eq-btn-primary" id="book-btn" type="button">
                     <span class="material-icons">add</span> Book equipment
@@ -827,8 +868,12 @@ renderHeader('Equipment Rental');
                     <?php if (empty($currentBookings)): ?>
                         <tr><td colspan="10" class="eq-muted eq-text-center">No active bookings.</td></tr>
                     <?php endif; ?>
+                    <tr id="eq-filter-empty" style="display:none;">
+                        <td colspan="10" class="eq-muted eq-text-center">No rentals match these filters.</td>
+                    </tr>
                     <?php foreach ($currentBookings as $b): ?>
-                        <tr>
+                        <tr data-type="<?php echo ($b['membership_type'] ?? 'member') === 'nonmember' ? 'nonmember' : 'member'; ?>"
+                            data-equipment="<?php echo htmlspecialchars($b['equipment_name']); ?>">
                             <td><?php echo htmlspecialchars($b['equipment_name']); ?></td>
                             <td><?php echo htmlspecialchars($b['renter_name']); ?></td>
                             <td><?php echo ($b['membership_type'] ?? 'member') === 'nonmember' ? 'Non-member' : 'Member'; ?></td>
@@ -1125,5 +1170,33 @@ renderHeader('Equipment Rental');
 </script>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js"></script>
+
+<!-- Filters for the "Currently rented" table -->
+<script>
+(function () {
+    var renterSel = document.getElementById('filter-renter');
+    var equipSel  = document.getElementById('filter-equipment');
+    var rows      = document.querySelectorAll('.eq-table-wrap tbody tr[data-type]');
+    var emptyRow  = document.getElementById('eq-filter-empty');
+    if (!renterSel && !equipSel) return;
+
+    function applyFilters() {
+        var shown = 0;
+        rows.forEach(function (row) {
+            var okType  = !renterSel || renterSel.value === 'all' || row.dataset.type === renterSel.value;
+            var okEquip = !equipSel || equipSel.value === 'all' || row.dataset.equipment === equipSel.value;
+            var show = okType && okEquip;
+            row.style.display = show ? '' : 'none';
+            if (show) shown++;
+        });
+        if (emptyRow) {
+            emptyRow.style.display = (rows.length > 0 && shown === 0) ? '' : 'none';
+        }
+    }
+
+    if (renterSel) renterSel.addEventListener('change', applyFilters);
+    if (equipSel) equipSel.addEventListener('change', applyFilters);
+})();
+</script>
 
 <?php renderFooter(); ?>

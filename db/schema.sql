@@ -411,3 +411,8 @@ ALTER TABLE expenses
   ADD CONSTRAINT fk_expenses_recorded_by
   FOREIGN KEY (recorded_by) REFERENCES users(id)
   ON DELETE RESTRICT ON UPDATE CASCADE;
+
+  ALTER TABLE meeting_attendance
+  ADD CONSTRAINT fk_attendance_recorded_by
+  FOREIGN KEY (recorded_by) REFERENCES users(id)
+  ON DELETE SET NULL ON UPDATE CASCADE;
