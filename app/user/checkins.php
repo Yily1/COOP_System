@@ -98,31 +98,61 @@ renderHeader($pageTitle);
         font-size: 13.5px;
     }
 
+    /* Back to dashboard (round arrow, right side of the header row).
+       An <a> link, not a <button>, so the site-wide button rules can't touch it. */
+    .page-back {
+        margin-left: auto;
+        flex: none;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: #fff;
+        border: 1px solid #3B6D11;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        color: #3B6D11 !important;
+        text-decoration: none !important;
+        box-shadow: none;
+        transition: background 0.12s ease;
+    }
+
+    .page-back:hover {
+        background: #eef5e4;
+    }
+
+    .page-back svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+    }
+
     /* ============================================================
        3-CARD SUMMARY: Total meetings / Checked in / Not checked in
        Flat solid colors, same palette used across every user page.
+       Compact size: short cards with a small number and label.
        ============================================================ */
     .checkins-stat-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-        margin-bottom: 22px;
+        gap: 8px;
+        margin-bottom: 18px;
     }
 
     .checkins-stat-card {
-        border-radius: 14px;
-        padding: 16px 8px;
+        border-radius: 10px;
+        padding: 9px 6px;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
-        gap: 6px;
+        gap: 2px;
     }
 
     .checkins-stat-count {
         margin: 0;
-        font-size: 22px;
+        font-size: 17px;
         font-weight: 700;
         line-height: 1.1;
         color: #fff;
@@ -130,8 +160,8 @@ renderHeader($pageTitle);
 
     .checkins-stat-label {
         margin: 0;
-        font-size: 11px;
-        line-height: 1.3;
+        font-size: 10px;
+        line-height: 1.25;
     }
 
     .checkins-stat-card.total { background: #274b81; }
@@ -145,10 +175,10 @@ renderHeader($pageTitle);
 
     /* Mobile: keep 3 columns (centered), just a bit more compact */
     @media (max-width: 420px) {
-        .checkins-stat-grid { gap: 8px; }
-        .checkins-stat-card { padding: 14px 6px; }
-        .checkins-stat-count { font-size: 20px; }
-        .checkins-stat-label { font-size: 10.5px; }
+        .checkins-stat-grid { gap: 6px; }
+        .checkins-stat-card { padding: 8px 4px; }
+        .checkins-stat-count { font-size: 16px; }
+        .checkins-stat-label { font-size: 9.5px; }
     }
 
     .meeting-preview-list {
@@ -375,6 +405,11 @@ renderHeader($pageTitle);
             <p class="page-title"><?php echo htmlspecialchars($pageTitle); ?></p>
             <p class="page-sub">Your meeting attendance records</p>
         </div>
+
+        <!-- Back to dashboard: adjust the href if your user dashboard file is named differently -->
+        <a href="<?php echo BASE_URL; ?>/app/user/dashboard.php" class="page-back" aria-label="Back to dashboard" title="Back to dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </a>
     </div>
 
     <div class="checkins-stat-grid">
