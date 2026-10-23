@@ -1051,8 +1051,8 @@ function renderHeader($title) {
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>
                             <a class="<?php echo navActive('/app/user/profile.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/profile.php">My Account</a>
-                            <a class="<?php echo navActive('/app/user/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/user/checkins.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/checkins.php">Meetings</a>
+                            <a class="<?php echo navActive('/app/user/payments.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/payments.php">Transactions</a>
                             <a class="<?php echo navActive('/app/user/products.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/products.php">Products</a>
                             <a class="<?php echo navActive('/app/user/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/equipment.php">Equipment</a>
                             <a class="<?php echo navActive('/app/user/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/loans.php">Loans</a>

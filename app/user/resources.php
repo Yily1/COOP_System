@@ -68,6 +68,35 @@ renderHeader('My Resources');
     font-size: 13.5px;
 }
 
+/* Back to dashboard (round arrow, right side of the header row).
+   An <a> link, not a <button>, so the site-wide button rules can't touch it. */
+.page-back {
+    margin-left: auto;
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid #3B6D11;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    color: #3B6D11 !important;
+    text-decoration: none !important;
+    box-shadow: none;
+    transition: background 0.12s ease;
+}
+
+.page-back:hover {
+    background: #eef5e4;
+}
+
+.page-back svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+}
+
 .section-intro {
     margin: 0 0 14px 0;
     display: flex;
@@ -94,16 +123,17 @@ renderHeader('My Resources');
     text-align: center;
 }
 
+.stat-label {
+    font-size: 12.5px;
+    color: rgba(255,255,255,0.85);
+    margin: 0 0 2px;
+}
+
 .stat-number {
     font-size: 20px;
     font-weight: 700;
     color: #fff;
-    margin: 0 0 2px;
-}
-
-.stat-label {
-    font-size: 12.5px;
-    color: rgba(255,255,255,0.85);
+    margin: 0;
 }
 
 .res-card {
@@ -174,11 +204,16 @@ renderHeader('My Resources');
             <p class="page-title">My resources</p>
             <p class="page-sub">DA resources given to you by the cooperative</p>
         </div>
+
+        <!-- Back to dashboard: adjust the href if your user dashboard file is named differently -->
+        <a href="<?php echo BASE_URL; ?>/app/user/dashboard.php" class="page-back" aria-label="Back to dashboard" title="Back to dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </a>
     </div>
 
     <div class="stat-card">
-        <p class="stat-number"><?php echo count($distributions); ?></p>
         <p class="stat-label">Total distributions</p>
+        <p class="stat-number"><?php echo count($distributions); ?></p>
     </div>
 
     <div class="section-intro">
