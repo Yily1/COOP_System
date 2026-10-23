@@ -55,20 +55,48 @@ renderHeader('Payments');
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
-.history-card h3 { margin: 0 0 8px; }
+.history-card h3 { margin: 0; }
+.history-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
 .payment-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px; flex-wrap: wrap; }
-.payment-card-header-right { display: flex; align-items: center; gap: 14px; }
 .payment-card-header h1 { margin: 0; color: #2e7d32; font-size: 25px; font-weight: 500; }
 .payment-card h3 { color: #333; font-size: 18px; font-weight: 500; }
 .date-short { display: none; }
+
+/* Back to dashboard (round arrow, right side of the header row).
+   An <a> link, not a <button>, so the site-wide button rules can't touch it. */
+.page-back {
+    margin-left: auto;
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid #3B6D11;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    color: #3B6D11 !important;
+    text-decoration: none !important;
+    box-shadow: none;
+    transition: background 0.12s ease;
+}
+.page-back:hover { background: #eef5e4; }
+.page-back svg { width: 18px; height: 18px; stroke: currentColor; }
+
 .add-payment-btn {
     background: #2e7d32 !important;
     color: #fff !important;
     border: none !important;
-    padding: 9px 16px !important;
+    padding: 8px 14px !important;
     border-radius: 6px !important;
     cursor: pointer !important;
-    font-size: 14px !important;
+    font-size: 13.5px !important;
     font-weight: 500 !important;
     text-transform: none !important;
     letter-spacing: normal !important;
@@ -150,8 +178,8 @@ renderHeader('Payments');
         white-space: nowrap;
     }
     .add-payment-btn {
-        padding: 8px 14px !important;
-        font-size: 13px !important;
+        padding: 7px 12px !important;
+        font-size: 12.5px !important;
     }
 
     .stat-grid { gap: 10px; }
@@ -323,11 +351,11 @@ renderHeader('Payments');
 <div class="payment-card">
     <div class="payment-card-header">
         <h1>Payments</h1>
-        <div class="payment-card-header-right">
-            <?php if (!empty($memberDbId)): ?>
-                <button id="openPayModalBtn" class="add-payment-btn">+ Add payment</button>
-            <?php endif; ?>
-        </div>
+
+        <!-- Back to dashboard: adjust the href if your user dashboard file is named differently -->
+        <a href="<?php echo BASE_URL; ?>/app/user/dashboard.php" class="page-back" aria-label="Back to dashboard" title="Back to dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </a>
     </div>
 
     <?php if (empty($memberDbId)): ?>
@@ -352,7 +380,10 @@ renderHeader('Payments');
         </div>
 
         <div class="history-card">
-        <h3>Payment History</h3>
+        <div class="history-card-header">
+            <h3>Payment History</h3>
+            <button id="openPayModalBtn" class="add-payment-btn" type="button">+ Add payment</button>
+        </div>
         <?php if (empty($paymentHistory)): ?>
             <p style="color: #666;">Wala pang payment history.</p>
         <?php else: ?>
