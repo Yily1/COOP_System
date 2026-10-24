@@ -39,6 +39,11 @@ function dash_rows(PDO $pdo, string $sql): array {
 function dash_e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function dash_peso($v) { return '₱' . number_format((float)$v, 2); }
 function dash_peso0($v) { return '₱' . number_format((float)$v, 0); }
+// Same as dash_peso0 but puts the minus sign before the peso sign (for net income)
+function dash_peso0_signed($v) {
+    $v = (float) $v;
+    return ($v < 0 ? '-' : '') . '₱' . number_format(abs($v), 0);
+}
 
 /* ------------------------------------------------------------
    The last 6 months (oldest first), used by the month charts
@@ -122,6 +127,33 @@ if ($expensesReady) {
 }
 
 /* ============================================================
+   NET INCOME  (total income, coop share, minus all expenses)
+   ============================================================ */
+$netIncome = $totalIncome - $totalExpenses;
+$netByMonth = [];
+foreach ($incomeByMonth as $ym => $inc) {
+    $netByMonth[$ym] = $inc - ($expenseByMonth[$ym] ?? 0.0);
+}
+
+// Net income this month vs last month (for the line under the Net income number)
+$netThisMonth = $netByMonth[$months[5]['key']] ?? 0.0;
+$netLastMonth = $netByMonth[$months[4]['key']] ?? 0.0;
+if ($netLastMonth > 0) {
+    $netDiff = $netThisMonth - $netLastMonth;
+    $netDeltaUp = $netDiff >= 0;
+    $netDeltaText = dash_peso0(abs($netDiff)) . ($netDeltaUp ? ' more' : ' less') . ' than last month';
+} elseif ($netThisMonth > 0) {
+    $netDeltaUp = true;
+    $netDeltaText = dash_peso0($netThisMonth) . ' net this month';
+} elseif ($netThisMonth < 0) {
+    $netDeltaUp = false;
+    $netDeltaText = dash_peso0(abs($netThisMonth)) . ' net loss this month';
+} else {
+    $netDeltaUp = null;
+    $netDeltaText = 'No income this month';
+}
+
+/* ============================================================
    #3  SERVICES UTILIZED
    ============================================================ */
 $services = [
@@ -195,7 +227,9 @@ renderHeader($title);
         grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
         gap: 14px;
         margin-bottom: 14px;
+        align-items: stretch;
     }
+    .db-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
     .db-card {
         background: #fff;
         border: 1px solid #e8ede0;
@@ -204,8 +238,8 @@ renderHeader($title);
         min-width: 0;
         box-sizing: border-box;
     }
-    /* Total income sits on the left and spans the 4 small cards on the right */
-    .db-big { grid-row: span 4; display: flex; flex-direction: column; }
+    /* Total income takes the free height of the left column, Net income sits under it */
+    .db-big { flex: 1 1 auto; display: flex; flex-direction: column; }
 
     .db-head {
         display: flex; align-items: center; gap: 8px;
@@ -226,6 +260,7 @@ renderHeader($title);
         font-variant-numeric: lining-nums tabular-nums;
     }
     .db-small-num { font-size: 26px; font-weight: 600; color: #1b3a24; margin: 0; }
+    .db-small-num.neg { color: #a6322f; }
     .db-delta { font-size: 12px; margin: 4px 0 12px; }
     .db-delta.up { color: #2e7d32; }
     .db-delta.down { color: #a6322f; }
@@ -236,9 +271,10 @@ renderHeader($title);
         border-radius: 10px; padding: 1px 8px; font-weight: 600;
     }
 
-    .db-chart-big { position: relative; height: 210px; flex: 1 1 auto; min-height: 210px; }
+    .db-chart-big { position: relative; height: 170px; flex: 1 1 auto; min-height: 170px; }
     .db-chart-sm  { position: relative; height: 84px; margin-top: 6px; }
     .db-chart-line { position: relative; height: 70px; margin-top: 6px; }
+    .db-chart-net { position: relative; height: 84px; margin-top: 6px; }
 
     .db-legend-grid {
         display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px;
@@ -284,9 +320,8 @@ renderHeader($title);
 
     @media (max-width: 760px) {
         .db-grid { grid-template-columns: minmax(0, 1fr); }
-        .db-big { grid-row: auto; }
         .db-hero-num { font-size: 36px; }
-        .db-chart-big { height: 180px; min-height: 180px; flex: none; }
+        .db-chart-big { height: 160px; min-height: 160px; flex: none; }
     }
 </style>
 
@@ -294,107 +329,131 @@ renderHeader($title);
 
     <div class="db-grid">
 
-        <!-- ================= #1 TOTAL INCOME (coop share) ================= -->
-        <div class="db-card db-big">
-            <div class="db-head">
-                <span class="material-icons">payments</span>Total income
-                <span class="db-tag">Coop share only</span>
+        <!-- ================= LEFT COLUMN ================= -->
+        <div class="db-col">
+
+            <!-- #1 TOTAL INCOME (coop share) -->
+            <div class="db-card db-big">
+                <div class="db-head">
+                    <span class="material-icons">payments</span>Total income
+                    <span class="db-tag">Coop share only</span>
+                </div>
+                <p class="db-hero-num"><?php echo dash_peso0($totalIncome); ?></p>
+                <div class="db-delta <?php echo $deltaUp === null ? 'flat' : ($deltaUp ? 'up' : 'down'); ?>">
+                    <?php echo dash_e($deltaText); ?>
+                </div>
+                <div class="db-chart-big">
+                    <canvas id="incomeChart" role="img" aria-label="Bar chart of income per month for the last six months"></canvas>
+                </div>
+                <div class="db-legend-grid">
+                    <?php foreach ($typeMeta as $key => [$label, $color]): ?>
+                        <div class="db-lg">
+                            <b style="background:<?php echo $color; ?>;"></b><?php echo dash_e($label); ?>
+                            <span class="v"><?php echo dash_peso0($incomeByType[$key]); ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
-            <p class="db-hero-num"><?php echo dash_peso0($totalIncome); ?></p>
-            <div class="db-delta <?php echo $deltaUp === null ? 'flat' : ($deltaUp ? 'up' : 'down'); ?>">
-                <?php echo dash_e($deltaText); ?>
+
+            <!-- NET INCOME (total income minus expenses) -->
+            <div class="db-card">
+                <div class="db-head">
+                    <span class="material-icons">trending_up</span>Net income
+                </div>
+                <p class="db-small-num<?php echo $netIncome < 0 ? ' neg' : ''; ?>"><?php echo dash_peso0_signed($netIncome); ?></p>
+                <div class="db-delta <?php echo $netDeltaUp === null ? 'flat' : ($netDeltaUp ? 'up' : 'down'); ?>" style="margin: 4px 0 2px;">
+                    <?php echo dash_e($netDeltaText); ?>
+                </div>
+                <div class="db-chart-net">
+                    <canvas id="netChart" role="img" aria-label="Line chart of net income per month for the last six months"></canvas>
+                </div>
             </div>
-            <div class="db-chart-big">
-                <canvas id="incomeChart" role="img" aria-label="Bar chart of income per month for the last six months"></canvas>
-            </div>
-            <div class="db-legend-grid">
-                <?php foreach ($typeMeta as $key => [$label, $color]): ?>
-                    <div class="db-lg">
-                        <b style="background:<?php echo $color; ?>;"></b><?php echo dash_e($label); ?>
-                        <span class="v"><?php echo dash_peso0($incomeByType[$key]); ?></span>
+
+        </div>
+
+        <!-- ================= RIGHT COLUMN ================= -->
+        <div class="db-col">
+
+            <!-- #2 OPERATIONAL EXPENSES -->
+            <div class="db-card">
+                <div class="db-head">
+                    <span class="material-icons">receipt_long</span>Operational expenses
+                    <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Manage</a>
+                </div>
+                <p class="db-small-num"><?php echo dash_peso0($totalExpenses); ?></p>
+                <?php if (!$expensesReady): ?>
+                    <div class="db-empty-note">
+                        The expenses table isn&rsquo;t set up yet. Run the SQL for it, then
+                        <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">record your first expense</a>.
                     </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <!-- ================= #2 OPERATIONAL EXPENSES ================= -->
-        <div class="db-card">
-            <div class="db-head">
-                <span class="material-icons">receipt_long</span>Operational expenses
-                <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Manage</a>
-            </div>
-            <p class="db-small-num"><?php echo dash_peso0($totalExpenses); ?></p>
-            <?php if (!$expensesReady): ?>
-                <div class="db-empty-note">
-                    The expenses table isn&rsquo;t set up yet. Run the SQL for it, then
-                    <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">record your first expense</a>.
-                </div>
-            <?php elseif ($totalExpenses <= 0): ?>
-                <div class="db-empty-note">
-                    No expenses recorded yet.
-                    <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Add an expense</a>.
-                </div>
-            <?php else: ?>
-                <div class="db-chart-sm">
-                    <canvas id="expenseChart" role="img" aria-label="Bar chart of expenses per month for the last six months"></canvas>
-                </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- ================= #5 REPAIR AND MAINTENANCE ================= -->
-        <div class="db-card">
-            <div class="db-head">
-                <span class="material-icons">handyman</span>Repair and maintenance
-                <a href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php?payment_type=rental">View</a>
-            </div>
-            <p class="db-small-num"><?php echo dash_peso0($repairTotal); ?></p>
-            <?php if ($repairTotal > 0): ?>
-                <div class="db-chart-sm">
-                    <canvas id="repairChart" role="img" aria-label="Bar chart of repair and maintenance share per month for the last six months"></canvas>
-                </div>
-            <?php else: ?>
-                <div class="db-empty-note">No repair share yet. It appears once rentals are confirmed.</div>
-            <?php endif; ?>
-        </div>
-
-        <!-- ================= #3 SERVICES UTILIZED ================= -->
-        <div class="db-card">
-            <div class="db-head">
-                <span class="material-icons">build</span>Services utilized
-            </div>
-            <?php if ($servicesTotal > 0): ?>
-                <div class="db-donut-row">
-                    <div class="db-donut">
-                        <canvas id="servicesChart" role="img" aria-label="Donut chart of services used"></canvas>
-                        <div class="db-donut-center"><?php echo $servicesTotal; ?></div>
+                <?php elseif ($totalExpenses <= 0): ?>
+                    <div class="db-empty-note">
+                        No expenses recorded yet.
+                        <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Add an expense</a>.
                     </div>
-                    <div class="db-donut-legend">
-                        <?php foreach ($services as $name => $count): ?>
-                            <div class="db-lg">
-                                <b style="background:<?php echo $serviceColors[$name]; ?>;"></b><?php echo dash_e($name); ?>
-                                <span class="v"><?php echo $count; ?></span>
-                            </div>
-                        <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="db-chart-sm">
+                        <canvas id="expenseChart" role="img" aria-label="Bar chart of expenses per month for the last six months"></canvas>
                     </div>
-                </div>
-            <?php else: ?>
-                <p class="db-small-num">0</p>
-                <div class="db-empty-note">No services have been used yet.</div>
-            <?php endif; ?>
-        </div>
+                <?php endif; ?>
+            </div>
 
-        <!-- ================= #4 ACTIVE MEMBERS ================= -->
-        <div class="db-card">
-            <div class="db-head">
-                <span class="material-icons">groups</span>Active members
+            <!-- #5 REPAIR AND MAINTENANCE -->
+            <div class="db-card">
+                <div class="db-head">
+                    <span class="material-icons">handyman</span>Repair and maintenance
+                    <a href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php?payment_type=rental">View</a>
+                </div>
+                <p class="db-small-num"><?php echo dash_peso0($repairTotal); ?></p>
+                <?php if ($repairTotal > 0): ?>
+                    <div class="db-chart-sm">
+                        <canvas id="repairChart" role="img" aria-label="Bar chart of repair and maintenance share per month for the last six months"></canvas>
+                    </div>
+                <?php else: ?>
+                    <div class="db-empty-note">No repair share yet. It appears once rentals are confirmed.</div>
+                <?php endif; ?>
             </div>
-            <div style="display:flex; align-items:baseline; gap:8px;">
-                <p class="db-small-num"><?php echo $activeMembers; ?></p>
-                <span class="db-sub">of <?php echo $totalMembers; ?> member<?php echo $totalMembers === 1 ? '' : 's'; ?></span>
+
+            <!-- #3 SERVICES UTILIZED -->
+            <div class="db-card">
+                <div class="db-head">
+                    <span class="material-icons">build</span>Services utilized
+                </div>
+                <?php if ($servicesTotal > 0): ?>
+                    <div class="db-donut-row">
+                        <div class="db-donut">
+                            <canvas id="servicesChart" role="img" aria-label="Donut chart of services used"></canvas>
+                            <div class="db-donut-center"><?php echo $servicesTotal; ?></div>
+                        </div>
+                        <div class="db-donut-legend">
+                            <?php foreach ($services as $name => $count): ?>
+                                <div class="db-lg">
+                                    <b style="background:<?php echo $serviceColors[$name]; ?>;"></b><?php echo dash_e($name); ?>
+                                    <span class="v"><?php echo $count; ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <p class="db-small-num">0</p>
+                    <div class="db-empty-note">No services have been used yet.</div>
+                <?php endif; ?>
             </div>
-            <div class="db-chart-line">
-                <canvas id="membersChart" role="img" aria-label="Line chart of total members over the last six months"></canvas>
+
+            <!-- #4 ACTIVE MEMBERS -->
+            <div class="db-card">
+                <div class="db-head">
+                    <span class="material-icons">groups</span>Active members
+                </div>
+                <div style="display:flex; align-items:baseline; gap:8px;">
+                    <p class="db-small-num"><?php echo $activeMembers; ?></p>
+                    <span class="db-sub">of <?php echo $totalMembers; ?> member<?php echo $totalMembers === 1 ? '' : 's'; ?></span>
+                </div>
+                <div class="db-chart-line">
+                    <canvas id="membersChart" role="img" aria-label="Line chart of total members over the last six months"></canvas>
+                </div>
             </div>
+
         </div>
 
     </div>
@@ -479,6 +538,32 @@ renderHeader($title);
                 scales: {
                     y: { beginAtZero: true, ticks: { color: TICK, callback: peso }, grid: { color: GRID } },
                     x: { ticks: { color: TICK }, grid: { display: false } }
+                }
+            })
+        });
+    }
+
+    // Net income per month (income minus expenses)
+    const net = document.getElementById('netChart');
+    if (net) {
+        const netData = <?php echo json_encode(array_values($netByMonth)); ?>;
+        new Chart(net, {
+            type: 'line',
+            data: {
+                labels: monthLabels,
+                datasets: [{
+                    data: netData,
+                    borderColor: '#1baf7a', backgroundColor: 'rgba(27,175,122,0.10)',
+                    fill: true, tension: 0.3, borderWidth: 2,
+                    pointRadius: netData.map((_, i) => i === netData.length - 1 ? 4 : 0),
+                    pointBackgroundColor: '#1baf7a'
+                }]
+            },
+            options: Object.assign({}, base, {
+                plugins: { legend: { display: false }, tooltip: tip },
+                scales: {
+                    y: { display: false },
+                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
                 }
             })
         });

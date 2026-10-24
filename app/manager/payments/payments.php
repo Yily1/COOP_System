@@ -135,16 +135,14 @@ foreach ($payments as $payment) {
     $repairTotal += (float) ($payment['repair_share'] ?? 0);
 }
 
-$grandTotal = array_sum($totals); // everything collected
-
 renderHeader('Payments');
 ?>
 
 <style>
 /* Summary cards: flat colors, same style as the Equipment rental page */
-/* All 8 cards sit side by side in one row; they share the width equally.
+/* All 7 cards sit side by side in one row; they share the width equally.
    On smaller screens they wrap into 4 and then 2 per row. */
-.pay-summary-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
+.pay-summary-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
 .pay-summary-card {
     border-radius: 12px; padding: 0 14px; min-width: 0; height: 92px;
     box-sizing: border-box; box-shadow: none;
@@ -159,8 +157,6 @@ renderHeader('Payments');
     font-variant-numeric: lining-nums tabular-nums;
     white-space: nowrap;   /* never wrap the amount to a 2nd line */
 }
-.pay-card-dark   { background: #33502F; }
-.pay-card-dark   .pay-card-label, .pay-card-dark   .pay-card-value { color: #fff; }
 .pay-card-amber  { background: #C1892B; }
 .pay-card-amber  .pay-card-label, .pay-card-amber  .pay-card-value { color: #3E2A07; }
 .pay-card-green  { background: #E1EFDE; }
@@ -348,15 +344,10 @@ renderHeader('Payments');
 </div>
 
 <!-- ============================================================
-     OVERALL PAYMENT TOTALS
-     Total collected = everything paid in.
+     PAYMENT TOTALS (confirmed payments, by type)
      Operator and Repair and maintenance = the shares set aside from rentals.
      ============================================================ -->
 <div class="pay-summary-grid">
-    <div class="pay-summary-card pay-card-dark">
-        <p class="pay-card-label">Total collected</p>
-        <p class="pay-card-value">₱<?php echo number_format($grandTotal, 2); ?></p>
-    </div>
     <div class="pay-summary-card pay-card-amber">
         <p class="pay-card-label">Registration</p>
         <p class="pay-card-value">₱<?php echo number_format($totals['registration'], 2); ?></p>
@@ -778,12 +769,15 @@ renderHeader('Payments');
         if (equipment === 'corn_harvester') {
             qtyLabel.textContent = 'Hectares';
             quantityInput.step = '0.5';
+            quantityInput.min = '0.5';
             quantityInput.required = true;
         } else if (equipment) {
             qtyLabel.textContent = 'Sacks (optional)';
             quantityInput.step = '1';
+            quantityInput.min = '0';
             quantityInput.required = false;
         } else {
+            quantityInput.min = '0';
             quantityInput.required = false;
         }
         updateSplitPreview();
