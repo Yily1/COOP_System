@@ -128,11 +128,16 @@ foreach ($payments as $payment) {
     if ($payment['status'] !== 'confirmed') {
         continue;
     }
+    $operator = (float) ($payment['operator_share'] ?? 0);
+    $repair = (float) ($payment['repair_share'] ?? 0);
+
+    // Coop share only: the amount minus the operator and repair shares.
+    // Other payment types have no shares, so their full amount counts.
     if (isset($totals[$payment['payment_type']])) {
-        $totals[$payment['payment_type']] += $payment['amount'];
+        $totals[$payment['payment_type']] += $payment['amount'] - $operator - $repair;
     }
-    $operatorTotal += (float) ($payment['operator_share'] ?? 0);
-    $repairTotal += (float) ($payment['repair_share'] ?? 0);
+    $operatorTotal += $operator;
+    $repairTotal += $repair;
 }
 
 renderHeader('Payments');
