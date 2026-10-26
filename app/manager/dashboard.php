@@ -61,41 +61,73 @@ $windowStart = $months[0]['key'] . '-01';
    Income = amount minus the operator share and the repair and
    maintenance share. Non-rental payments and old rentals have no
    share, so their full amount counts.
+
+   Registration fees are NOT income: they go to the Reserve fund
+   card, so they are left out of every income query below.
    ============================================================ */
 $coop = coopIncomeSql();
+$incomeWhere = "status = 'confirmed' AND LOWER(payment_type) <> 'registration'";
 
-$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE status = 'confirmed'");
+/* ------------------------------------------------------------
+   LOANS RELEASED: money that leaves the coop when a loan is released.
+   It is subtracted from income. When the member pays back, the loan
+   repayment (the amount borrowed plus the interest) is added again,
+   so in the end only the interest stays as income.
+   A loan counts in the month it was released (released_at; older
+   records without it fall back to created_at).
+------------------------------------------------------------ */
+$loanMonthSql = "DATE_FORMAT(COALESCE(released_at, created_at), '%Y-%m')";
+$loanReleasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM loans WHERE status = 'released'");
+$loanReleasedThisMonth = (float) dash_scalar($pdo, "
+    SELECT COALESCE(SUM(amount),0) FROM loans
+    WHERE status = 'released' AND $loanMonthSql = DATE_FORMAT(CURDATE(), '%Y-%m')");
+$loanReleasedLastMonth = (float) dash_scalar($pdo, "
+    SELECT COALESCE(SUM(amount),0) FROM loans
+    WHERE status = 'released' AND $loanMonthSql = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')");
+$loanReleasedByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
+foreach (dash_rows($pdo, "
+    SELECT $loanMonthSql AS ym, SUM(amount) AS total
+    FROM loans
+    WHERE status = 'released' AND COALESCE(released_at, created_at) >= '{$windowStart}'
+    GROUP BY ym") as $r) {
+    if (isset($loanReleasedByMonth[$r['ym']])) $loanReleasedByMonth[$r['ym']] = (float) $r['total'];
+}
+
+$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere") - $loanReleasedTotal;
 
 $thisMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
-    WHERE status = 'confirmed'
-      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')");
+    WHERE $incomeWhere
+      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')") - $loanReleasedThisMonth;
 $lastMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
-    WHERE status = 'confirmed'
-      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')");
+    WHERE $incomeWhere
+      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')") - $loanReleasedLastMonth;
 
 $incomeByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 foreach (dash_rows($pdo, "
     SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total
     FROM payments
-    WHERE status = 'confirmed' AND payment_date >= '{$windowStart}'
+    WHERE $incomeWhere AND payment_date >= '{$windowStart}'
     GROUP BY ym") as $r) {
     if (isset($incomeByMonth[$r['ym']])) $incomeByMonth[$r['ym']] = (float) $r['total'];
 }
+// Subtract the loans released in each month
+foreach ($loanReleasedByMonth as $ym => $released) {
+    if (isset($incomeByMonth[$ym])) $incomeByMonth[$ym] -= $released;
+}
 
-$incomeByType = ['investment' => 0.0, 'loan_repayment' => 0.0, 'rental' => 0.0, 'registration' => 0.0, 'product' => 0.0];
+$incomeByType = ['investment' => 0.0, 'loan_repayment' => 0.0, 'rental' => 0.0, 'product' => 0.0];
 foreach (dash_rows($pdo, "
     SELECT LOWER(payment_type) AS t, SUM($coop) AS total
-    FROM payments WHERE status = 'confirmed' GROUP BY LOWER(payment_type)") as $r) {
+    FROM payments WHERE $incomeWhere GROUP BY LOWER(payment_type)") as $r) {
     $k = str_replace(' ', '_', $r['t']);
     if (isset($incomeByType[$k])) $incomeByType[$k] = (float) $r['total'];
 }
 $typeMeta = [
     'investment'     => ['Investment',          '#2a78d6'],
     'loan_repayment' => ['Loan repayment',      '#1baf7a'],
-    'rental'         => ['Rental (coop share)', '#eda100'],
-    'registration'   => ['Registration',        '#e87ba4'],
+    'rental'         => ['Rental',              '#eda100'],
     'product'        => ['Product',             '#7f77dd'],
 ];
 
@@ -106,6 +138,9 @@ if ($lastMonthIncome > 0) {
 } elseif ($thisMonthIncome > 0) {
     $deltaUp = true;
     $deltaText = dash_peso0($thisMonthIncome) . ' collected this month';
+} elseif ($thisMonthIncome < 0) {
+    $deltaUp = false;
+    $deltaText = dash_peso0(abs($thisMonthIncome)) . ' net outflow this month (loans released)';
 } else {
     $deltaUp = null;
     $deltaText = 'No confirmed payments this month';
@@ -151,6 +186,28 @@ if ($netLastMonth > 0) {
 } else {
     $netDeltaUp = null;
     $netDeltaText = 'No income this month';
+}
+
+/* ============================================================
+   RESERVE FUND  (registration fees, kept apart from income)
+   The full amount counts: registration has no operator or repair share.
+   This is the same number as the Registration card on the Payments page.
+   ============================================================ */
+$reserveTotal = (float) dash_scalar($pdo, "
+    SELECT COALESCE(SUM(amount),0) FROM payments
+    WHERE status = 'confirmed' AND LOWER(payment_type) = 'registration'");
+$reserveCount = (int) dash_scalar($pdo, "
+    SELECT COUNT(*) FROM payments
+    WHERE status = 'confirmed' AND LOWER(payment_type) = 'registration'");
+
+$reserveByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
+foreach (dash_rows($pdo, "
+    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM(amount) AS total
+    FROM payments
+    WHERE status = 'confirmed' AND LOWER(payment_type) = 'registration'
+      AND payment_date >= '{$windowStart}'
+    GROUP BY ym") as $r) {
+    if (isset($reserveByMonth[$r['ym']])) $reserveByMonth[$r['ym']] = (float) $r['total'];
 }
 
 /* ============================================================
@@ -238,7 +295,7 @@ renderHeader($title);
         min-width: 0;
         box-sizing: border-box;
     }
-    /* Total income takes the free height of the left column, Net income sits under it */
+    /* Total income takes the free height of the left column, Net income and Reserve sit under it */
     .db-big { flex: 1 1 auto; display: flex; flex-direction: column; }
 
     .db-head {
@@ -253,6 +310,8 @@ renderHeader($title);
         border: 1px solid #e8ede0; border-radius: 10px; padding: 0 7px;
     }
     .db-head a + .db-num { margin-left: 8px; }
+    /* When a View link comes before the tag, keep the tag next to it instead of pushing it away */
+    .db-head a + .db-tag { margin-left: 8px; }
 
     .db-hero-num {
         font-family: 'Fraunces', 'Times New Roman', Times, serif;
@@ -332,11 +391,10 @@ renderHeader($title);
         <!-- ================= LEFT COLUMN ================= -->
         <div class="db-col">
 
-            <!-- #1 TOTAL INCOME (coop share) -->
+            <!-- #1 TOTAL INCOME (coop share, without registration) -->
             <div class="db-card db-big">
                 <div class="db-head">
                     <span class="material-icons">payments</span>Total income
-                    <span class="db-tag">Coop share only</span>
                 </div>
                 <p class="db-hero-num"><?php echo dash_peso0($totalIncome); ?></p>
                 <div class="db-delta <?php echo $deltaUp === null ? 'flat' : ($deltaUp ? 'up' : 'down'); ?>">
@@ -349,10 +407,11 @@ renderHeader($title);
                     <?php foreach ($typeMeta as $key => [$label, $color]): ?>
                         <div class="db-lg">
                             <b style="background:<?php echo $color; ?>;"></b><?php echo dash_e($label); ?>
-                            <span class="v"><?php echo dash_peso0($incomeByType[$key]); ?></span>
+                            <span class="v"><?php echo dash_peso0_signed($incomeByType[$key]); ?></span>
                         </div>
                     <?php endforeach; ?>
                 </div>
+
             </div>
 
             <!-- NET INCOME (total income minus expenses) -->
@@ -367,6 +426,26 @@ renderHeader($title);
                 <div class="db-chart-net">
                     <canvas id="netChart" role="img" aria-label="Line chart of net income per month for the last six months"></canvas>
                 </div>
+            </div>
+
+            <!-- RESERVE FUND (registration fees, kept apart from income) -->
+            <div class="db-card">
+                <div class="db-head">
+                    <span class="material-icons">savings</span>Reserve fund
+                    <a href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php?payment_type=registration">View</a>
+                    <span class="db-tag">Registration fees</span>
+                </div>
+                <div style="display:flex; align-items:baseline; gap:8px;">
+                    <p class="db-small-num"><?php echo dash_peso0($reserveTotal); ?></p>
+                    <span class="db-sub"><?php echo $reserveCount; ?> registration<?php echo $reserveCount === 1 ? '' : 's'; ?></span>
+                </div>
+                <?php if ($reserveTotal > 0): ?>
+                    <div class="db-chart-sm">
+                        <canvas id="reserveChart" role="img" aria-label="Bar chart of registration fees per month for the last six months"></canvas>
+                    </div>
+                <?php else: ?>
+                    <div class="db-empty-note">No registration fees yet. They appear once registrations are confirmed.</div>
+                <?php endif; ?>
             </div>
 
         </div>
@@ -516,12 +595,12 @@ renderHeader($title);
 (function() {
     const TICK = '#6b7280';
     const GRID = '#e8ede0';
-    const peso = v => '₱' + (v >= 1000 ? (Math.round(v / 100) / 10) + 'k' : v);
-    const tip  = { callbacks: { label: c => '₱' + Number(c.raw).toLocaleString('en-PH') } };
+    const peso = v => (v < 0 ? '-' : '') + '₱' + (Math.abs(v) >= 1000 ? (Math.round(Math.abs(v) / 100) / 10) + 'k' : Math.abs(v));
+    const tip  = { callbacks: { label: c => (c.raw < 0 ? '-' : '') + '₱' + Math.abs(Number(c.raw)).toLocaleString('en-PH') } };
     const base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
     const monthLabels = <?php echo json_encode(array_column($months, 'label')); ?>;
 
-    // #1 Income per month (coop share)
+    // #1 Income per month (coop share, without registration)
     const income = document.getElementById('incomeChart');
     if (income) {
         new Chart(income, {
@@ -530,7 +609,8 @@ renderHeader($title);
                 labels: monthLabels,
                 datasets: [{
                     data: <?php echo json_encode(array_values($incomeByMonth)); ?>,
-                    backgroundColor: '#2a78d6', borderRadius: 4, maxBarThickness: 28
+                    backgroundColor: function (ctx) { return ctx.raw < 0 ? '#b54a3c' : '#2a78d6'; },
+                    borderRadius: 4, maxBarThickness: 28
                 }]
             },
             options: Object.assign({}, base, {
@@ -563,6 +643,28 @@ renderHeader($title);
                 plugins: { legend: { display: false }, tooltip: tip },
                 scales: {
                     y: { display: false },
+                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
+                }
+            })
+        });
+    }
+
+    // Reserve fund per month (registration fees)
+    const reserve = document.getElementById('reserveChart');
+    if (reserve) {
+        new Chart(reserve, {
+            type: 'bar',
+            data: {
+                labels: monthLabels,
+                datasets: [{
+                    data: <?php echo json_encode(array_values($reserveByMonth)); ?>,
+                    backgroundColor: '#e87ba4', borderRadius: 4, maxBarThickness: 26
+                }]
+            },
+            options: Object.assign({}, base, {
+                plugins: { legend: { display: false }, tooltip: tip },
+                scales: {
+                    y: { display: false, beginAtZero: true },
                     x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
                 }
             })

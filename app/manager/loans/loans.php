@@ -1,12 +1,24 @@
 <?php
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/functions.php';
+require_once __DIR__ . '/../../../config/loan-interest.php';
 
 requireRole('manager');
 
 $loans = getAllLoans($pdo);
 $pendingLoanCount = count(array_filter($loans, fn($l) => $l['status'] === 'pending'));
-$stats = getLoanPortfolioStats($pdo);
+
+// Cards at the top: computed with the live interest (amount + 10% per month until paid)
+$stats = loanPortfolioStatsLive($pdo);
+
+// One ledger per member, built only when needed
+$ledgerCache = [];
+function lnLedger(PDO $pdo, array &$cache, int $memberId): array {
+    if (!isset($cache[$memberId])) {
+        $cache[$memberId] = memberLoanLedger($pdo, $memberId);
+    }
+    return $cache[$memberId];
+}
 
 /**
  * "Dela Cruz" + "Juan" -> "DC". Falls back gracefully for blank names.
@@ -105,7 +117,7 @@ renderHeader('Loans');
     gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 20px;
-    border-bottom:;
+    border-bottom: none;
 }
 .ln-header h1 { font-size: 26px; }
 .ln-header > div:first-child { flex: 1; min-width: 0; }
@@ -266,6 +278,10 @@ renderHeader('Loans');
 .ln-dash { color: var(--ln-ink-soft); }
 .ln-actions { display: inline-flex; gap: 6px; justify-content: flex-end; }
 
+/* Amount due now (amount + interest) */
+.ln-due-main { font-weight: 600; margin: 0; }
+.ln-due-sub { font-size: 11.5px; color: var(--ln-ink-soft); margin: 2px 0 0; white-space: nowrap; }
+
 /* MEMBER CELL */
 .ln-member-cell { display: flex; align-items: center; gap: 10px; }
 .ln-avatar {
@@ -370,35 +386,19 @@ renderHeader('Loans');
     margin: 0 0 18px;
 }
 
-.ln-term-field { display: none; margin-bottom: 18px; }
-.ln-term-field.ln-show { display: block; }
-.ln-term-field label {
-    display: block;
-    font-size: 12.5px;
-    font-weight: 600;
-    text-transform: none;
-    letter-spacing: normal;
-    color: var(--ln-ink-soft);
-    margin: 0 0 5px;
-}
-.ln-term-field input {
-    width: 100%;
-    font-family: inherit;
-    font-size: 14px;
-    padding: 9px 11px;
-    border: 1.5px solid var(--ln-line);
+/* Interest note shown when releasing a loan */
+.ln-interest-note {
+    display: none;
+    background: var(--ln-success-soft);
+    color: var(--ln-success);
     border-radius: 8px;
-    background: var(--ln-paper);
-    color: var(--ln-ink);
-    box-shadow: none;
-    box-sizing: border-box;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin: 0 0 18px;
 }
-.ln-term-field input:focus {
-    outline: none;
-    border-color: var(--ln-forest);
-    background: #fff;
-}
-.ln-term-hint { font-size: 12px; color: var(--ln-ink-soft); margin: 6px 0 0; }
+.ln-interest-note.ln-show { display: block; }
+.ln-interest-note strong { font-weight: 600; }
 
 .ln-error-box {
     display: none;
@@ -443,7 +443,7 @@ renderHeader('Loans');
             <p class="ln-metric-value"><?php echo $stats['active_members']; ?></p>
         </div>
         <div class="ln-metric-card ln-tone-danger">
-            <p class="ln-metric-label">Total amount currently released</p>
+            <p class="ln-metric-label">Outstanding balance</p>
             <p class="ln-metric-value ln-value-sm">₱<?php echo number_format($stats['total_outstanding'], 2); ?></p>
         </div>
         <div class="ln-metric-card ln-tone-gold">
@@ -470,7 +470,7 @@ renderHeader('Loans');
                         <th>Amount</th>
                         <th>Purpose</th>
                         <th>Loanable / Balance</th>
-                        <th>Due date</th>
+                        <th>Amount due now</th>
                         <th>Status</th>
                         <th>Requested</th>
                         <th class="ln-text-right">Action</th>
@@ -482,10 +482,14 @@ renderHeader('Loans');
                     <?php endif; ?>
                     <?php foreach ($loans as $loan): ?>
                         <?php
-                            $loanable   = getLoanableAmount($pdo, $loan['member_id']);
-                            $balance    = getMemberLoanBalance($pdo, $loan['member_id']);
+                            $memberId   = (int) $loan['member_id'];
+                            $ledger     = lnLedger($pdo, $ledgerCache, $memberId);
+                            $row        = $ledger[(int) $loan['id']] ?? null;   // only released loans have a ledger row
+                            $loanable   = getLoanableAmount($pdo, $memberId);
+                            $balance    = array_sum(array_column($ledger, 'balance'));
                             $memberName = trim($loan['last_name'] . ', ' . $loan['first_name']);
-                            $paidOff    = ($loan['status'] === 'released' && $balance <= 0);
+                            $paidOff    = ($loan['status'] === 'released' && $row && ($row['closed'] || $row['balance'] <= 0.004));
+                            $interestPerMonth = (float) $loan['amount'] * LOAN_INTEREST_RATE_MONTHLY / 100;
                         ?>
                         <tr>
                             <td>
@@ -501,11 +505,26 @@ renderHeader('Loans');
                             <td><?php echo htmlspecialchars($loan['purpose'] ?: '—'); ?></td>
                             <td>₱<?php echo number_format($loanable, 2); ?> / ₱<?php echo number_format($balance, 2); ?></td>
                             <td>
-                                <?php if (!empty($loan['due_date'])): ?>
-                                    <?php echo date('M j, Y', strtotime($loan['due_date'])); ?>
-                                    <?php if (isLoanOverdue($loan, $balance)): ?>
-                                        <br><span class="ln-status-badge ln-overdue">Overdue</span>
+                                <?php if ($row): ?>
+                                    <?php if ($paidOff): ?>
+                                        <p class="ln-due-main">₱0.00</p>
+                                        <p class="ln-due-sub">Paid ₱<?php echo number_format($row['due'], 2); ?></p>
+                                    <?php else: ?>
+                                        <p class="ln-due-main">₱<?php echo number_format($row['balance'], 2); ?></p>
+                                        <p class="ln-due-sub">
+                                            ₱<?php echo number_format($row['principal'], 2); ?>
+                                            + ₱<?php echo number_format($row['interest'], 2); ?> interest
+                                            (<?php echo (int) $row['months']; ?> mo)
+                                        </p>
+                                        <?php if ($row['legacy'] && !empty($loan['due_date'])): ?>
+                                            <p class="ln-due-sub">Due <?php echo date('M j, Y', strtotime($loan['due_date'])); ?></p>
+                                            <?php if (isLoanOverdue($loan, $balance)): ?>
+                                                <span class="ln-status-badge ln-overdue">Overdue</span>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     <?php endif; ?>
+                                <?php elseif ($loan['status'] === 'approved'): ?>
+                                    <span class="ln-dash">+ ₱<?php echo number_format($interestPerMonth, 2); ?> / month once released</span>
                                 <?php else: ?>
                                     <span class="ln-dash">—</span>
                                 <?php endif; ?>
@@ -518,20 +537,23 @@ renderHeader('Loans');
                                         <button class="ln-btn-link loan-action-btn"
                                                 data-id="<?php echo $loan['id']; ?>" data-action="approve"
                                                 data-member="<?php echo htmlspecialchars($memberName); ?>"
-                                                data-amount="<?php echo number_format($loan['amount'], 2); ?>" type="button">
+                                                data-amount="<?php echo number_format($loan['amount'], 2); ?>"
+                                                data-interest="<?php echo number_format($interestPerMonth, 2); ?>" type="button">
                                             <span class="material-icons">check</span> Approve
                                         </button>
                                         <button class="ln-btn-link ln-btn-link-danger loan-action-btn"
                                                 data-id="<?php echo $loan['id']; ?>" data-action="reject"
                                                 data-member="<?php echo htmlspecialchars($memberName); ?>"
-                                                data-amount="<?php echo number_format($loan['amount'], 2); ?>" type="button">
+                                                data-amount="<?php echo number_format($loan['amount'], 2); ?>"
+                                                data-interest="<?php echo number_format($interestPerMonth, 2); ?>" type="button">
                                             <span class="material-icons">close</span> Reject
                                         </button>
                                     <?php elseif ($loan['status'] === 'approved'): ?>
                                         <button class="ln-btn-link ln-btn-link-info loan-action-btn"
                                                 data-id="<?php echo $loan['id']; ?>" data-action="release"
                                                 data-member="<?php echo htmlspecialchars($memberName); ?>"
-                                                data-amount="<?php echo number_format($loan['amount'], 2); ?>" type="button">
+                                                data-amount="<?php echo number_format($loan['amount'], 2); ?>"
+                                                data-interest="<?php echo number_format($interestPerMonth, 2); ?>" type="button">
                                             <span class="material-icons">payments</span> Release
                                         </button>
                                     <?php else: ?>
@@ -566,10 +588,12 @@ renderHeader('Loans');
 
         <p class="ln-confirm-text" id="loan-modal-message"></p>
 
-        <div class="ln-term-field" id="loan-term-field">
-            <label for="loan-term-input">Loan term (whole months)</label>
-            <input type="number" id="loan-term-input" min="1" step="1" value="1">
-            <p class="ln-term-hint">Interest: <?php echo LOAN_INTEREST_RATE_MONTHLY; ?>% per month</p>
+        <!-- Release only: how the interest works (no loan term to enter) -->
+        <div class="ln-interest-note" id="loan-interest-note">
+            <strong>Interest:</strong> <?php echo LOAN_INTEREST_RATE_MONTHLY; ?>% per month
+            (₱<span class="loan-interest-amt"></span>), counted from today until the loan is fully paid.<br>
+            The member pays on the month they choose. The amount due grows by
+            ₱<span class="loan-interest-amt"></span> each month.
         </div>
 
         <div id="loan-modal-error" class="ln-error-box"></div>
@@ -589,8 +613,7 @@ renderHeader('Loans');
     const modal      = document.getElementById('loan-modal-wrap');
     const titleEl    = document.getElementById('loan-modal-title');
     const messageEl  = document.getElementById('loan-modal-message');
-    const termField  = document.getElementById('loan-term-field');
-    const termInput  = document.getElementById('loan-term-input');
+    const noteEl     = document.getElementById('loan-interest-note');
     const errorBox   = document.getElementById('loan-modal-error');
     const okBtn      = document.getElementById('loan-modal-ok');
     const cancelBtn  = document.getElementById('loan-modal-cancel');
@@ -630,13 +653,18 @@ renderHeader('Loans');
 
             const who = btn.dataset.member + ' (₱' + btn.dataset.amount + ')';
             titleEl.textContent = copy.title;
-            messageEl.textContent = action === 'release'
-                ? 'Release the loan of ' + who + '? Choose the loan term below.'
-                : copy.verb + ' the loan request of ' + who + '?' + (action === 'reject' ? ' This cannot be undone.' : '');
+            messageEl.textContent = copy.verb + ' the loan of ' + who + '?'
+                + (action === 'reject' ? ' This cannot be undone.' : '');
 
             errorBox.classList.remove('ln-show');
-            termField.classList.toggle('ln-show', action === 'release');
-            if (action === 'release') termInput.value = '1';
+
+            // Release shows the interest note (no term to choose)
+            noteEl.classList.toggle('ln-show', action === 'release');
+            if (action === 'release') {
+                document.querySelectorAll('.loan-interest-amt').forEach(function (el) {
+                    el.textContent = btn.dataset.interest;
+                });
+            }
 
             okBtn.textContent = copy.verb;
             okBtn.classList.toggle('ln-btn-danger', copy.danger);
@@ -644,30 +672,18 @@ renderHeader('Loans');
             okBtn.disabled = false;
 
             openModal();
-            if (action === 'release') termInput.focus();
         });
     });
 
     okBtn.addEventListener('click', async function () {
         if (!current) return;
         errorBox.classList.remove('ln-show');
-
-        let termMonths = null;
-        if (current.action === 'release') {
-            termMonths = parseInt(termInput.value, 10);
-            if (!termMonths || termMonths < 1) {
-                showError('Enter a valid whole number of months (1 or more).');
-                return;
-            }
-        }
-
         okBtn.disabled = true;
 
         try {
             const formData = new FormData();
             formData.append('loan_id', current.id);
             formData.append('action', current.action);
-            if (termMonths !== null) formData.append('term_months', termMonths);
 
             const res = await fetch(AJAX_BASE + 'update-loan-status.php', { method: 'POST', body: formData });
             const data = await res.json();
