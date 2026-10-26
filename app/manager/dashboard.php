@@ -431,7 +431,7 @@ renderHeader($title);
             <!-- RESERVE FUND (registration fees, kept apart from income) -->
             <div class="db-card">
                 <div class="db-head">
-                    <span class="material-icons">savings</span>Reserve fund
+                    <span class="material-icons"></span>Reserve fund
                     <a href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php?payment_type=registration">View</a>
                     <span class="db-tag">Registration fees</span>
                 </div>
