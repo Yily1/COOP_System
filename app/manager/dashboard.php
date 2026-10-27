@@ -39,7 +39,6 @@ function dash_rows(PDO $pdo, string $sql): array {
 function dash_e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function dash_peso($v) { return '₱' . number_format((float)$v, 2); }
 function dash_peso0($v) { return '₱' . number_format((float)$v, 0); }
-// Same as dash_peso0 but puts the minus sign before the peso sign (for net income)
 function dash_peso0_signed($v) {
     $v = (float) $v;
     return ($v < 0 ? '-' : '') . '₱' . number_format(abs($v), 0);
@@ -57,85 +56,102 @@ for ($i = 5; $i >= 0; $i--) {
 $windowStart = $months[0]['key'] . '-01';
 
 /* ============================================================
-   #1  TOTAL INCOME  (confirmed payments, COOP SHARE only)
-   Income = amount minus the operator share and the repair and
-   maintenance share. Non-rental payments and old rentals have no
-   share, so their full amount counts.
+   WITHDRAWAL CUTOFF
+   The latest "Net Income" expense starts a new cycle.
+   Everything before it is already withdrawn, except Investment.
+   ============================================================ */
+$expensesReady = !empty(dash_rows($pdo, "SHOW TABLES LIKE 'expenses'"));
 
-   Registration fees are NOT income: they go to the Reserve fund
-   card, so they are left out of every income query below.
+$cutoffId = 0;
+$cutoffDate = null;
+if ($expensesReady) {
+    $cut = dash_rows($pdo, "
+        SELECT id, expense_date FROM expenses
+        WHERE category = 'Net Income'
+        ORDER BY id DESC LIMIT 1");
+    if ($cut) {
+        $cutoffId = (int) $cut[0]['id'];
+        $cutoffDate = $cut[0]['expense_date'];
+    }
+}
+
+$payCut   = $cutoffDate ? "AND payment_date > '{$cutoffDate}'" : '';
+$keepCond = $cutoffDate
+    ? "(LOWER(payment_type) = 'investment' OR payment_date > '{$cutoffDate}')"
+    : '1=1';
+$loanCut  = $cutoffDate ? "AND DATE(COALESCE(released_at, created_at)) > '{$cutoffDate}'" : '';
+$stockCut = $cutoffDate ? "AND purchase_date > '{$cutoffDate}'" : '';
+$opCut    = $cutoffId ? "AND id > {$cutoffId}" : '';
+
+/* ============================================================
+   #1  TOTAL INCOME  (Investment, Rental, Loan, Product)
    ============================================================ */
 $coop = coopIncomeSql();
 $incomeWhere = "status = 'confirmed' AND LOWER(payment_type) <> 'registration'";
 
 /* ------------------------------------------------------------
-   LOANS RELEASED: money that leaves the coop when a loan is released.
-   It is subtracted from income. When the member pays back, the loan
-   repayment (the amount borrowed plus the interest) is added again,
-   so in the end only the interest stays as income.
-   A loan counts in the month it was released (released_at; older
-   records without it fall back to created_at).
+   LOANS RELEASED (current cycle)
 ------------------------------------------------------------ */
 $loanMonthSql = "DATE_FORMAT(COALESCE(released_at, created_at), '%Y-%m')";
-$loanReleasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM loans WHERE status = 'released'");
+$loanReleasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM loans WHERE status = 'released' $loanCut");
 $loanReleasedThisMonth = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM(amount),0) FROM loans
-    WHERE status = 'released' AND $loanMonthSql = DATE_FORMAT(CURDATE(), '%Y-%m')");
+    WHERE status = 'released' $loanCut AND $loanMonthSql = DATE_FORMAT(CURDATE(), '%Y-%m')");
 $loanReleasedLastMonth = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM(amount),0) FROM loans
-    WHERE status = 'released' AND $loanMonthSql = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')");
+    WHERE status = 'released' $loanCut AND $loanMonthSql = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')");
 $loanReleasedByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 foreach (dash_rows($pdo, "
     SELECT $loanMonthSql AS ym, SUM(amount) AS total
     FROM loans
-    WHERE status = 'released' AND COALESCE(released_at, created_at) >= '{$windowStart}'
+    WHERE status = 'released' $loanCut AND COALESCE(released_at, created_at) >= '{$windowStart}'
     GROUP BY ym") as $r) {
     if (isset($loanReleasedByMonth[$r['ym']])) $loanReleasedByMonth[$r['ym']] = (float) $r['total'];
 }
 
 /* ------------------------------------------------------------
-   STOCK PURCHASES: money spent to buy stock (Products > Buy stock).
-   Like a released loan, it is subtracted from Total income, in the
-   month of the purchase date. If the table does not exist yet, the
-   queries fail quietly and count as 0.
+   STOCK PURCHASES (current cycle)
 ------------------------------------------------------------ */
 $stockMonthSql = "DATE_FORMAT(purchase_date, '%Y-%m')";
-$stockPurchasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases");
+$stockPurchasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases WHERE 1=1 $stockCut");
 $stockPurchasedThisMonth = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases
-    WHERE $stockMonthSql = DATE_FORMAT(CURDATE(), '%Y-%m')");
+    WHERE $stockMonthSql = DATE_FORMAT(CURDATE(), '%Y-%m') $stockCut");
 $stockPurchasedLastMonth = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases
-    WHERE $stockMonthSql = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')");
+    WHERE $stockMonthSql = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m') $stockCut");
 $stockPurchasedByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 foreach (dash_rows($pdo, "
     SELECT $stockMonthSql AS ym, SUM(total_cost) AS total
     FROM stock_purchases
-    WHERE purchase_date >= '{$windowStart}'
+    WHERE purchase_date >= '{$windowStart}' $stockCut
     GROUP BY ym") as $r) {
     if (isset($stockPurchasedByMonth[$r['ym']])) $stockPurchasedByMonth[$r['ym']] = (float) $r['total'];
 }
 
-$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere") - $loanReleasedTotal - $stockPurchasedTotal;
+// Total income = all Investment + payments after the last withdrawal - loans/stock after it
+$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere AND $keepCond") - $loanReleasedTotal - $stockPurchasedTotal;
+
+// Investment (all time, never resets)
+$totalInvestment = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere AND LOWER(payment_type) = 'investment'");
 
 $thisMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
-    WHERE $incomeWhere
+    WHERE $incomeWhere AND $keepCond
       AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')") - $loanReleasedThisMonth - $stockPurchasedThisMonth;
 $lastMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
-    WHERE $incomeWhere
+    WHERE $incomeWhere AND $keepCond
       AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')") - $loanReleasedLastMonth - $stockPurchasedLastMonth;
 
 $incomeByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 foreach (dash_rows($pdo, "
     SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total
     FROM payments
-    WHERE $incomeWhere AND payment_date >= '{$windowStart}'
+    WHERE $incomeWhere AND $keepCond AND payment_date >= '{$windowStart}'
     GROUP BY ym") as $r) {
     if (isset($incomeByMonth[$r['ym']])) $incomeByMonth[$r['ym']] = (float) $r['total'];
 }
-// Subtract the loans released and the stock bought in each month
 foreach ($loanReleasedByMonth as $ym => $released) {
     if (isset($incomeByMonth[$ym])) $incomeByMonth[$ym] -= $released;
 }
@@ -146,10 +162,11 @@ foreach ($stockPurchasedByMonth as $ym => $spent) {
 $incomeByType = ['investment' => 0.0, 'loan_repayment' => 0.0, 'rental' => 0.0, 'product' => 0.0];
 foreach (dash_rows($pdo, "
     SELECT LOWER(payment_type) AS t, SUM($coop) AS total
-    FROM payments WHERE $incomeWhere GROUP BY LOWER(payment_type)") as $r) {
+    FROM payments WHERE $incomeWhere AND $keepCond GROUP BY LOWER(payment_type)") as $r) {
     $k = str_replace(' ', '_', $r['t']);
     if (isset($incomeByType[$k])) $incomeByType[$k] = (float) $r['total'];
 }
+
 $typeMeta = [
     'investment'     => ['Investment',          '#2a78d6'],
     'loan_repayment' => ['Loan repayment',      '#1baf7a'],
@@ -173,30 +190,52 @@ if ($lastMonthIncome > 0) {
 }
 
 /* ============================================================
-   #2  OPERATIONAL EXPENSES  (expenses table)
+   #2  EXPENSES & FUNDS
    ============================================================ */
-$expensesReady = !empty(dash_rows($pdo, "SHOW TABLES LIKE 'expenses'"));
-$totalExpenses = 0.0;
+$totalOperational = 0.0;
+$expenseRepair = 0.0;
+$totalWithdrawal = 0.0;
+$totalRegExpenses = 0.0;
+
 $expenseByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
+$repairByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
+
 if ($expensesReady) {
-    $totalExpenses = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses");
+    $totalOperational = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Operational' $opCut");
+    $expenseRepair = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Repair'");
+    $totalWithdrawal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Net Income'");
+    $totalRegExpenses = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Registration'");
+
     foreach (dash_rows($pdo, "
         SELECT DATE_FORMAT(expense_date, '%Y-%m') AS ym, SUM(amount) AS total
-        FROM expenses WHERE expense_date >= '{$windowStart}' GROUP BY ym") as $r) {
+        FROM expenses WHERE category = 'Operational' $opCut AND expense_date >= '{$windowStart}' GROUP BY ym") as $r) {
         if (isset($expenseByMonth[$r['ym']])) $expenseByMonth[$r['ym']] = (float) $r['total'];
+    }
+    foreach (dash_rows($pdo, "
+        SELECT DATE_FORMAT(expense_date, '%Y-%m') AS ym, SUM(amount) AS total
+        FROM expenses WHERE category = 'Repair' AND expense_date >= '{$windowStart}' GROUP BY ym") as $r) {
+        if (isset($repairByMonth[$r['ym']])) $repairByMonth[$r['ym']] = (float) $r['total'];
     }
 }
 
 /* ============================================================
-   NET INCOME  (total income, coop share, minus all expenses)
+   NET INCOME
+   (Total Income - Investment) - Operational, counted after the last withdrawal
    ============================================================ */
-$netIncome = $totalIncome - $totalExpenses;
-$netByMonth = [];
-foreach ($incomeByMonth as $ym => $inc) {
-    $netByMonth[$ym] = $inc - ($expenseByMonth[$ym] ?? 0.0);
+$netIncome = $totalIncome - $totalInvestment - $totalOperational;
+
+$investmentByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
+foreach (dash_rows($pdo, "
+    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total
+    FROM payments WHERE $incomeWhere AND LOWER(payment_type) = 'investment' AND payment_date >= '{$windowStart}' GROUP BY ym") as $r) {
+    if (isset($investmentByMonth[$r['ym']])) $investmentByMonth[$r['ym']] = (float) $r['total'];
 }
 
-// Net income this month vs last month (for the line under the Net income number)
+$netByMonth = [];
+foreach ($incomeByMonth as $ym => $inc) {
+    $netByMonth[$ym] = $inc - ($investmentByMonth[$ym] ?? 0.0) - ($expenseByMonth[$ym] ?? 0.0);
+}
+
 $netThisMonth = $netByMonth[$months[5]['key']] ?? 0.0;
 $netLastMonth = $netByMonth[$months[4]['key']] ?? 0.0;
 if ($netLastMonth > 0) {
@@ -215,13 +254,12 @@ if ($netLastMonth > 0) {
 }
 
 /* ============================================================
-   RESERVE FUND  (registration fees, kept apart from income)
-   The full amount counts: registration has no operator or repair share.
-   This is the same number as the Registration card on the Payments page.
+   RESERVE FUND (Registration)
    ============================================================ */
-$reserveTotal = (float) dash_scalar($pdo, "
+$reserveIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM(amount),0) FROM payments
     WHERE status = 'confirmed' AND LOWER(payment_type) = 'registration'");
+$reserveTotal = $reserveIncome - $totalRegExpenses;
 $reserveCount = (int) dash_scalar($pdo, "
     SELECT COUNT(*) FROM payments
     WHERE status = 'confirmed' AND LOWER(payment_type) = 'registration'");
@@ -237,7 +275,14 @@ foreach (dash_rows($pdo, "
 }
 
 /* ============================================================
-   #3  SERVICES UTILIZED
+   #5 REPAIR AND MAINTENANCE (Pondo)
+   ============================================================ */
+$repairShareFromRentals = (float) dash_scalar($pdo, "
+    SELECT COALESCE(SUM(repair_share),0) FROM payments WHERE status = 'confirmed'");
+$totalRepair = $repairShareFromRentals - $expenseRepair;
+
+/* ============================================================
+   #3 SERVICES UTILIZED
    ============================================================ */
 $services = [
     'Products'  => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM product_requests WHERE status <> 'rejected'"),
@@ -250,7 +295,7 @@ $serviceColors = ['Products' => '#2a78d6', 'Equipment' => '#eb6834', 'Resources'
 $servicesTotal = array_sum($services);
 
 /* ============================================================
-   #4  ACTIVE MEMBERS
+   #4 ACTIVE MEMBERS
    ============================================================ */
 $totalMembers  = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM members");
 $activeMembers = (int) dash_scalar($pdo, "
@@ -258,7 +303,6 @@ $activeMembers = (int) dash_scalar($pdo, "
     INNER JOIN users u ON u.member_id = m.id
     WHERE u.account_status = 'Active'");
 
-// Cumulative number of members at the end of each of the last 6 months
 $membersBefore = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM members WHERE created_at < '{$windowStart}'");
 $newByMonth = array_fill_keys(array_column($months, 'key'), 0);
 foreach (dash_rows($pdo, "
@@ -269,22 +313,6 @@ foreach (dash_rows($pdo, "
 $memberGrowth = [];
 $running = $membersBefore;
 foreach ($newByMonth as $c) { $running += $c; $memberGrowth[] = $running; }
-
-/* ============================================================
-   #5  REPAIR AND MAINTENANCE  (share set aside from rentals)
-   The operator share is NOT shown here; it is on the Payments page.
-   ============================================================ */
-$repairTotal = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM(repair_share),0) FROM payments WHERE status = 'confirmed'");
-
-$repairByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
-foreach (dash_rows($pdo, "
-    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM(COALESCE(repair_share,0)) AS total
-    FROM payments
-    WHERE status = 'confirmed' AND payment_date >= '{$windowStart}'
-    GROUP BY ym") as $r) {
-    if (isset($repairByMonth[$r['ym']])) $repairByMonth[$r['ym']] = (float) $r['total'];
-}
 
 /* ============================================================
    RECENT ACTIVITY
@@ -304,110 +332,49 @@ renderHeader($title);
 
 <style>
     .db-wrap { max-width: 1280px; margin: 0 auto; padding: 0 4px; }
-
-    .db-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-        gap: 14px;
-        margin-bottom: 14px;
-        align-items: stretch;
-    }
+    .db-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; align-items: stretch; }
     .db-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-    .db-card {
-        background: #fff;
-        border: 1px solid #e8ede0;
-        border-radius: 14px;
-        padding: 16px 18px;
-        min-width: 0;
-        box-sizing: border-box;
-    }
-    /* Total income takes the free height of the left column, Net income and Reserve sit under it */
+    .db-card { background: #fff; border: 1px solid #e8ede0; border-radius: 14px; padding: 16px 18px; min-width: 0; box-sizing: border-box; }
     .db-big { flex: 1 1 auto; display: flex; flex-direction: column; }
-
-    .db-head {
-        display: flex; align-items: center; gap: 8px;
-        margin: 0 0 6px; font-size: 13px; color: #667066;
-    }
+    .db-head { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 13px; color: #667066; }
     .db-head .material-icons { font-size: 18px; color: #2f4f2f; }
     .db-head a { margin-left: auto; font-size: 12px; font-weight: 600; color: #3B6D11; text-decoration: none; }
     .db-head a:hover { text-decoration: underline; }
-    .db-num {
-        margin-left: auto; font-size: 11px; color: #9aa39a;
-        border: 1px solid #e8ede0; border-radius: 10px; padding: 0 7px;
-    }
+    .db-num { margin-left: auto; font-size: 11px; color: #9aa39a; border: 1px solid #e8ede0; border-radius: 10px; padding: 0 7px; }
     .db-head a + .db-num { margin-left: 8px; }
-    /* When a View link comes before the tag, keep the tag next to it instead of pushing it away */
     .db-head a + .db-tag { margin-left: 8px; }
-
-    .db-hero-num {
-        font-family: 'Fraunces', 'Times New Roman', Times, serif;
-        font-size: 44px; line-height: 1.1; color: #1b3a24; margin: 0;
-        font-variant-numeric: lining-nums tabular-nums;
-    }
+    .db-hero-num { font-family: 'Fraunces', 'Times New Roman', Times, serif; font-size: 44px; line-height: 1.1; color: #1b3a24; margin: 0; font-variant-numeric: lining-nums tabular-nums; }
     .db-small-num { font-size: 26px; font-weight: 600; color: #1b3a24; margin: 0; }
     .db-small-num.neg { color: #a6322f; }
     .db-delta { font-size: 12px; margin: 4px 0 12px; }
-    .db-delta.up { color: #2e7d32; }
-    .db-delta.down { color: #a6322f; }
-    .db-delta.flat { color: #667066; }
+    .db-delta.up { color: #2e7d32; } .db-delta.down { color: #a6322f; } .db-delta.flat { color: #667066; }
     .db-sub { font-size: 12px; color: #667066; }
-    .db-tag {
-        margin-left: auto; font-size: 11px; color: #854F0B; background: #FAEEDA;
-        border-radius: 10px; padding: 1px 8px; font-weight: 600;
-    }
-
+    .db-tag { margin-left: auto; font-size: 11px; color: #854F0B; background: #FAEEDA; border-radius: 10px; padding: 1px 8px; font-weight: 600; }
     .db-chart-big { position: relative; height: 170px; flex: 1 1 auto; min-height: 170px; }
     .db-chart-sm  { position: relative; height: 84px; margin-top: 6px; }
     .db-chart-line { position: relative; height: 70px; margin-top: 6px; }
     .db-chart-net { position: relative; height: 84px; margin-top: 6px; }
-
-    .db-legend-grid {
-        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px;
-        margin-top: 14px; padding-top: 12px; border-top: 1px solid #f0f2ea;
-    }
+    .db-legend-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f0f2ea; }
     .db-lg { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #667066; min-width: 0; }
     .db-lg b { width: 9px; height: 9px; border-radius: 2px; flex: none; }
     .db-lg span.v { margin-left: auto; color: #1b3a24; font-weight: 500; white-space: nowrap; }
-
     .db-donut-row { display: flex; align-items: center; gap: 14px; }
     .db-donut { position: relative; width: 92px; height: 92px; flex: none; }
-    .db-donut-center {
-        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-        font-size: 20px; font-weight: 600; color: #1b3a24;
-    }
+    .db-donut-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; color: #1b3a24; }
     .db-donut-legend { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-
-    .db-empty-note {
-        font-size: 12.5px; color: #667066; background: #f7f8f5; border-radius: 8px;
-        padding: 10px 12px; margin-top: 8px; line-height: 1.5;
-    }
+    .db-empty-note { font-size: 12.5px; color: #667066; background: #f7f8f5; border-radius: 8px; padding: 10px 12px; margin-top: 8px; line-height: 1.5; }
     .db-empty-note a { color: #3B6D11; font-weight: 600; }
-
-    /* Recent activity */
     .db-card h3 { margin: 0 0 10px !important; font-size: 15px !important; font-weight: 600 !important; color: #2c3e2c !important; background: none !important; }
     .db-table-wrap { overflow-x: auto; }
     .db-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .db-table th {
-        text-align: left; font-weight: 600; font-size: 11px; color: #888;
-        text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 10px; border-bottom: 2px solid #e8ede0;
-        background: #fff;
-    }
+    .db-table th { text-align: left; font-weight: 600; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 10px; border-bottom: 2px solid #e8ede0; background: #fff; }
     .db-table td { padding: 11px 10px; border-bottom: 1px solid #f0f2ea; color: #2c3e2c; }
     .db-table tbody tr:hover td { background: #f8faf5; }
     .db-pill { font-size: 11px; padding: 3px 9px; border-radius: 7px; font-weight: 600; white-space: nowrap; }
     .db-empty { color: #999; text-align: center; padding: 28px 0; font-style: italic; }
-
     .db-debug { border-left: 4px solid #a84438 !important; background: #fdf6f5; margin-top: 14px; }
-    .db-debug pre {
-        white-space: pre-wrap; font-size: 11px; margin: 0 0 8px; color: #712b13; background: #fff;
-        padding: 10px; border-radius: 6px; border: 1px solid #f0d5d0; font-family: Consolas, monospace;
-    }
-
-    @media (max-width: 760px) {
-        .db-grid { grid-template-columns: minmax(0, 1fr); }
-        .db-hero-num { font-size: 36px; }
-        .db-chart-big { height: 160px; min-height: 160px; flex: none; }
-    }
+    .db-debug pre { white-space: pre-wrap; font-size: 11px; margin: 0 0 8px; color: #712b13; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #f0d5d0; font-family: Consolas, monospace; }
+    @media (max-width: 760px) { .db-grid { grid-template-columns: minmax(0, 1fr); } .db-hero-num { font-size: 36px; } .db-chart-big { height: 160px; min-height: 160px; flex: none; } }
 </style>
 
 <div class="db-wrap">
@@ -417,7 +384,7 @@ renderHeader($title);
         <!-- ================= LEFT COLUMN ================= -->
         <div class="db-col">
 
-            <!-- #1 TOTAL INCOME (coop share, without registration) -->
+            <!-- #1 TOTAL INCOME -->
             <div class="db-card db-big">
                 <div class="db-head">
                     <span class="material-icons">payments</span>Total income
@@ -438,10 +405,9 @@ renderHeader($title);
                         </div>
                     <?php endforeach; ?>
                 </div>
-
             </div>
 
-            <!-- NET INCOME (total income minus expenses) -->
+            <!-- NET INCOME -->
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">trending_up</span>Net income
@@ -455,7 +421,7 @@ renderHeader($title);
                 </div>
             </div>
 
-            <!-- RESERVE FUND (registration fees, kept apart from income) -->
+            <!-- RESERVE FUND -->
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">savings</span>Reserve fund
@@ -471,7 +437,7 @@ renderHeader($title);
                         <canvas id="reserveChart" role="img" aria-label="Bar chart of registration fees per month for the last six months"></canvas>
                     </div>
                 <?php else: ?>
-                    <div class="db-empty-note">No registration fees yet. They appear once registrations are confirmed.</div>
+                    <div class="db-empty-note">No registration fund balance yet.</div>
                 <?php endif; ?>
             </div>
 
@@ -486,16 +452,14 @@ renderHeader($title);
                     <span class="material-icons">receipt_long</span>Operational expenses
                     <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Manage</a>
                 </div>
-                <p class="db-small-num"><?php echo dash_peso0($totalExpenses); ?></p>
+                <p class="db-small-num"><?php echo dash_peso0($totalOperational); ?></p>
                 <?php if (!$expensesReady): ?>
                     <div class="db-empty-note">
-                        The expenses table isn&rsquo;t set up yet. Run the SQL for it, then
-                        <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">record your first expense</a>.
+                        The expenses table isn&rsquo;t set up yet.
                     </div>
-                <?php elseif ($totalExpenses <= 0): ?>
+                <?php elseif ($totalOperational <= 0): ?>
                     <div class="db-empty-note">
-                        No expenses recorded yet.
-                        <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Add an expense</a>.
+                        No operational expenses yet.
                     </div>
                 <?php else: ?>
                     <div class="db-chart-sm">
@@ -510,13 +474,13 @@ renderHeader($title);
                     <span class="material-icons">handyman</span>Repair and maintenance
                     <a href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php?payment_type=rental">View</a>
                 </div>
-                <p class="db-small-num"><?php echo dash_peso0($repairTotal); ?></p>
-                <?php if ($repairTotal > 0): ?>
+                <p class="db-small-num"><?php echo dash_peso0($totalRepair); ?></p>
+                <?php if ($totalRepair > 0): ?>
                     <div class="db-chart-sm">
                         <canvas id="repairChart" role="img" aria-label="Bar chart of repair and maintenance share per month for the last six months"></canvas>
                     </div>
                 <?php else: ?>
-                    <div class="db-empty-note">No repair share yet. It appears once rentals are confirmed.</div>
+                    <div class="db-empty-note">No repair fund balance yet.</div>
                 <?php endif; ?>
             </div>
 
@@ -627,160 +591,71 @@ renderHeader($title);
     const base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
     const monthLabels = <?php echo json_encode(array_column($months, 'label')); ?>;
 
-    // #1 Income per month (coop share, without registration)
     const income = document.getElementById('incomeChart');
     if (income) {
         new Chart(income, {
             type: 'bar',
             data: {
                 labels: monthLabels,
-                datasets: [{
-                    data: <?php echo json_encode(array_values($incomeByMonth)); ?>,
-                    backgroundColor: function (ctx) { return ctx.raw < 0 ? '#b54a3c' : '#2a78d6'; },
-                    borderRadius: 4, maxBarThickness: 28
-                }]
+                datasets: [{ data: <?php echo json_encode(array_values($incomeByMonth)); ?>, backgroundColor: function (ctx) { return ctx.raw < 0 ? '#b54a3c' : '#2a78d6'; }, borderRadius: 4, maxBarThickness: 28 }]
             },
-            options: Object.assign({}, base, {
-                plugins: { legend: { display: false }, tooltip: tip },
-                scales: {
-                    y: { beginAtZero: true, ticks: { color: TICK, callback: peso }, grid: { color: GRID } },
-                    x: { ticks: { color: TICK }, grid: { display: false } }
-                }
-            })
+            options: Object.assign({}, base, { plugins: { legend: { display: false }, tooltip: tip }, scales: { y: { beginAtZero: true, ticks: { color: TICK, callback: peso }, grid: { color: GRID } }, x: { ticks: { color: TICK }, grid: { display: false } } } })
         });
     }
 
-    // Net income per month (income minus expenses)
     const net = document.getElementById('netChart');
     if (net) {
         const netData = <?php echo json_encode(array_values($netByMonth)); ?>;
         new Chart(net, {
             type: 'line',
-            data: {
-                labels: monthLabels,
-                datasets: [{
-                    data: netData,
-                    borderColor: '#1baf7a', backgroundColor: 'rgba(27,175,122,0.10)',
-                    fill: true, tension: 0.3, borderWidth: 2,
-                    pointRadius: netData.map((_, i) => i === netData.length - 1 ? 4 : 0),
-                    pointBackgroundColor: '#1baf7a'
-                }]
-            },
-            options: Object.assign({}, base, {
-                plugins: { legend: { display: false }, tooltip: tip },
-                scales: {
-                    y: { display: false },
-                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
-                }
-            })
+            data: { labels: monthLabels, datasets: [{ data: netData, borderColor: '#1baf7a', backgroundColor: 'rgba(27,175,122,0.10)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: netData.map((_, i) => i === netData.length - 1 ? 4 : 0), pointBackgroundColor: '#1baf7a' }] },
+            options: Object.assign({}, base, { plugins: { legend: { display: false }, tooltip: tip }, scales: { y: { display: false }, x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } } } })
         });
     }
 
-    // Reserve fund per month (registration fees)
     const reserve = document.getElementById('reserveChart');
     if (reserve) {
         new Chart(reserve, {
             type: 'bar',
-            data: {
-                labels: monthLabels,
-                datasets: [{
-                    data: <?php echo json_encode(array_values($reserveByMonth)); ?>,
-                    backgroundColor: '#e87ba4', borderRadius: 4, maxBarThickness: 26
-                }]
-            },
-            options: Object.assign({}, base, {
-                plugins: { legend: { display: false }, tooltip: tip },
-                scales: {
-                    y: { display: false, beginAtZero: true },
-                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
-                }
-            })
+            data: { labels: monthLabels, datasets: [{ data: <?php echo json_encode(array_values($reserveByMonth)); ?>, backgroundColor: '#e87ba4', borderRadius: 4, maxBarThickness: 26 }] },
+            options: Object.assign({}, base, { plugins: { legend: { display: false }, tooltip: tip }, scales: { y: { display: false, beginAtZero: true }, x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } } } })
         });
     }
 
-    // #2 Expenses per month
     const expense = document.getElementById('expenseChart');
     if (expense) {
         new Chart(expense, {
             type: 'bar',
-            data: {
-                labels: monthLabels,
-                datasets: [{
-                    data: <?php echo json_encode(array_values($expenseByMonth)); ?>,
-                    backgroundColor: '#eb6834', borderRadius: 4, maxBarThickness: 26
-                }]
-            },
-            options: Object.assign({}, base, {
-                plugins: { legend: { display: false }, tooltip: tip },
-                scales: {
-                    y: { display: false, beginAtZero: true },
-                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
-                }
-            })
+            data: { labels: monthLabels, datasets: [{ data: <?php echo json_encode(array_values($expenseByMonth)); ?>, backgroundColor: '#eb6834', borderRadius: 4, maxBarThickness: 26 }] },
+            options: Object.assign({}, base, { plugins: { legend: { display: false }, tooltip: tip }, scales: { y: { display: false, beginAtZero: true }, x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } } } })
         });
     }
 
-    // #5 Repair and maintenance per month
     const repair = document.getElementById('repairChart');
     if (repair) {
         new Chart(repair, {
             type: 'bar',
-            data: {
-                labels: monthLabels,
-                datasets: [{
-                    data: <?php echo json_encode(array_values($repairByMonth)); ?>,
-                    backgroundColor: '#0F6E56', borderRadius: 4, maxBarThickness: 26
-                }]
-            },
-            options: Object.assign({}, base, {
-                plugins: { legend: { display: false }, tooltip: tip },
-                scales: {
-                    y: { display: false, beginAtZero: true },
-                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
-                }
-            })
+            data: { labels: monthLabels, datasets: [{ data: <?php echo json_encode(array_values($repairByMonth)); ?>, backgroundColor: '#0F6E56', borderRadius: 4, maxBarThickness: 26 }] },
+            options: Object.assign({}, base, { plugins: { legend: { display: false }, tooltip: tip }, scales: { y: { display: false, beginAtZero: true }, x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } } } })
         });
     }
 
-    // #3 Services utilized
     const services = document.getElementById('servicesChart');
     if (services) {
         new Chart(services, {
             type: 'doughnut',
-            data: {
-                labels: <?php echo json_encode(array_keys($services)); ?>,
-                datasets: [{
-                    data: <?php echo json_encode(array_values($services)); ?>,
-                    backgroundColor: <?php echo json_encode(array_values($serviceColors)); ?>,
-                    borderWidth: 2, borderColor: '#ffffff'
-                }]
-            },
+            data: { labels: <?php echo json_encode(array_keys($services)); ?>, datasets: [{ data: <?php echo json_encode(array_values($services)); ?>, backgroundColor: <?php echo json_encode(array_values($serviceColors)); ?>, borderWidth: 2, borderColor: '#ffffff' }] },
             options: Object.assign({}, base, { cutout: '66%' })
         });
     }
 
-    // #4 Members growth
     const members = document.getElementById('membersChart');
     if (members) {
         const growth = <?php echo json_encode($memberGrowth); ?>;
         new Chart(members, {
             type: 'line',
-            data: {
-                labels: monthLabels,
-                datasets: [{
-                    data: growth,
-                    borderColor: '#1baf7a', backgroundColor: 'rgba(27,175,122,0.10)',
-                    fill: true, tension: 0.3, borderWidth: 2,
-                    pointRadius: growth.map((_, i) => i === growth.length - 1 ? 4 : 0),
-                    pointBackgroundColor: '#1baf7a'
-                }]
-            },
-            options: Object.assign({}, base, {
-                scales: {
-                    y: { display: false, beginAtZero: true },
-                    x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } }
-                }
-            })
+            data: { labels: monthLabels, datasets: [{ data: growth, borderColor: '#1baf7a', backgroundColor: 'rgba(27,175,122,0.10)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: growth.map((_, i) => i === growth.length - 1 ? 4 : 0), pointBackgroundColor: '#1baf7a' }] },
+            options: Object.assign({}, base, { scales: { y: { display: false, beginAtZero: true }, x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } } } })
         });
     }
 })();

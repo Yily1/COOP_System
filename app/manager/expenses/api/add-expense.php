@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $date        = trim($_POST['expense_date'] ?? '');
+$category    = trim($_POST['category'] ?? 'Operational'); // SINASALO ANG CATEGORY
 $amount      = $_POST['amount'] ?? '';
 $description = trim($_POST['description'] ?? '');
 
@@ -32,12 +33,14 @@ if (mb_strlen($description) > 255) out(false, 'Description is too long (max 255 
 $recordedBy = $_SESSION['user_id'] ?? $_SESSION['id'] ?? ($_SESSION['user']['id'] ?? null);
 
 try {
+    // IDINAGDAG ANG CATEGORY SA INSERT QUERY
     $stmt = $pdo->prepare(
-        'INSERT INTO expenses (expense_date, description, amount, recorded_by)
-         VALUES (:date, :description, :amount, :recorded_by)'
+        'INSERT INTO expenses (expense_date, category, description, amount, recorded_by)
+         VALUES (:date, :category, :description, :amount, :recorded_by)'
     );
     $stmt->execute([
         ':date'        => $date,
+        ':category'    => $category,
         ':description' => $description,
         ':amount'      => round((float)$amount, 2),
         ':recorded_by' => $recordedBy,

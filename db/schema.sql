@@ -431,6 +431,8 @@ ALTER TABLE expenses
   FOREIGN KEY (recorded_by) REFERENCES users(id)
   ON DELETE RESTRICT ON UPDATE CASCADE;
 
+  ALTER TABLE expenses ADD COLUMN category VARCHAR(50) NOT NULL DEFAULT 'Operational' AFTER expense_date;
+
 
 
 
