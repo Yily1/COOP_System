@@ -93,16 +93,39 @@ foreach (dash_rows($pdo, "
     if (isset($loanReleasedByMonth[$r['ym']])) $loanReleasedByMonth[$r['ym']] = (float) $r['total'];
 }
 
-$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere") - $loanReleasedTotal;
+/* ------------------------------------------------------------
+   STOCK PURCHASES: money spent to buy stock (Products > Buy stock).
+   Like a released loan, it is subtracted from Total income, in the
+   month of the purchase date. If the table does not exist yet, the
+   queries fail quietly and count as 0.
+------------------------------------------------------------ */
+$stockMonthSql = "DATE_FORMAT(purchase_date, '%Y-%m')";
+$stockPurchasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases");
+$stockPurchasedThisMonth = (float) dash_scalar($pdo, "
+    SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases
+    WHERE $stockMonthSql = DATE_FORMAT(CURDATE(), '%Y-%m')");
+$stockPurchasedLastMonth = (float) dash_scalar($pdo, "
+    SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases
+    WHERE $stockMonthSql = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')");
+$stockPurchasedByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
+foreach (dash_rows($pdo, "
+    SELECT $stockMonthSql AS ym, SUM(total_cost) AS total
+    FROM stock_purchases
+    WHERE purchase_date >= '{$windowStart}'
+    GROUP BY ym") as $r) {
+    if (isset($stockPurchasedByMonth[$r['ym']])) $stockPurchasedByMonth[$r['ym']] = (float) $r['total'];
+}
+
+$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere") - $loanReleasedTotal - $stockPurchasedTotal;
 
 $thisMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
     WHERE $incomeWhere
-      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')") - $loanReleasedThisMonth;
+      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')") - $loanReleasedThisMonth - $stockPurchasedThisMonth;
 $lastMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
     WHERE $incomeWhere
-      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')") - $loanReleasedLastMonth;
+      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')") - $loanReleasedLastMonth - $stockPurchasedLastMonth;
 
 $incomeByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 foreach (dash_rows($pdo, "
@@ -112,9 +135,12 @@ foreach (dash_rows($pdo, "
     GROUP BY ym") as $r) {
     if (isset($incomeByMonth[$r['ym']])) $incomeByMonth[$r['ym']] = (float) $r['total'];
 }
-// Subtract the loans released in each month
+// Subtract the loans released and the stock bought in each month
 foreach ($loanReleasedByMonth as $ym => $released) {
     if (isset($incomeByMonth[$ym])) $incomeByMonth[$ym] -= $released;
+}
+foreach ($stockPurchasedByMonth as $ym => $spent) {
+    if (isset($incomeByMonth[$ym])) $incomeByMonth[$ym] -= $spent;
 }
 
 $incomeByType = ['investment' => 0.0, 'loan_repayment' => 0.0, 'rental' => 0.0, 'product' => 0.0];
@@ -140,7 +166,7 @@ if ($lastMonthIncome > 0) {
     $deltaText = dash_peso0($thisMonthIncome) . ' collected this month';
 } elseif ($thisMonthIncome < 0) {
     $deltaUp = false;
-    $deltaText = dash_peso0(abs($thisMonthIncome)) . ' net outflow this month (loans released)';
+    $deltaText = dash_peso0(abs($thisMonthIncome)) . ' net outflow this month (loans and stock)';
 } else {
     $deltaUp = null;
     $deltaText = 'No confirmed payments this month';
@@ -395,6 +421,7 @@ renderHeader($title);
             <div class="db-card db-big">
                 <div class="db-head">
                     <span class="material-icons">payments</span>Total income
+                    <span class="db-tag">Coop share only</span>
                 </div>
                 <p class="db-hero-num"><?php echo dash_peso0($totalIncome); ?></p>
                 <div class="db-delta <?php echo $deltaUp === null ? 'flat' : ($deltaUp ? 'up' : 'down'); ?>">
@@ -431,7 +458,7 @@ renderHeader($title);
             <!-- RESERVE FUND (registration fees, kept apart from income) -->
             <div class="db-card">
                 <div class="db-head">
-                    <span class="material-icons"></span>Reserve fund
+                    <span class="material-icons">savings</span>Reserve fund
                     <a href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php?payment_type=registration">View</a>
                     <span class="db-tag">Registration fees</span>
                 </div>

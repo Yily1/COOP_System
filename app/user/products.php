@@ -18,6 +18,51 @@ if (!$memberId) {
 $products = getAllProducts($pdo);
 $myProductRequests = getMemberProductRequests($pdo, $memberId);
 
+// Price lookup so each request can show the amount to pay (price x quantity)
+$priceById = [];
+$priceByName = [];
+foreach ($products as $p) {
+    $priceById[(int) $p['id']] = (float) $p['price'];
+    $priceByName[mb_strtolower($p['name'])] = (float) $p['price'];
+}
+
+// Price saved on each of this member's requests (set by the manager, or locked when requested)
+$unitPriceByRequest = [];
+$requestedUnitByRequest = [];
+try {
+    $stmt = $pdo->prepare("SELECT id, unit_price, requested_unit FROM product_requests WHERE member_id = ?");
+    $stmt->execute([$memberId]);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        if ($row['unit_price'] !== null) {
+            $unitPriceByRequest[(int) $row['id']] = (float) $row['unit_price'];
+        }
+        if (!empty($row['requested_unit'])) {
+            $requestedUnitByRequest[(int) $row['id']] = $row['requested_unit'];
+        }
+    }
+} catch (PDOException $e) {
+    // The unit_price / requested_unit columns are not added yet.
+}
+
+// Amount to pay for a request: its own saved price first, then the product's current price
+if (!function_exists('svcRequestAmount')) {
+    function svcRequestAmount($r, $unitPriceByRequest, $priceById, $priceByName) {
+        $price = null;
+        $rid = (int) ($r['id'] ?? 0);
+        if (isset($unitPriceByRequest[$rid])) {
+            $price = $unitPriceByRequest[$rid];
+        } elseif (!empty($r['product_id']) && isset($priceById[(int) $r['product_id']])) {
+            $price = $priceById[(int) $r['product_id']];
+        } else {
+            $nm = mb_strtolower((string) ($r['product_name'] ?? $r['requested_product_name'] ?? ''));
+            if ($nm !== '' && isset($priceByName[$nm])) {
+                $price = $priceByName[$nm];
+            }
+        }
+        return $price === null ? null : round($price * (float) $r['quantity'], 2);
+    }
+}
+
 renderHeader('Products');
 ?>
 
@@ -144,15 +189,17 @@ renderHeader('Products');
 .svc-empty { padding: 20px; text-align: center; color: #667066; font-size: 13px; }
 
 /* My Requests: a proper card design (name + status up top, quantity /
-   pickup date side by side, manager note called out at the bottom)
+   amount / pickup date side by side, manager note called out at the bottom)
    instead of a plain stacked label/value list. */
 .svc-request-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .svc-request-card { background: #fff; border: 1px solid #eceae4; border-radius: 14px; padding: 14px 16px; }
 .svc-request-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
 .svc-request-card-name { font-weight: 600; font-size: 14px; color: #1b3a24; margin: 0; }
-.svc-request-card-meta { display: flex; gap: 20px; margin-bottom: 8px; }
+.svc-request-card-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 8px; }
 .svc-request-card-meta div p:first-child { font-size: 11px; color: #a9a79f; text-transform: uppercase; margin: 0 0 2px; }
 .svc-request-card-meta div p:last-child { font-size: 13px; color: #1b3a24; margin: 0; font-weight: 500; }
+.svc-request-card-meta .svc-amount-value { font-weight: 600 !important; color: #2e7d32 !important; }
+.svc-request-card-meta .svc-amount-none { font-weight: 400 !important; color: #a9a79f !important; }
 .svc-request-card-note { font-size: 12.5px; color: #667066; background: #f7f8f5; border-radius: 8px; padding: 8px 10px; margin-top: 4px; }
 .svc-request-card-note strong { color: #1b3a24; }
 
@@ -244,6 +291,7 @@ renderHeader('Products');
                         <button type="button" class="svc-request-btn svc-request-btn-full request-product-btn"
                                 data-id="<?php echo $p['id']; ?>" data-name="<?php echo htmlspecialchars($p['name']); ?>"
                                 data-unit="<?php echo htmlspecialchars($p['unit']); ?>" data-stock="<?php echo $p['stock_quantity']; ?>"
+                                data-price="<?php echo (float) $p['price']; ?>"
                                 <?php echo $isAvailable ? '' : 'disabled'; ?>>
                             <?php echo $isAvailable ? 'Avail' : 'Unavailable'; ?>
                         </button>
@@ -267,7 +315,9 @@ renderHeader('Products');
             <?php foreach ($myProductRequests as $r): ?>
                 <?php
                     $productLabel = $r['product_name'] ?? ($r['requested_product_name'] . ' (not yet carried)');
-                    $qtyDisplay = rtrim(rtrim(number_format($r['quantity'], 2), '0'), '.') . ' ' . ($r['product_unit'] ?? '');
+                    $reqUnit = $r['product_unit'] ?? ($requestedUnitByRequest[(int) $r['id']] ?? '');
+                    $qtyDisplay = rtrim(rtrim(number_format($r['quantity'], 2), '0'), '.') . ' ' . $reqUnit;
+                    $amount = svcRequestAmount($r, $unitPriceByRequest, $priceById, $priceByName);
                 ?>
                 <div class="svc-request-card">
                     <div class="svc-request-card-head">
@@ -278,6 +328,14 @@ renderHeader('Products');
                         <div>
                             <p>Quantity</p>
                             <p><?php echo htmlspecialchars($qtyDisplay); ?></p>
+                        </div>
+                        <div>
+                            <p>Amount to pay</p>
+                            <?php if ($amount === null): ?>
+                                <p class="svc-amount-none" title="The manager will set the price">Waiting for price</p>
+                            <?php else: ?>
+                                <p class="svc-amount-value">₱<?php echo number_format($amount, 2); ?></p>
+                            <?php endif; ?>
                         </div>
                         <div>
                             <p>Pickup Date</p>
@@ -316,6 +374,10 @@ renderHeader('Products');
             <label class="svc-form-label">Notes (optional)</label>
             <textarea name="notes" rows="2" class="svc-form-input" placeholder="e.g. for our farm's corn harvest"></textarea>
 
+            <div id="productReqTotal" style="display:none; background:#f7f8f5; border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:13px; color:#667066;">
+                Amount to pay: <strong id="productReqTotalValue" style="color:#2e7d32; font-size:15px;">₱0.00</strong>
+            </div>
+
             <button type="submit" class="svc-btn svc-btn-primary" style="width:100%; justify-content:center;">Submit Request</button>
         </form>
     </div>
@@ -335,8 +397,26 @@ renderHeader('Products');
             <label class="svc-form-label">Product name</label>
             <input type="text" name="requested_product_name" class="svc-form-input" placeholder="e.g. Rice, Fertilizer" required>
 
-            <label class="svc-form-label">Quantity</label>
-            <input type="number" name="quantity" class="svc-form-input" step="0.01" min="0.01" required>
+            <div style="display:flex; gap:12px;">
+                <div style="flex:1; min-width:0;">
+                    <label class="svc-form-label">Quantity</label>
+                    <input type="number" name="quantity" class="svc-form-input" step="0.01" min="0.01" required>
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <label class="svc-form-label" for="newProductUnitSel">Unit</label>
+                    <select id="newProductUnitSel" class="svc-form-input">
+                        <option value="Kg">Kg</option>
+                        <option value="Sack">Sack</option>
+                        <option value="Pc">Pc</option>
+                        <option value="Liter">Liter</option>
+                        <option value="Bag">Bag</option>
+                        <option value="__other">Others (type the unit)</option>
+                    </select>
+                    <input type="text" id="newProductUnitOther" class="svc-form-input" maxlength="50"
+                           placeholder="Type the unit (Esc to go back)" style="display:none;">
+                    <input type="hidden" name="requested_unit" id="newProductUnitValue" value="Kg">
+                </div>
+            </div>
 
             <label class="svc-form-label">Pickup date</label>
             <input type="date" name="pickup_date" class="svc-form-input" required>
@@ -359,16 +439,35 @@ renderHeader('Products');
     const productReqForm = document.getElementById('productReqForm');
     const productReqErrors = document.getElementById('productReqErrors');
     const productReqSuccess = document.getElementById('productReqSuccess');
+    const productReqQty = document.getElementById('productReqQuantity');
+    const productReqTotal = document.getElementById('productReqTotal');
+    const productReqTotalValue = document.getElementById('productReqTotalValue');
+    let currentPrice = 0;
+
+    // Shows the amount to pay while the member types the quantity
+    function updateReqTotal() {
+        const qty = parseFloat(productReqQty.value);
+        if (currentPrice > 0 && qty > 0) {
+            const total = qty * currentPrice;
+            productReqTotalValue.textContent = '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            productReqTotal.style.display = 'block';
+        } else {
+            productReqTotal.style.display = 'none';
+        }
+    }
+    productReqQty.addEventListener('input', updateReqTotal);
 
     document.querySelectorAll('.request-product-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
             productReqForm.reset();
             productReqErrors.style.display = 'none';
             productReqSuccess.style.display = 'none';
+            currentPrice = parseFloat(btn.dataset.price) || 0;
+            updateReqTotal();
             document.getElementById('productReqProductId').value = btn.dataset.id;
             document.getElementById('productReqTitle').textContent = 'Request: ' + btn.dataset.name;
             document.getElementById('productReqQtyLabel').textContent = 'Quantity (' + btn.dataset.unit + ')';
-            document.getElementById('productReqQuantity').max = btn.dataset.stock;
+            productReqQty.max = btn.dataset.stock;
             document.getElementById('productReqPickupDate').min = today;
             productReqBackdrop.style.display = 'flex';
         });
@@ -402,8 +501,40 @@ renderHeader('Products');
     const newProductErrors = document.getElementById('newProductErrors');
     const newProductSuccess = document.getElementById('newProductSuccess');
 
+    // Unit: choosing "Others" turns the dropdown into a typing field, same place
+    const unitSel = document.getElementById('newProductUnitSel');
+    const unitOther = document.getElementById('newProductUnitOther');
+    const unitValue = document.getElementById('newProductUnitValue');
+
+    function syncUnit() {
+        const typing = (unitSel.value === '__other');
+        unitSel.style.display = typing ? 'none' : '';
+        unitOther.style.display = typing ? 'block' : 'none';
+        unitValue.value = typing ? unitOther.value.trim() : unitSel.value;
+    }
+    function unitBackToList() {
+        unitOther.value = '';
+        unitSel.selectedIndex = 0;
+        syncUnit();
+    }
+    unitSel.addEventListener('change', function() {
+        syncUnit();
+        if (unitSel.value === '__other') unitOther.focus();
+    });
+    unitOther.addEventListener('input', syncUnit);
+    unitOther.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || (e.key === 'Backspace' && !e.repeat && unitOther.value === '')) {
+            e.preventDefault();
+            e.stopPropagation();
+            unitBackToList();
+            unitSel.focus();
+        }
+    });
+
     document.getElementById('openNewProductBtn').addEventListener('click', function() {
         newProductForm.reset();
+        unitOther.value = '';
+        syncUnit();
         newProductErrors.style.display = 'none';
         newProductSuccess.style.display = 'none';
         newProductBackdrop.style.display = 'flex';
@@ -414,6 +545,12 @@ renderHeader('Products');
     newProductForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         newProductErrors.style.display = 'none';
+        syncUnit();
+        if (!unitValue.value) {
+            newProductErrors.textContent = 'Type the unit.';
+            newProductErrors.style.display = 'block';
+            return;
+        }
         try {
             const formData = new FormData(newProductForm);
             const res = await fetch(AJAX_BASE + 'submit-product-request.php', { method: 'POST', body: formData });

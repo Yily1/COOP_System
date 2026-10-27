@@ -416,3 +416,51 @@ ALTER TABLE expenses
   ADD CONSTRAINT fk_attendance_recorded_by
   FOREIGN KEY (recorded_by) REFERENCES users(id)
   ON DELETE SET NULL ON UPDATE CASCADE;
+
+
+  UPDATE activity_logs SET user_id = NULL
+WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users);
+
+ALTER TABLE activity_logs
+  ADD CONSTRAINT fk_activity_logs_user
+  FOREIGN KEY (user_id) REFERENCES users(id)
+  ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE expenses
+  ADD CONSTRAINT fk_expenses_recorded_by
+  FOREIGN KEY (recorded_by) REFERENCES users(id)
+  ON DELETE RESTRICT ON UPDATE CASCADE;
+
+
+
+
+
+
+-- 1. Talaan ng mga binili (Buy stock)
+CREATE TABLE IF NOT EXISTS stock_purchases (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NULL,
+    item_name VARCHAR(150) NOT NULL,
+    unit VARCHAR(50) NOT NULL,
+    quantity DECIMAL(10,2) NOT NULL,
+    total_cost DECIMAL(10,2) NOT NULL,
+    purchase_date DATE NOT NULL,
+    recorded_by INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_purchase_date (purchase_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2. Presyo kada unit ng request (itinatakda ng manager o naka-lock sa oras ng request)
+ALTER TABLE product_requests
+    ADD COLUMN unit_price DECIMAL(10,2) NULL AFTER quantity;
+
+-- 3. Unit ng request para sa product na wala pa sa listahan
+ALTER TABLE product_requests
+    ADD COLUMN requested_unit VARCHAR(50) NULL AFTER requested_product_name;
+
+
+    ALTER TABLE product_requests
+    ADD COLUMN IF NOT EXISTS unit_price DECIMAL(10,2) NULL AFTER quantity;
+
+ALTER TABLE product_requests
+    ADD COLUMN IF NOT EXISTS requested_unit VARCHAR(50) NULL AFTER requested_product_name;

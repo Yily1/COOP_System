@@ -19,6 +19,7 @@ $productName = trim($_POST['requested_product_name'] ?? '');
 $quantity    = $_POST['quantity'] ?? '';
 $pickupDate  = trim($_POST['pickup_date'] ?? '');
 $notes       = trim($_POST['notes'] ?? '');
+$requestedUnit = trim($_POST['requested_unit'] ?? '');
 
 if ($quantity === '' || !is_numeric($quantity) || (float)$quantity <= 0) {
     echo json_encode(['success' => false, 'message' => 'Enter a valid quantity.']);
@@ -30,7 +31,7 @@ if ($pickupDate === '' || !DateTime::createFromFormat('Y-m-d', $pickupDate)) {
 }
 
 if ($productId !== '' && ctype_digit((string)$productId)) {
-    $stmt = $pdo->prepare("SELECT status, stock_quantity FROM products WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT status, stock_quantity, price FROM products WHERE id = ?");
     $stmt->execute([$productId]);
     $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -44,29 +45,46 @@ if ($productId !== '' && ctype_digit((string)$productId)) {
     }
     $productIdToInsert = $productId;
     $requestedNameToInsert = null;
+    // The product's price is saved with the request, so the amount stays the
+    // same even if the product's price changes later. The manager can still change it.
+    $unitPriceToInsert = (float) $product['price'];
+    // A listed product already has its own unit
+    $requestedUnit = '';
 } else {
     if ($productName === '') {
         echo json_encode(['success' => false, 'message' => 'Please enter the product you want to request.']);
         exit;
     }
+    if ($requestedUnit === '') {
+        echo json_encode(['success' => false, 'message' => 'Choose or type the unit.']);
+        exit;
+    }
+    if (mb_strlen($requestedUnit) > 50) {
+        echo json_encode(['success' => false, 'message' => 'The unit is too long (50 letters at most).']);
+        exit;
+    }
     $productIdToInsert = null;
     $requestedNameToInsert = $productName;
+    // A product we don't carry yet has no price until the manager sets it
+    $unitPriceToInsert = null;
 }
 
 try {
     $stmt = $pdo->prepare("
-        INSERT INTO product_requests (member_id, product_id, requested_product_name, quantity, pickup_date, notes, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        INSERT INTO product_requests (member_id, product_id, requested_product_name, requested_unit, quantity, unit_price, pickup_date, notes, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     ");
     $stmt->execute([
         $memberId,
         $productIdToInsert,
         $requestedNameToInsert,
+        $requestedUnit !== '' ? $requestedUnit : null,
         $quantity,
+        $unitPriceToInsert,
         $pickupDate,
         $notes !== '' ? $notes : null,
     ]);
     echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
 } catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'Database error.']);
+    echo json_encode(['success' => false, 'message' => 'Database error. Did you add the unit_price column?']);
 }
