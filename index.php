@@ -1,322 +1,305 @@
 <?php
-require_once 'config/config.php';
-require_once 'config/functions.php';
-require_once 'includes/activity-logger.php'; 
-
-// uncomment on deployment
-/*
-require_once $_SERVER['DOCUMENT_ROOT'] . '/test/config/config.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/test/config/functions.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/test/includes/activity-logger.php';
-*/
-
-if (isLoggedIn()) {
-    switch($_SESSION['role']) {
-        case 'admin':
-            redirect('/app/admin/dashboard.php');
-            break;
-        case 'manager':
-            redirect('/app/manager/dashboard.php');
-            break;
-        case 'user':
-            redirect('/app/user/dashboard.php');
-            break;
-    }
-}
-
-$error = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Accepts either the account's email or its username in the
-    // same field. Kept as $email for logActivity()/error messages
-    // below, but it may hold a username instead.
-    $login = trim($_POST['login'] ?? '');
-    $email = $login;
-    $password = $_POST['password'] ?? '';
-
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE (email = ? OR username = ?) AND is_verified = 1");
-    $stmt->execute([$login, $login]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($user && password_verify($password, $user['password'])) {
-        // Successful login
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['email'] = $user['email'];
-        $_SESSION['role'] = $user['role'];
-        
-        // Log successful login
-        logActivity($pdo, $user['id'], $user['email'], 'login', 'success');
-        
-        switch($user['role']) {
-            case 'admin':
-                redirect('/app/admin/dashboard.php');
-                break;
-            case 'manager':
-                redirect('/app/manager/dashboard.php');
-                break;
-            case 'user':
-                redirect('/app/user/dashboard.php');
-                break;
-        }
-    } else {
-        // Failed login
-        $error = "Invalid credentials or email not verified";
-        
-        // Log failed login attempt
-        logActivity($pdo, null, $email, 'login', 'failed');
-    }
-}
-
-renderHeader('Login');
+// Public landing page. Standalone — does NOT use renderHeader/renderFooter.
+require_once __DIR__ . '/config/config.php';
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>San Jose Farmers Multipurpose Cooperative (SJFMC)</title>
+    <meta name="description" content="San Jose Farmers Multipurpose Cooperative (SJFMC) — supporting members through quality services, resources, and opportunities.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/landing.css">
+</head>
+<body>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- ============ NAV ============ -->
+<header class="site-header" id="top">
+    <nav class="nav-container" aria-label="Main navigation">
+        <a href="#hero" class="brand" aria-label="SJFMC home">
+            <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC logo" class="brand-logo">
+            <span class="brand-name">SJFMC</span>
+        </a>
 
-<style>
-body { background: #f5f3ec; }
+        <button class="nav-toggle" id="navToggle"
+                aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
+            <span></span><span></span><span></span>
+        </button>
 
-/* The global style.css wraps this page in .auth-wrapper > .auth-box
-   (the outer white box with the green border). Its look is kept; only
-   its size is tightened here and the whole thing is centered on screen.
-   Only affects this page. */
-.auth-wrapper {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 100vh !important;
-    box-sizing: border-box !important;
-    padding: 24px 16px 6vh !important;
-}
-.auth-box {
-    box-sizing: border-box !important;
-    width: 100% !important;
-    max-width: 380px !important;
-    margin: 0 auto !important;
-    padding: 24px 22px 26px !important;
-}
+        <ul class="nav-menu" id="navMenu">
+            <li><a href="#hero">Home</a></li>
+            <li><a href="#services">Services</a></li>
+            <li><a href="#about">About Us</a></li>
+            <li><a href="#contact">Contact Us</a></li>
+            <li><a href="<?php echo BASE_URL; ?>/login.php" class="nav-login">Login</a></li>
+        </ul>
+    </nav>
+</header>
 
-.login-shell {
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    text-transform: none;
-    letter-spacing: normal;
-}
-
-.login-logo {
-    text-align: center;
-    margin-bottom: 12px;
-}
-.login-logo img {
-    max-width: 90px;
-    height: auto;
-}
-
-.login-shell h1 {
-    text-align: center;
-    font-family: inherit;
-    font-size: 20px;
-    font-weight: 600;
-    color: #1b3a24;
-    text-transform: none;
-    letter-spacing: normal;
-    margin: 0 0 4px;
-}
-
-.login-sub {
-    text-align: center;
-    font-size: 14px;
-    color: #3f4a3f;
-    margin: 0 0 18px;
-}
-
-/* No border of its own: the outer .auth-box already frames the form */
-.login-card {
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    padding: 0;
-}
-
-.login-card .form-group { margin: 0 !important; }
-
-.login-card label {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-    text-transform: none !important;
-    letter-spacing: normal;
-    color: #2f3a2f;
-    margin: 0 0 6px;
-}
-
-.login-card input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 10px 12px;
-    border: 1px solid #E4DCC8;
-    border-radius: 8px;
-    background: #FAF7EF;
-    font-family: inherit;
-    font-size: 15px;
-    color: #1b3a24;
-    margin: 0 0 14px !important;
-}
-
-.login-card input::placeholder { color: #7a8276; }
-
-.login-card input:focus {
-    outline: none;
-    border-color: #3B6D11;
-    background: #fff;
-}
-
-/* Password field with show/hide eye button */
-.pw-wrap {
-    position: relative;
-    margin: 0 0 14px;
-}
-.login-card .pw-wrap input {
-    margin: 0 !important;
-    padding-right: 44px;
-}
-.pw-toggle {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 4px;
-    width: 38px;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    cursor: pointer;
-}
-.pw-toggle:hover { background: transparent !important; }
-.pw-toggle svg {
-    width: 20px;
-    height: 20px;
-    stroke: #3B6D11;
-    fill: none;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-.pw-toggle .eye-off { display: none; }
-.pw-toggle.is-visible .eye { display: none; }
-.pw-toggle.is-visible .eye-off { display: block; }
-
-/* Only the Login (submit) button gets the big green style */
-.login-card button[type="submit"] {
-    display: block;
-    width: 100% !important;
-    padding: 11px;
-    margin: 4px 0 0 !important;
-    border: none;
-    border-radius: 10px;
-    background: #3B6D11 !important;
-    color: #fff;
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    text-transform: none !important;
-    letter-spacing: normal;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-}
-
-.login-card button[type="submit"]:hover { background: #2e5a0d !important; }
-
-/* Mobile: 16px inputs stop iPhone from zooming in when tapping a field */
-@media (max-width: 480px) {
-    .auth-wrapper { padding: 16px 14px 4vh !important; }
-    .auth-box { padding: 18px 16px 20px !important; max-width: 340px !important; }
-    .login-logo { margin-bottom: 8px; }
-    .login-logo img { max-width: 68px; }
-    .login-shell h1 { font-size: 18px; }
-    .login-sub { font-size: 13px; margin-bottom: 14px; }
-    .login-card label { font-size: 13px; margin-bottom: 5px; }
-    .login-card input { font-size: 16px; padding: 9px 11px; margin-bottom: 12px !important; }
-    .login-card .pw-wrap { margin-bottom: 12px; }
-    .login-card .pw-wrap input { margin-bottom: 0 !important; }
-    .login-card button[type="submit"] { padding: 10px; }
-}
-
-.login-shell .error {
-    border: none;
-    background: #fbe6e6;
-    color: #a6322f;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 13px;
-    margin-bottom: 14px;
-}
-</style>
-
-<div class="login-shell">
-
-<div class="login-logo">
-    <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC Coop Logo">
-</div>
-
-<h1>Welcome back</h1>
-<p class="login-sub">Log in to continue to your account.</p>
-
-<div class="login-card">
-
-<?php if ($error): ?>
-    <div class="error"><?php echo htmlspecialchars($error); ?></div>
-<?php endif; ?>
-
-<form method="POST">
-    <div class="form-group">
-        <label for="login">Email or username</label>
-        <input type="text" id="login" name="login" placeholder="" required autocomplete="username" value="<?php echo htmlspecialchars($_POST['login'] ?? ''); ?>">
+<!-- ============ HERO ============ -->
+<section class="hero" id="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <p class="hero-eyebrow">WELCOME TO SJFMC</p>
+        <h1>San Jose Farmers<br>Multipurpose Cooperative</h1>
+        <p class="hero-text">
+           To support our members, we offer quality services, resources, and opportunities for a stronger and more sustainable future. Want to be part of our growing cooperative? Contact us to learn how you can become a member.
+        </p>
+        <div class="hero-actions">
+            <a href="#services" class="btn btn-primary">Explore Our Services</a>
+            <a href="#about" class="btn btn-outline">About Us</a>
+        </div>
     </div>
-    
-    <div class="form-group">
-        <label for="password">Password</label>
-        <div class="pw-wrap">
-            <input type="password" id="password" name="password" placeholder="" required autocomplete="current-password">
-            <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">
-                <svg class="eye" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                </svg>
-                <svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                    <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-            </button>
+</section>
+
+<!-- ============ SERVICES & RESOURCES ============ -->
+<section class="section" id="services">
+    <div class="container">
+        
+        <!-- Intro Title -->
+        <div class="section-head">
+            <h2>Services and Agricultural Resources</h2>
+            <p>The cooperative provides services and agricultural resources to support our members and help our community grow.</p>
+        </div>
+
+        <!-- BOX 1: OUR SERVICES -->
+        <div class="services-section">
+            <div class="services-title-wrap">
+                <h3 class="front-title">Our Services</h3>
+            </div>
+            <div class="services-grid services-grid--three">
+                <article class="service-card">
+                    <div class="service-icon" aria-hidden="true">🚜</div>
+                    <h4>Equipment Rental</h4>
+                    <p>Rental of agricultural equipment and post-harvest facilities for member farming operations.</p>
+                </article>
+                <article class="service-card">
+                    <div class="service-icon" aria-hidden="true">🌱</div>
+                    <h4>Product Avail &amp; Request</h4>
+                    <p>Agricultural products such as seeds, fertilizer, and other farm inputs available to members.</p>
+                </article>
+                <article class="service-card">
+                    <div class="service-icon" aria-hidden="true">💰</div>
+                    <h4>Financial Loans</h4>
+                    <p>Loan services and financial assistance for qualified members of the cooperative.</p>
+                </article>
+            </div>
+        </div>
+
+        <!-- BOX 2: OUR AGRICULTURAL RESOURCES (Isang card na lang) -->
+        <div class="services-section">
+            <div class="services-title-wrap">
+                <h3 class="front-title">Our Agricultural Resources</h3>
+            </div>
+            <div class="services-grid services-grid--one">
+                <article class="service-card">
+                    <div class="service-icon" aria-hidden="true">🚚</div>
+                    <h4>Resource Distribution</h4>
+                    <p>Distribution of agricultural resources and assistance to eligible cooperative members.</p>
+                </article>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ============ ABOUT ============ -->
+<section class="section about" id="about">
+    <div class="container about-grid">
+        <div class="about-media">
+            <img src="<?php echo BASE_URL; ?>/assets/img/about-farm.jpg"
+                 alt="Farmers working in a green agricultural field in San Jose, Libona, Bukidnon"
+                 loading="lazy">
+        </div>
+        <div class="about-text">
+            <h2>About SJFMC</h2>
+            <p>
+                San Jose Farmers Multipurpose Cooperative (SJFMC) is located in
+                <strong>San Jose, Libona, Bukidnon</strong>. The cooperative serves its members
+                and the local agricultural community by providing resources, services, and
+                opportunities that support sustainable farming and cooperative growth.
+            </p>
+
+            <div class="mv-block">
+                <h3>Vision</h3>
+                <p>
+                    San Jose Farmers MPC envision to become a fully committed, dedicated
+                    farmers living in a decent way of life through a viable, self-sustaining
+                    people's organization.
+                </p>
+            </div>
+
+            <div class="mv-block">
+                <h3>Mission</h3>
+                <p>
+                    To uplift the well-being of members in increasing the productivity and
+                    income provision of marketing outlet, loan access and delivery of
+                    quality services.
+                </p>
+            </div>
         </div>
     </div>
 
-    <button type="submit">Login</button>
-</form>
+    <!-- ===== Core Values & Objectives ===== -->
+    <div class="container mv-extra">
 
-</div>
-</div>
+        <!-- Core Values -->
+        <div class="cv-block">
+            <h3 class="mv-heading">Core Values</h3>
+            <p class="mv-intro">
+                These are the principles that guide the cooperative in serving its
+                members and the community.
+            </p>
 
+            <div class="cv-grid cv-grid--five">
+                <div class="cv-card">
+                    <div class="cv-icon" aria-hidden="true">⚖️</div>
+                    <h4>Integrity</h4>
+                    <p>We act honestly, transparently, and fairly in all cooperative transactions and decisions.</p>
+                </div>
+                <div class="cv-card">
+                    <div class="cv-icon" aria-hidden="true">💪</div>
+                    <h4>Resilient</h4>
+                    <p>We remain steadfast and adaptable, overcoming challenges together as a cooperative.</p>
+                </div>
+                <div class="cv-card">
+                    <div class="cv-icon" aria-hidden="true">🤝</div>
+                    <h4>Respect</h4>
+                    <p>We honor the dignity, culture, and religion of every member and of the community we serve.</p>
+                </div>
+                <div class="cv-card">
+                    <div class="cv-icon" aria-hidden="true">⚖️</div>
+                    <h4>Equity</h4>
+                    <p>We ensure fairness and equal opportunity for all members in the services we provide.</p>
+                </div>
+                <div class="cv-card">
+                    <div class="cv-icon" aria-hidden="true">🙏</div>
+                    <h4>God-Fearing</h4>
+                    <p>We uphold moral and spiritual principles in all aspects of our cooperative work.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Objectives -->
+        <div class="obj-block">
+            <h3 class="mv-heading">Objectives</h3>
+            <p class="mv-intro">
+                The cooperative pursues these objectives to fulfill its mission and vision.
+            </p>
+
+            <ol class="obj-list">
+                <li>
+                    <span class="obj-num" aria-hidden="true">01</span>
+                    <span>To encourage members to increase its Capital Build-up and promote thrift and savings among members.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">02</span>
+                    <span>To educate members of the Cooperative on its by-laws, PSP and SDP.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">03</span>
+                    <span>To promote economic and social well-being of the members.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">04</span>
+                    <span>To promote sound and appropriate agricultural technologies to Barangay San Jose.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">05</span>
+                    <span>To work hand in hand with the government and non-government entities in the development of our Cooperative.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">06</span>
+                    <span>To undertake activities, projects, and programs that would contribute to the improvement of the life of members and the community that it may serve.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">07</span>
+                    <span>To develop good and mutual relationship among members and the community with gender sensitivity and respect to individual culture and religion.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">08</span>
+                    <span>To generate funds and avail financing programs to sustain economic activities for members of the organization.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">09</span>
+                    <span>To access and receive any assistance from foreign and local sources for the benefit and welfare of the Cooperative and its members.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">10</span>
+                    <span>To provide social services to the community through tree planting, feeding program, educational assistance, and clean-up drive.</span>
+                </li>
+                <li>
+                    <span class="obj-num" aria-hidden="true">11</span>
+                    <span>To provide post-harvest services to farmer members.</span>
+                </li>
+            </ol>
+        </div>
+
+    </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section class="section contact" id="contact">
+    <div class="container">
+        <div class="section-head">
+            <h2>Contact Us</h2>
+            <p>Reach out to the cooperative for inquiries and member support.</p>
+        </div>
+
+        <div class="contact-grid">
+            <div class="contact-card">
+                <h3>Cooperative</h3>
+                <p>San Jose Farmers Multipurpose Cooperative (SJFMC)</p>
+            </div>
+            <div class="contact-card">
+                <h3>Address</h3>
+                <p>Purok 3, San Jose, Libona, Bukidnon</p>
+            </div>
+            <div class="contact-card">
+                <h3>Phone</h3>
+                <p class="placeholder">09924911712</p>
+            </div>
+            <div class="contact-card">
+                <h3>Email</h3>
+                <p class="placeholder">sjfmcoop@gmail.com</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <p>&copy; <?php echo date('Y'); ?> San Jose Farmers Multipurpose Cooperative (SJFMC). All rights reserved.</p>
+    </div>
+</footer>
+
+<!-- ============ JAVASCRIPT (INLINE) ============ -->
 <script>
-(function () {
-    var btn = document.getElementById('pwToggle');
-    var input = document.getElementById('password');
-    btn.addEventListener('click', function () {
-        var show = input.type === 'password';
-        input.type = show ? 'text' : 'password';
-        btn.classList.toggle('is-visible', show);
-        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
-    });
-})();
-</script>
+document.addEventListener("DOMContentLoaded", function() {
+    var toggle = document.getElementById("navToggle");
+    var menu   = document.getElementById("navMenu");
 
-<?php renderFooter(); ?>
+    if (toggle && menu) {
+        toggle.addEventListener("click", function (e) {
+            e.preventDefault(); 
+            var open = menu.classList.toggle("open");
+            toggle.setAttribute("aria-expanded", open ? "true" : "false");
+            toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+        });
+
+        menu.addEventListener("click", function (e) {
+            if (e.target.tagName === "A" && window.innerWidth <= 768) {
+                menu.classList.remove("open");
+                toggle.setAttribute("aria-expanded", "false");
+                toggle.setAttribute("aria-label", "Open menu");
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>
