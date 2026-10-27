@@ -1,6 +1,7 @@
 <?php
 require_once '../../config/config.php';
 require_once '../../config/functions.php';
+require_once '../../config/funds.php';
 
 requireRole('user');
 
@@ -132,6 +133,58 @@ if ($myProfile && !empty($myProfile['member_db_id'])) {
 }
 
 // ============================================================
+// COOP NET INCOME (same numbers as the manager dashboard)
+// Total income minus released loans, stock purchases and expenses.
+// Only totals are shown, never names or details of other members.
+// ============================================================
+
+$net = getNetIncomeSummary($pdo);
+
+function udPeso0($v) {
+    $v = (float) $v;
+    return ($v < 0 ? '-' : '') . '₱' . number_format(abs($v), 0);
+}
+
+$netTotal = (float) $net['total'];
+$netThis  = (float) $net['this_month'];
+$netLast  = (float) $net['last_month'];
+
+if ($netLast > 0) {
+    $netDiff = $netThis - $netLast;
+    $netDeltaClass = $netDiff >= 0 ? 'up' : 'down';
+    $netDeltaText = udPeso0(abs($netDiff)) . ($netDiff >= 0 ? ' more' : ' less') . ' than last month';
+} elseif ($netThis > 0) {
+    $netDeltaClass = 'up';
+    $netDeltaText = udPeso0($netThis) . ' net this month';
+} elseif ($netThis < 0) {
+    $netDeltaClass = 'down';
+    $netDeltaText = udPeso0(abs($netThis)) . ' net loss this month';
+} else {
+    $netDeltaClass = 'flat';
+    $netDeltaText = 'No income this month';
+}
+
+// Small trend line (last 6 months), drawn as an SVG
+$sparkW = 96; $sparkH = 40; $sparkTop = 6; $sparkBot = $sparkH - 6;
+$sparkVals = array_column($net['months'], 'net');
+$sparkLo = min($sparkVals);
+$sparkHi = max($sparkVals);
+$sparkRange = $sparkHi - $sparkLo;
+$sparkStep = ($sparkW - 8) / max(1, count($sparkVals) - 1);
+$sparkPoints = [];
+foreach ($sparkVals as $i => $val) {
+    $x = 4 + $sparkStep * $i;
+    $y = $sparkRange > 0
+        ? $sparkBot - (($val - $sparkLo) / $sparkRange) * ($sparkBot - $sparkTop)
+        : ($sparkTop + $sparkBot) / 2;
+    $sparkPoints[] = [round($x, 1), round($y, 1)];
+}
+$sparkLine = implode(' ', array_map(fn($p) => $p[0] . ',' . $p[1], $sparkPoints));
+$sparkLast = end($sparkPoints);
+$sparkFirst = $sparkPoints[0];
+$sparkArea = $sparkLine . ' ' . $sparkLast[0] . ',' . $sparkBot . ' ' . $sparkFirst[0] . ',' . $sparkBot;
+
+// ============================================================
 // DISPLAY NAME + GREETING (used in header)
 // ============================================================
 
@@ -183,7 +236,7 @@ renderHeader($title);
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-bottom: 22px;
+    margin-bottom: 14px;
 }
 
 .dash-avatar {
@@ -214,6 +267,69 @@ renderHeader($title);
     margin: 2px 0 0 0;
     color: #667066;
     font-size: 14px;
+}
+
+
+/* ============================================================
+   COOP NET INCOME CARD (compact)
+============================================================ */
+
+.net-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+    border-radius: 14px;
+    border: 1px solid #eceae4;
+    background: #ffffff;
+}
+
+.net-card-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.net-card-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+    color: #667066;
+    font-size: 12px;
+}
+
+.net-card-label svg {
+    width: 14px;
+    height: 14px;
+    stroke: #2e7d32;
+    flex-shrink: 0;
+}
+
+.net-card-num {
+    margin: 2px 0 0 0;
+    color: #1b3a24;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.net-card-num.neg { color: #a6322f; }
+
+.net-card-delta {
+    margin: 2px 0 0 0;
+    font-size: 11px;
+}
+
+.net-card-delta.up { color: #2e7d32; }
+.net-card-delta.down { color: #a6322f; }
+.net-card-delta.flat { color: #667066; }
+
+.net-card-spark {
+    flex-shrink: 0;
+    width: 96px;
+    height: 40px;
 }
 
 
@@ -737,6 +853,10 @@ button.md-close {
     .dash-greeting-name {
         font-size: 17px;
     }
+
+    .net-card-num {
+        font-size: 20px;
+    }
 }
 
 </style>
@@ -768,6 +888,27 @@ button.md-close {
             </p>
         </div>
 
+    </div>
+
+
+    <!-- ========================================================
+         COOP NET INCOME
+    ========================================================= -->
+
+    <div class="net-card">
+        <div class="net-card-text">
+            <p class="net-card-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>
+                Coop net income
+            </p>
+            <p class="net-card-num<?php echo $netTotal < 0 ? ' neg' : ''; ?>"><?php echo udPeso0($netTotal); ?></p>
+            <p class="net-card-delta <?php echo $netDeltaClass; ?>"><?php echo htmlspecialchars($netDeltaText); ?></p>
+        </div>
+        <svg class="net-card-spark" viewBox="0 0 <?php echo $sparkW; ?> <?php echo $sparkH; ?>" role="img" aria-label="Trend of the coop net income for the last six months">
+            <polygon points="<?php echo $sparkArea; ?>" fill="#1baf7a" fill-opacity="0.12"/>
+            <polyline points="<?php echo $sparkLine; ?>" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="<?php echo $sparkLast[0]; ?>" cy="<?php echo $sparkLast[1]; ?>" r="3" fill="#1baf7a"/>
+        </svg>
     </div>
 
 
