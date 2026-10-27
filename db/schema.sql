@@ -466,3 +466,15 @@ ALTER TABLE product_requests
 
 ALTER TABLE product_requests
     ADD COLUMN IF NOT EXISTS requested_unit VARCHAR(50) NULL AFTER requested_product_name;
+
+-- I-connect ang product_id sa products table
+ALTER TABLE stock_purchases
+    ADD CONSTRAINT fk_stock_product
+    FOREIGN KEY (product_id) REFERENCES products(id)
+    ON DELETE SET NULL;
+
+-- I-connect ang recorded_by sa users table
+ALTER TABLE stock_purchases
+    ADD CONSTRAINT fk_stock_user
+    FOREIGN KEY (recorded_by) REFERENCES users(id)
+    ON DELETE RESTRICT;
