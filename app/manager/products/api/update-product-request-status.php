@@ -12,7 +12,18 @@ $unitPriceRaw = trim((string) ($_POST['unit_price'] ?? ''));
 
 $validStatuses = ['pending', 'under_review', 'approved', 'processing', 'ready_for_pickup', 'claimed', 'rejected'];
 
-if (!$requestId || !ctype_digit((string)$requestId)) {
+// Allowed changes: pending -> approved or rejected, approved -> ready for pickup or claimed,
+// ready for pickup -> claimed. Claimed and rejected are final.
+// (under_review acts like pending and processing acts like approved, for older records.)
+$allowedMoves = [
+    'pending'          => ['approved', 'rejected'],
+    'under_review'     => ['approved', 'rejected'],
+    'approved'         => ['ready_for_pickup', 'claimed'],
+    'processing'       => ['ready_for_pickup', 'claimed'],
+    'ready_for_pickup' => ['ready_for_pickup', 'claimed'],
+];
+
+if (!$requestId || !ctype_digit((string) $requestId)) {
     echo json_encode(['success' => false, 'message' => 'Invalid request reference.']);
     exit;
 }
@@ -36,6 +47,27 @@ if ($unitPriceRaw !== '') {
 }
 
 try {
+    $cur = $pdo->prepare("SELECT status, unit_price FROM product_requests WHERE id = ?");
+    $cur->execute([$requestId]);
+    $current = $cur->fetch(PDO::FETCH_ASSOC);
+
+    if (!$current) {
+        echo json_encode(['success' => false, 'message' => 'Request not found.']);
+        exit;
+    }
+    if (!isset($allowedMoves[$current['status']])) {
+        echo json_encode(['success' => false, 'message' => 'This request is already finished and cannot be changed.']);
+        exit;
+    }
+    if (!in_array($status, $allowedMoves[$current['status']], true)) {
+        echo json_encode(['success' => false, 'message' => 'That status change is not allowed.']);
+        exit;
+    }
+    if ($status === 'approved' && ($unitPrice === null || $unitPrice <= 0) && $current['unit_price'] === null) {
+        echo json_encode(['success' => false, 'message' => 'Enter the price per unit before approving.']);
+        exit;
+    }
+
     if ($unitPrice !== null) {
         $stmt = $pdo->prepare("
             UPDATE product_requests

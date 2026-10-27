@@ -178,6 +178,8 @@ renderHeader('Products');
 }
 .svc-btn-primary { background: #3B6D11 !important; color: #fff !important; }
 .svc-btn-primary:hover { background: #2e5a0d !important; }
+.svc-btn-danger { background: #c62828 !important; color: #fff !important; }
+.svc-btn-danger:hover { background: #a31f1f !important; }
 
 /* ===== PRODUCT CARDS ===== */
 .svc-product-grid {
@@ -220,6 +222,8 @@ renderHeader('Products');
     width: auto !important; white-space: nowrap !important;
 }
 .svc-mini-btn-reject { color: #c62828 !important; }
+.svc-mini-btn-approve { background: #3B6D11 !important; color: #fff !important; border-color: #3B6D11 !important; }
+.svc-mini-btn-approve:hover { background: #2e5a0d !important; }
 
 .svc-table-wrap { overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; background: #fff; }
 .svc-table { width: 100%; border-collapse: collapse; }
@@ -233,19 +237,20 @@ renderHeader('Products');
 .svc-muted { color: #666; }
 .svc-empty { padding: 20px; text-align: center; color: #6b7280; font-size: 13px; }
 
-#svcModalBackdrop, #svcRequestModalBackdrop, #svcBuyModalBackdrop {
+#svcModalBackdrop, #svcRequestModalBackdrop, #svcBuyModalBackdrop, #svcApproveModalBackdrop, #svcRejectModalBackdrop {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5);
     z-index: 100; align-items: center; justify-content: center; padding: 16px;
 }
 .svc-modal-box { background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 420px; box-sizing: border-box; position: relative; max-height: 90vh; overflow-y: auto; }
 .svc-form-label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
 .svc-form-input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px; font-size: 14px; font-family: inherit; }
-#svcModalErrors, #svcRequestModalErrors, #svcBuyErrors { display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
+#svcModalErrors, #svcRequestModalErrors, #svcBuyErrors, #svcApproveErrors, #svcRejectErrors { display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
 .svc-close-btn {
     position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important;
     font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important;
     color: #333 !important; line-height: 1 !important;
 }
+.svc-modal-summary { font-size: 13px; color: #667066; text-align: center; margin: -8px 0 16px; }
 
 /* Quantity field with the unit (Kg, Sack, Pc) inside, on the right */
 .svc-qty-wrap { position: relative; }
@@ -378,6 +383,10 @@ renderHeader('Products');
 
 <!-- ============================================================
      PRODUCT REQUESTS (stays a table)
+     Action by status:
+       pending / under review  -> Approve and Reject
+       approved / processing / ready for pickup -> Update
+       claimed / rejected      -> nothing (finished)
      ============================================================ -->
 <div class="svc-section-head">
     <h2>Product Requests</h2>
@@ -407,6 +416,8 @@ renderHeader('Products');
                         $reqUnit = $r['product_unit'] ?? ($requestedUnitByRequest[(int) $r['id']] ?? '');
                         $avatar = svcAvatarColor($r['membership_id']);
                         $initials = svcInitials($r['first_name'], $r['last_name']);
+                        $reqQtyText = rtrim(rtrim(number_format((float) $r['quantity'], 2, '.', ''), '0'), '.');
+                        $reqSummary = ($r['product_name'] ?? $r['requested_product_name']) . ' · ' . trim($reqQtyText . ' ' . $reqUnit) . ' · ' . $r['last_name'] . ', ' . $r['first_name'];
                     ?>
                     <tr>
                         <td data-label="Member">
@@ -426,7 +437,7 @@ renderHeader('Products');
                                 $amount = $unitPrice === null ? null : round($unitPrice * (float) $r['quantity'], 2);
                             ?>
                             <?php if ($amount === null): ?>
-                                <span class="svc-muted" style="font-weight:400;" title="Click Update to set the price">-</span>
+                                <span class="svc-muted" style="font-weight:400;" title="Click Approve to set the price">-</span>
                             <?php else: ?>
                                 ₱<?php echo number_format($amount, 2); ?>
                             <?php endif; ?>
@@ -436,15 +447,33 @@ renderHeader('Products');
                         <td data-label="Manager Note" class="svc-muted"><?php echo htmlspecialchars($r['manager_note'] ?: '-'); ?></td>
                         <td data-label="Status"><?php echo productRequestStatusBadge($r['status']); ?></td>
                         <td data-label="Action">
-                            <button type="button" class="svc-mini-btn update-request-btn"
-                                    data-id="<?php echo $r['id']; ?>"
-                                    data-qty="<?php echo (float) $r['quantity']; ?>"
-                                    data-unit="<?php echo htmlspecialchars($reqUnit); ?>"
-                                    data-price="<?php echo $unitPrice === null ? '' : $unitPrice; ?>"
-                                    data-status="<?php echo htmlspecialchars($r['status']); ?>"
-                                    data-note="<?php echo htmlspecialchars($r['manager_note'] ?? ''); ?>">
-                                Update
-                            </button>
+                            <?php if (in_array($r['status'], ['pending', 'under_review'], true)): ?>
+                                <div class="svc-action-cell">
+                                    <button type="button" class="svc-mini-btn svc-mini-btn-approve approve-request-btn"
+                                            data-id="<?php echo (int) $r['id']; ?>"
+                                            data-summary="<?php echo htmlspecialchars($reqSummary); ?>"
+                                            data-qty="<?php echo (float) $r['quantity']; ?>"
+                                            data-unit="<?php echo htmlspecialchars($reqUnit); ?>"
+                                            data-price="<?php echo $unitPrice === null ? '' : $unitPrice; ?>">
+                                        Approve
+                                    </button>
+                                    <button type="button" class="svc-mini-btn svc-mini-btn-reject reject-request-btn"
+                                            data-id="<?php echo (int) $r['id']; ?>"
+                                            data-summary="<?php echo htmlspecialchars($reqSummary); ?>">
+                                        Reject
+                                    </button>
+                                </div>
+                            <?php elseif (in_array($r['status'], ['approved', 'processing', 'ready_for_pickup'], true)): ?>
+                                <button type="button" class="svc-mini-btn update-request-btn"
+                                        data-id="<?php echo (int) $r['id']; ?>"
+                                        data-summary="<?php echo htmlspecialchars($reqSummary); ?>"
+                                        data-status="<?php echo htmlspecialchars($r['status']); ?>"
+                                        data-note="<?php echo htmlspecialchars($r['manager_note'] ?? ''); ?>">
+                                    Update
+                                </button>
+                            <?php else: ?>
+                                <span class="svc-muted">-</span>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -588,33 +617,74 @@ renderHeader('Products');
 </div>
 
 <!-- ============================================================
-     MODAL - Update Product Request Status
+     MODAL - Approve request (sets the price per unit)
+     ============================================================ -->
+<div id="svcApproveModalBackdrop">
+    <div class="svc-modal-box">
+        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Approve request</h2>
+        <button type="button" id="closeSvcApproveModalBtn" class="svc-close-btn">&times;</button>
+        <div class="svc-modal-summary" id="svcApproveSummary"></div>
+        <div id="svcApproveErrors"></div>
+        <form id="svcApproveForm">
+            <input type="hidden" name="request_id" id="svcApproveId">
+            <input type="hidden" name="status" value="approved">
+
+            <label class="svc-form-label" id="svcApprovePriceLabel" for="svcApprovePrice">Price per unit (₱)</label>
+            <input type="number" name="unit_price" id="svcApprovePrice" class="svc-form-input" step="0.01" min="0.01" placeholder="e.g. 280" style="margin-bottom:8px;" required>
+            <div id="svcApproveTotal" style="display:none; background:#f1f6ea; color:#3B6D11; border-radius:6px; padding:8px 10px; margin-bottom:14px; font-size:13px;">
+                Amount to pay: <strong id="svcApproveTotalValue">₱0.00</strong>
+            </div>
+            <div style="height:6px;"></div>
+
+            <label class="svc-form-label">Manager note (optional)</label>
+            <textarea name="manager_note" id="svcApproveNote" rows="3" class="svc-form-input" placeholder="e.g. Ready Friday"></textarea>
+
+            <button type="submit" class="svc-btn svc-btn-primary" id="svcApproveSubmit" style="width:100%; justify-content:center;">Approve</button>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================================
+     MODAL - Reject request
+     ============================================================ -->
+<div id="svcRejectModalBackdrop">
+    <div class="svc-modal-box">
+        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Reject request</h2>
+        <button type="button" id="closeSvcRejectModalBtn" class="svc-close-btn">&times;</button>
+        <div class="svc-modal-summary" id="svcRejectSummary"></div>
+        <div id="svcRejectErrors"></div>
+        <form id="svcRejectForm">
+            <input type="hidden" name="request_id" id="svcRejectId">
+            <input type="hidden" name="status" value="rejected">
+
+            <label class="svc-form-label">Reason (optional)</label>
+            <textarea name="manager_note" id="svcRejectNote" rows="3" class="svc-form-input" placeholder="e.g. Out of stock"></textarea>
+
+            <button type="submit" class="svc-btn svc-btn-danger" id="svcRejectSubmit" style="width:100%; justify-content:center;">Reject</button>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================================
+     MODAL - Update request (after it was approved)
      ============================================================ -->
 <div id="svcRequestModalBackdrop">
     <div class="svc-modal-box">
         <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Update Request</h2>
         <button type="button" id="closeSvcRequestModalBtn" class="svc-close-btn">&times;</button>
+        <div class="svc-modal-summary" id="svcRequestSummary"></div>
         <div id="svcRequestModalErrors"></div>
         <form id="svcRequestForm">
             <input type="hidden" name="request_id" id="svcRequestId">
 
             <label class="svc-form-label">Status</label>
             <select name="status" id="svcRequestStatus" class="svc-form-input">
-                <option value="approved">Approved</option>
                 <option value="ready_for_pickup">Ready for Pickup</option>
                 <option value="claimed">Claimed</option>
-                <option value="rejected">Rejected</option>
             </select>
 
             <label class="svc-form-label">Manager note (optional)</label>
-            <textarea name="manager_note" id="svcRequestNote" rows="3" class="svc-form-input" placeholder="e.g. Procured from supplier, ready Friday"></textarea>
-
-            <label class="svc-form-label" id="svcRequestPriceLabel" for="svcRequestPrice">Price per unit (₱)</label>
-            <input type="number" name="unit_price" id="svcRequestPrice" class="svc-form-input" step="0.01" min="0" placeholder="e.g. 2400" style="margin-bottom:8px;">
-            <div id="svcRequestTotal" style="display:none; background:#f1f6ea; color:#3B6D11; border-radius:6px; padding:8px 10px; margin-bottom:14px; font-size:13px;">
-                Amount to pay: <strong id="svcRequestTotalValue">₱0.00</strong>
-            </div>
-            <div style="height:6px;"></div>
+            <textarea name="manager_note" id="svcRequestNote" rows="3" class="svc-form-input" placeholder="e.g. Ready Friday"></textarea>
 
             <button type="submit" class="svc-btn svc-btn-primary" style="width:100%; justify-content:center;">Save</button>
         </form>
@@ -898,61 +968,114 @@ renderHeader('Products');
         }
     });
 
-    /* ---------- Product request status modal ---------- */
-    const requestBackdrop = document.getElementById('svcRequestModalBackdrop');
-    const requestForm = document.getElementById('svcRequestForm');
-    const requestErrors = document.getElementById('svcRequestModalErrors');
-    const reqPrice = document.getElementById('svcRequestPrice');
-    const reqTotalBox = document.getElementById('svcRequestTotal');
-    const reqTotalValue = document.getElementById('svcRequestTotalValue');
-    let reqQty = 0;
+    /* ---------- Product requests: Approve / Reject / Update ---------- */
+    const STATUS_ENDPOINT = AJAX_BASE + 'update-product-request-status.php';
 
-    // Shows qty x price while the manager types the price
-    function updateRequestTotal() {
-        const price = parseFloat(reqPrice.value);
-        if (price >= 0 && reqQty > 0 && reqPrice.value !== '') {
-            reqTotalValue.textContent = '₱' + (price * reqQty).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            reqTotalBox.style.display = 'block';
-        } else {
-            reqTotalBox.style.display = 'none';
-        }
-    }
-    reqPrice.addEventListener('input', updateRequestTotal);
-
-    document.querySelectorAll('.update-request-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('svcRequestId').value = btn.dataset.id;
-            document.getElementById('svcRequestStatus').value = btn.dataset.status;
-            document.getElementById('svcRequestNote').value = btn.dataset.note || '';
-            reqQty = parseFloat(btn.dataset.qty) || 0;
-            reqPrice.value = btn.dataset.price || '';
-            document.getElementById('svcRequestPriceLabel').textContent =
-                btn.dataset.unit ? 'Price per ' + btn.dataset.unit + ' (₱)' : 'Price per unit (₱)';
-            updateRequestTotal();
-            requestErrors.style.display = 'none';
-            requestBackdrop.style.display = 'flex';
-        });
-    });
-    document.getElementById('closeSvcRequestModalBtn').addEventListener('click', function() { requestBackdrop.style.display = 'none'; });
-    requestBackdrop.addEventListener('click', function(e) { if (e.target === requestBackdrop) requestBackdrop.style.display = 'none'; });
-
-    requestForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        requestErrors.style.display = 'none';
+    // Sends one of the three request forms and reloads on success
+    async function submitRequestForm(form, errorsEl, submitBtn) {
+        errorsEl.style.display = 'none';
+        submitBtn.disabled = true;
         try {
-            const formData = new FormData(requestForm);
-            const res = await fetch(AJAX_BASE + 'update-product-request-status.php', { method: 'POST', body: formData });
+            const res = await fetch(STATUS_ENDPOINT, { method: 'POST', body: new FormData(form) });
             const data = await res.json();
             if (data.success) {
                 window.location.reload();
             } else {
-                requestErrors.textContent = data.message || 'Could not update request.';
-                requestErrors.style.display = 'block';
+                errorsEl.textContent = data.message || 'Could not update request.';
+                errorsEl.style.display = 'block';
             }
         } catch (err) {
-            requestErrors.textContent = 'Could not connect to server.';
-            requestErrors.style.display = 'block';
+            errorsEl.textContent = 'Could not connect to server.';
+            errorsEl.style.display = 'block';
+        } finally {
+            submitBtn.disabled = false;
         }
+    }
+
+    function wireClose(backdropId, closeBtnId) {
+        const backdrop = document.getElementById(backdropId);
+        document.getElementById(closeBtnId).addEventListener('click', function() { backdrop.style.display = 'none'; });
+        backdrop.addEventListener('click', function(e) { if (e.target === backdrop) backdrop.style.display = 'none'; });
+        return backdrop;
+    }
+
+    /* Approve: price per unit, amount to pay, optional note */
+    const approveBackdrop = wireClose('svcApproveModalBackdrop', 'closeSvcApproveModalBtn');
+    const approveForm = document.getElementById('svcApproveForm');
+    const approveErrors = document.getElementById('svcApproveErrors');
+    const approvePrice = document.getElementById('svcApprovePrice');
+    const approveTotalBox = document.getElementById('svcApproveTotal');
+    const approveTotalValue = document.getElementById('svcApproveTotalValue');
+    let approveQty = 0;
+
+    function updateApproveTotal() {
+        const price = parseFloat(approvePrice.value);
+        if (price > 0 && approveQty > 0) {
+            approveTotalValue.textContent = '₱' + (price * approveQty).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            approveTotalBox.style.display = 'block';
+        } else {
+            approveTotalBox.style.display = 'none';
+        }
+    }
+    approvePrice.addEventListener('input', updateApproveTotal);
+
+    document.querySelectorAll('.approve-request-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('svcApproveId').value = btn.dataset.id;
+            document.getElementById('svcApproveSummary').textContent = btn.dataset.summary || '';
+            document.getElementById('svcApproveNote').value = '';
+            approveQty = parseFloat(btn.dataset.qty) || 0;
+            approvePrice.value = btn.dataset.price || '';
+            document.getElementById('svcApprovePriceLabel').textContent =
+                btn.dataset.unit ? 'Price per ' + btn.dataset.unit + ' (₱)' : 'Price per unit (₱)';
+            updateApproveTotal();
+            approveErrors.style.display = 'none';
+            approveBackdrop.style.display = 'flex';
+        });
+    });
+    approveForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitRequestForm(approveForm, approveErrors, document.getElementById('svcApproveSubmit'));
+    });
+
+    /* Reject: optional reason */
+    const rejectBackdrop = wireClose('svcRejectModalBackdrop', 'closeSvcRejectModalBtn');
+    const rejectForm = document.getElementById('svcRejectForm');
+    const rejectErrors = document.getElementById('svcRejectErrors');
+
+    document.querySelectorAll('.reject-request-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('svcRejectId').value = btn.dataset.id;
+            document.getElementById('svcRejectSummary').textContent = btn.dataset.summary || '';
+            document.getElementById('svcRejectNote').value = '';
+            rejectErrors.style.display = 'none';
+            rejectBackdrop.style.display = 'flex';
+        });
+    });
+    rejectForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitRequestForm(rejectForm, rejectErrors, document.getElementById('svcRejectSubmit'));
+    });
+
+    /* Update: Ready for Pickup or Claimed */
+    const requestBackdrop = wireClose('svcRequestModalBackdrop', 'closeSvcRequestModalBtn');
+    const requestForm = document.getElementById('svcRequestForm');
+    const requestErrors = document.getElementById('svcRequestModalErrors');
+
+    document.querySelectorAll('.update-request-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('svcRequestId').value = btn.dataset.id;
+            document.getElementById('svcRequestSummary').textContent = btn.dataset.summary || '';
+            // Approved (or the older Processing) starts at Ready for Pickup; Ready for Pickup moves to Claimed
+            document.getElementById('svcRequestStatus').value = (btn.dataset.status === 'ready_for_pickup') ? 'claimed' : 'ready_for_pickup';
+            document.getElementById('svcRequestNote').value = btn.dataset.note || '';
+            requestErrors.style.display = 'none';
+            requestBackdrop.style.display = 'flex';
+        });
+    });
+    requestForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitRequestForm(requestForm, requestErrors, requestForm.querySelector('button[type="submit"]'));
     });
 })();
 </script>
