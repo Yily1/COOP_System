@@ -223,6 +223,13 @@ renderHeader('Loans');
 .ln-metric-value { font-family: 'Fraunces', serif; font-size: 30px; font-weight: 600; margin: 0; }
 .ln-metric-value.ln-value-sm { font-size: 22px; padding-top: 5px; }
 
+.ln-metric-sub { font-size: 11.5px; margin: 4px 0 0; }
+
+.ln-metric-card.ln-tone-success { background: var(--ln-success-soft); }
+.ln-metric-card.ln-tone-success .ln-metric-label,
+.ln-metric-card.ln-tone-success .ln-metric-value,
+.ln-metric-card.ln-tone-success .ln-metric-sub { color: var(--ln-success); }
+
 .ln-metric-card.ln-tone-forest { background: var(--ln-forest); }
 .ln-metric-card.ln-tone-forest .ln-metric-label { color: #EFE9D8; }
 .ln-metric-card.ln-tone-forest .ln-metric-value { color: #fff; }
@@ -438,6 +445,11 @@ renderHeader('Loans');
 
     <!-- SUMMARY -->
     <div class="ln-summary-grid">
+        <div class="ln-metric-card ln-tone-success">
+            <p class="ln-metric-label">Total loaned</p>
+            <p class="ln-metric-value ln-value-sm">₱<?php echo number_format($stats['total_loaned'], 2); ?></p>
+            <p class="ln-metric-sub">₱<?php echo number_format($stats['loaned_this_month'], 2); ?> this month</p>
+        </div>
         <div class="ln-metric-card ln-tone-info">
             <p class="ln-metric-label">Members with active loans</p>
             <p class="ln-metric-value"><?php echo $stats['active_members']; ?></p>

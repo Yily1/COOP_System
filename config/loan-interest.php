@@ -1,5 +1,20 @@
 <?php
-
+/**
+ * Loan interest helpers  (put this file in: config/loan-interest.php)
+ *
+ * How the interest works
+ *  - Simple interest: LOAN_INTEREST_RATE_MONTHLY percent of the loan amount, per month.
+ *  - Counted from the release date until the loan is fully paid.
+ *  - Months are counted by the calendar and a part of a month counts as a full
+ *    month, with a minimum of 1 month (Oct 26 -> Nov 26 = 1 month, Nov 27 = 2).
+ *  - Once a loan is fully paid, its interest stops growing.
+ *  - Old loans that already have a fixed total_due (released with a term) keep
+ *    that fixed amount, so nothing changes for them.
+ *
+ * Payments for loans are the rows in `payments` with payment_type = 'loan_repayment'
+ * and status = 'confirmed' (matched to the member by member_id). When a member has
+ * more than one released loan, payments are applied to the oldest loan first.
+ */
 
 if (!defined('LOAN_INTEREST_RATE_MONTHLY')) {
     define('LOAN_INTEREST_RATE_MONTHLY', 10);
@@ -131,6 +146,14 @@ function loanPortfolioStatsLive(PDO $pdo): array {
         SELECT COALESCE(SUM(amount),0) FROM payments
         WHERE payment_type = 'loan_repayment' AND status = 'confirmed'")->fetchColumn();
 
+    // Everything ever lent out (amount only, no interest) = loans that were released
+    $loaned = (float) $pdo->query("
+        SELECT COALESCE(SUM(amount),0) FROM loans WHERE status = 'released'")->fetchColumn();
+    $loanedThisMonth = (float) $pdo->query("
+        SELECT COALESCE(SUM(amount),0) FROM loans
+        WHERE status = 'released'
+          AND DATE_FORMAT(COALESCE(released_at, created_at), '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')")->fetchColumn();
+
     $active = 0;
     $outstanding = 0.0;
     $ids = $pdo->query("SELECT DISTINCT member_id FROM loans WHERE status = 'released'")->fetchAll(PDO::FETCH_COLUMN);
@@ -143,6 +166,8 @@ function loanPortfolioStatsLive(PDO $pdo): array {
     }
 
     return [
+        'total_loaned'      => round($loaned, 2),
+        'loaned_this_month' => round($loanedThisMonth, 2),
         'active_members'    => $active,
         'total_outstanding' => round($outstanding, 2),
         'pending'           => $pending,
