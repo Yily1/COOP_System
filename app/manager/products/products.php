@@ -389,7 +389,7 @@ renderHeader('Products');
        claimed / rejected      -> nothing (finished)
      ============================================================ -->
 <div class="svc-section-head">
-    <h2>Product Requests</h2>
+    <h2>List of Avail Products and Product Requests</h2>
 </div>
 <?php if (empty($productRequests)): ?>
     <p class="svc-empty">No product requests yet.</p>
