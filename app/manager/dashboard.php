@@ -114,8 +114,6 @@ foreach (dash_rows($pdo, "
 
 $totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere") - $loanReleasedTotal - $stockPurchasedTotal;
 
-$totalInvestment = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere AND LOWER(payment_type) = 'investment'");
-
 $thisMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
     WHERE $incomeWhere
@@ -197,21 +195,12 @@ if ($expensesReady) {
     }
 }
 
-/* NET INCOME (cycle) = (Total income - Investment) - Operational expenses */
-$netIncome = $totalIncome - $totalInvestment - $totalOperational;
-
-$investmentByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
-foreach (dash_rows($pdo, "
-    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total
-    FROM payments WHERE $incomeWhere AND LOWER(payment_type) = 'investment' AND payment_date >= '{$windowStart}' GROUP BY ym") as $r) {
-    if (isset($investmentByMonth[$r['ym']])) $investmentByMonth[$r['ym']] = (float) $r['total'];
-}
+/* NET INCOME (cycle) = Total income (kasama ang Investment) - Operational expenses */
+$netIncome = $totalIncome - $totalOperational;
 
 $netByMonth = [];
 foreach ($incomeByMonth as $ym => $inc) {
-    $netByMonth[$ym] = $inc
-        - ($investmentByMonth[$ym] ?? 0.0)
-        - ($expenseByMonth[$ym] ?? 0.0);
+    $netByMonth[$ym] = $inc - ($expenseByMonth[$ym] ?? 0.0);
 }
 
 $netThisMonth = $netByMonth[$months[5]['key']] ?? 0.0;
