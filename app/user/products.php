@@ -318,6 +318,10 @@ renderHeader('Products');
                     $reqUnit = $r['product_unit'] ?? ($requestedUnitByRequest[(int) $r['id']] ?? '');
                     $qtyDisplay = rtrim(rtrim(number_format($r['quantity'], 2), '0'), '.') . ' ' . $reqUnit;
                     $amount = svcRequestAmount($r, $unitPriceByRequest, $priceById, $priceByName);
+
+                    // Pickup date is set by the manager, so it may still be empty
+                    $pd = $r['pickup_date'] ?? '';
+                    $hasPickup = !empty($pd) && strpos($pd, '0000') !== 0;
                 ?>
                 <div class="svc-request-card">
                     <div class="svc-request-card-head">
@@ -339,7 +343,11 @@ renderHeader('Products');
                         </div>
                         <div>
                             <p>Pickup Date</p>
-                            <p><?php echo date('M j, Y', strtotime($r['pickup_date'])); ?></p>
+                            <?php if ($hasPickup): ?>
+                                <p><?php echo date('M j, Y', strtotime($pd)); ?></p>
+                            <?php else: ?>
+                                <p class="svc-amount-none" title="The manager will set the pickup date">Waiting for manager</p>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php if (!empty($r['manager_note'])): ?>
@@ -367,9 +375,6 @@ renderHeader('Products');
 
             <label class="svc-form-label" id="productReqQtyLabel">Quantity</label>
             <input type="number" name="quantity" id="productReqQuantity" class="svc-form-input" step="0.01" min="0.01" required>
-
-            <label class="svc-form-label">Pickup date</label>
-            <input type="date" name="pickup_date" id="productReqPickupDate" class="svc-form-input" required>
 
             <label class="svc-form-label">Notes (optional)</label>
             <textarea name="notes" rows="2" class="svc-form-input" placeholder="e.g. for our farm's corn harvest"></textarea>
@@ -418,9 +423,6 @@ renderHeader('Products');
                 </div>
             </div>
 
-            <label class="svc-form-label">Pickup date</label>
-            <input type="date" name="pickup_date" class="svc-form-input" required>
-
             <label class="svc-form-label">Notes (optional)</label>
             <textarea name="notes" rows="2" class="svc-form-input" placeholder="e.g. 50kg preferred, any brand"></textarea>
 
@@ -432,7 +434,6 @@ renderHeader('Products');
 <script>
 (function() {
     const AJAX_BASE = '<?php echo BASE_URL; ?>/app/manager/products/api/';
-    const today = new Date().toISOString().slice(0, 10);
 
     /* ---------- Request listed product modal ---------- */
     const productReqBackdrop = document.getElementById('svcProductReqModalBackdrop');
@@ -468,7 +469,6 @@ renderHeader('Products');
             document.getElementById('productReqTitle').textContent = 'Request: ' + btn.dataset.name;
             document.getElementById('productReqQtyLabel').textContent = 'Quantity (' + btn.dataset.unit + ')';
             productReqQty.max = btn.dataset.stock;
-            document.getElementById('productReqPickupDate').min = today;
             productReqBackdrop.style.display = 'flex';
         });
     });

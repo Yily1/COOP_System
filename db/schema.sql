@@ -478,3 +478,5 @@ ALTER TABLE stock_purchases
     ADD CONSTRAINT fk_stock_user
     FOREIGN KEY (recorded_by) REFERENCES users(id)
     ON DELETE RESTRICT;
+
+   ALTER TABLE product_requests MODIFY pickup_date DATE NULL;
