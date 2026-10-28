@@ -9,11 +9,6 @@ date_default_timezone_set('Asia/Manila');
 
 $GLOBALS['dash_errors'] = [];
 
-/* ------------------------------------------------------------
-   Small helpers. A failed query never breaks the page: it returns a
-   default value and the error is listed when you open
-   dashboard.php?debug=1
------------------------------------------------------------- */
 function dash_query(PDO $pdo, string $sql) {
     try {
         $stmt = $pdo->query($sql);
@@ -44,9 +39,6 @@ function dash_peso0_signed($v) {
     return ($v < 0 ? '-' : '') . '₱' . number_format(abs($v), 0);
 }
 
-/* ------------------------------------------------------------
-   The last 6 months (oldest first), used by the month charts
------------------------------------------------------------- */
 $months = [];
 for ($i = 5; $i >= 0; $i--) {
     $d = new DateTime('first day of this month');
@@ -56,42 +48,36 @@ for ($i = 5; $i >= 0; $i--) {
 $windowStart = $months[0]['key'] . '-01';
 
 /* ============================================================
-   WITHDRAWAL CUTOFF
-   The latest "Net Income" expense starts a new cycle.
-   Everything before it is already withdrawn, except Investment.
+   RESET PAGKATAPOS NG "NET INCOME" WITHDRAWAL
+   Ang huling withdrawal ang simula ng bagong cycle. Lahat ng nasa
+   ibaba (Total income, Net income, Operational expenses, at ang
+   chart/legend nila) ay bibilang lang ng galing PAGKATAPOS nito.
+   Hindi nire-reset: Reserve fund (Registration) at Repair and maintenance.
    ============================================================ */
 $expensesReady = !empty(dash_rows($pdo, "SHOW TABLES LIKE 'expenses'"));
 
 $cutoffId = 0;
-$cutoffDate = null;
+$cutoffAt = null;
 if ($expensesReady) {
-    $cut = dash_rows($pdo, "
-        SELECT id, expense_date FROM expenses
-        WHERE category = 'Net Income'
-        ORDER BY id DESC LIMIT 1");
+    $cut = dash_rows($pdo, "SELECT id, created_at, expense_date FROM expenses WHERE category = 'Net Income' ORDER BY id DESC LIMIT 1");
     if ($cut) {
         $cutoffId = (int) $cut[0]['id'];
-        $cutoffDate = $cut[0]['expense_date'];
+        $cutoffAt = $cut[0]['created_at'] ?: ($cut[0]['expense_date'] . ' 23:59:59');
     }
 }
+$cutQ = $cutoffAt ? $pdo->quote($cutoffAt) : null;
 
-$payCut   = $cutoffDate ? "AND payment_date > '{$cutoffDate}'" : '';
-$keepCond = $cutoffDate
-    ? "(LOWER(payment_type) = 'investment' OR payment_date > '{$cutoffDate}')"
-    : '1=1';
-$loanCut  = $cutoffDate ? "AND DATE(COALESCE(released_at, created_at)) > '{$cutoffDate}'" : '';
-$stockCut = $cutoffDate ? "AND purchase_date > '{$cutoffDate}'" : '';
 $opCut    = $cutoffId ? "AND id > {$cutoffId}" : '';
+$payCut   = $cutQ ? "AND created_at > {$cutQ}" : '';
+$loanCut  = $cutQ ? "AND COALESCE(released_at, created_at) > {$cutQ}" : '';
 
-/* ============================================================
-   #1  TOTAL INCOME  (Investment, Rental, Loan, Product)
-   ============================================================ */
+$stockHasCreated = !empty(dash_rows($pdo, "SHOW COLUMNS FROM stock_purchases LIKE 'created_at'"));
+$stockCut = $cutQ ? ($stockHasCreated ? "AND created_at > {$cutQ}" : "AND purchase_date > DATE({$cutQ})") : '';
+
+/* #1 TOTAL INCOME (cycle na ito: galing lang pagkatapos ng huling withdrawal) */
 $coop = coopIncomeSql();
-$incomeWhere = "status = 'confirmed' AND LOWER(payment_type) <> 'registration'";
+$incomeWhere = "status = 'confirmed' AND LOWER(payment_type) <> 'registration' $payCut";
 
-/* ------------------------------------------------------------
-   LOANS RELEASED (current cycle)
------------------------------------------------------------- */
 $loanMonthSql = "DATE_FORMAT(COALESCE(released_at, created_at), '%Y-%m')";
 $loanReleasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM loans WHERE status = 'released' $loanCut");
 $loanReleasedThisMonth = (float) dash_scalar($pdo, "
@@ -109,9 +95,6 @@ foreach (dash_rows($pdo, "
     if (isset($loanReleasedByMonth[$r['ym']])) $loanReleasedByMonth[$r['ym']] = (float) $r['total'];
 }
 
-/* ------------------------------------------------------------
-   STOCK PURCHASES (current cycle)
------------------------------------------------------------- */
 $stockMonthSql = "DATE_FORMAT(purchase_date, '%Y-%m')";
 $stockPurchasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases WHERE 1=1 $stockCut");
 $stockPurchasedThisMonth = (float) dash_scalar($pdo, "
@@ -129,26 +112,24 @@ foreach (dash_rows($pdo, "
     if (isset($stockPurchasedByMonth[$r['ym']])) $stockPurchasedByMonth[$r['ym']] = (float) $r['total'];
 }
 
-// Total income = all Investment + payments after the last withdrawal - loans/stock after it
-$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere AND $keepCond") - $loanReleasedTotal - $stockPurchasedTotal;
+$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere") - $loanReleasedTotal - $stockPurchasedTotal;
 
-// Investment (all time, never resets)
 $totalInvestment = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere AND LOWER(payment_type) = 'investment'");
 
 $thisMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
-    WHERE $incomeWhere AND $keepCond
+    WHERE $incomeWhere
       AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')") - $loanReleasedThisMonth - $stockPurchasedThisMonth;
 $lastMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
-    WHERE $incomeWhere AND $keepCond
+    WHERE $incomeWhere
       AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')") - $loanReleasedLastMonth - $stockPurchasedLastMonth;
 
 $incomeByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 foreach (dash_rows($pdo, "
     SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total
     FROM payments
-    WHERE $incomeWhere AND $keepCond AND payment_date >= '{$windowStart}'
+    WHERE $incomeWhere AND payment_date >= '{$windowStart}'
     GROUP BY ym") as $r) {
     if (isset($incomeByMonth[$r['ym']])) $incomeByMonth[$r['ym']] = (float) $r['total'];
 }
@@ -162,7 +143,7 @@ foreach ($stockPurchasedByMonth as $ym => $spent) {
 $incomeByType = ['investment' => 0.0, 'loan_repayment' => 0.0, 'rental' => 0.0, 'product' => 0.0];
 foreach (dash_rows($pdo, "
     SELECT LOWER(payment_type) AS t, SUM($coop) AS total
-    FROM payments WHERE $incomeWhere AND $keepCond GROUP BY LOWER(payment_type)") as $r) {
+    FROM payments WHERE $incomeWhere GROUP BY LOWER(payment_type)") as $r) {
     $k = str_replace(' ', '_', $r['t']);
     if (isset($incomeByType[$k])) $incomeByType[$k] = (float) $r['total'];
 }
@@ -189,21 +170,19 @@ if ($lastMonthIncome > 0) {
     $deltaText = 'No confirmed payments this month';
 }
 
-/* ============================================================
-   #2  EXPENSES & FUNDS
-   ============================================================ */
+/* #2 EXPENSES & FUNDS */
 $totalOperational = 0.0;
 $expenseRepair = 0.0;
-$totalWithdrawal = 0.0;
 $totalRegExpenses = 0.0;
 
 $expenseByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 $repairByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
 
 if ($expensesReady) {
+    // Operational: galing lang pagkatapos ng huling withdrawal
     $totalOperational = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Operational' $opCut");
+    // Repair at Registration: hindi nire-reset
     $expenseRepair = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Repair'");
-    $totalWithdrawal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Net Income'");
     $totalRegExpenses = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Registration'");
 
     foreach (dash_rows($pdo, "
@@ -218,10 +197,7 @@ if ($expensesReady) {
     }
 }
 
-/* ============================================================
-   NET INCOME
-   (Total Income - Investment) - Operational, counted after the last withdrawal
-   ============================================================ */
+/* NET INCOME (cycle) = (Total income - Investment) - Operational expenses */
 $netIncome = $totalIncome - $totalInvestment - $totalOperational;
 
 $investmentByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
@@ -233,7 +209,9 @@ foreach (dash_rows($pdo, "
 
 $netByMonth = [];
 foreach ($incomeByMonth as $ym => $inc) {
-    $netByMonth[$ym] = $inc - ($investmentByMonth[$ym] ?? 0.0) - ($expenseByMonth[$ym] ?? 0.0);
+    $netByMonth[$ym] = $inc
+        - ($investmentByMonth[$ym] ?? 0.0)
+        - ($expenseByMonth[$ym] ?? 0.0);
 }
 
 $netThisMonth = $netByMonth[$months[5]['key']] ?? 0.0;
@@ -253,9 +231,7 @@ if ($netLastMonth > 0) {
     $netDeltaText = 'No income this month';
 }
 
-/* ============================================================
-   RESERVE FUND (Registration)
-   ============================================================ */
+/* RESERVE FUND (Registration) - hindi nire-reset */
 $reserveIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM(amount),0) FROM payments
     WHERE status = 'confirmed' AND LOWER(payment_type) = 'registration'");
@@ -274,16 +250,12 @@ foreach (dash_rows($pdo, "
     if (isset($reserveByMonth[$r['ym']])) $reserveByMonth[$r['ym']] = (float) $r['total'];
 }
 
-/* ============================================================
-   #5 REPAIR AND MAINTENANCE (Pondo)
-   ============================================================ */
+/* #5 REPAIR AND MAINTENANCE: Repair expenses ang babawas dito lang (hindi nire-reset) */
 $repairShareFromRentals = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM(repair_share),0) FROM payments WHERE status = 'confirmed'");
 $totalRepair = $repairShareFromRentals - $expenseRepair;
 
-/* ============================================================
-   #3 SERVICES UTILIZED
-   ============================================================ */
+/* #3 SERVICES UTILIZED */
 $services = [
     'Products'  => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM product_requests WHERE status <> 'rejected'"),
     'Equipment' => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM equipment_bookings WHERE status NOT IN ('rejected','cancelled')"),
@@ -294,9 +266,7 @@ $services = [
 $serviceColors = ['Products' => '#2a78d6', 'Equipment' => '#eb6834', 'Resources' => '#1baf7a', 'Loans' => '#eda100', 'Crops' => '#6250d6'];
 $servicesTotal = array_sum($services);
 
-/* ============================================================
-   #4 ACTIVE MEMBERS
-   ============================================================ */
+/* #4 ACTIVE MEMBERS */
 $totalMembers  = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM members");
 $activeMembers = (int) dash_scalar($pdo, "
     SELECT COUNT(DISTINCT m.id) FROM members m
@@ -314,9 +284,7 @@ $memberGrowth = [];
 $running = $membersBefore;
 foreach ($newByMonth as $c) { $running += $c; $memberGrowth[] = $running; }
 
-/* ============================================================
-   RECENT ACTIVITY
-   ============================================================ */
+/* RECENT ACTIVITY */
 $recentActivity = dash_rows($pdo, "
     SELECT al.created_at, al.action, u.email, u.role,
            TRIM(CONCAT(COALESCE(m.last_name,''), ', ', COALESCE(m.first_name,''))) AS full_name
@@ -381,10 +349,8 @@ renderHeader($title);
 
     <div class="db-grid">
 
-        <!-- ================= LEFT COLUMN ================= -->
         <div class="db-col">
 
-            <!-- #1 TOTAL INCOME -->
             <div class="db-card db-big">
                 <div class="db-head">
                     <span class="material-icons">payments</span>Total income
@@ -407,7 +373,6 @@ renderHeader($title);
                 </div>
             </div>
 
-            <!-- NET INCOME -->
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">trending_up</span>Net income
@@ -421,7 +386,6 @@ renderHeader($title);
                 </div>
             </div>
 
-            <!-- RESERVE FUND -->
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">savings</span>Reserve fund
@@ -443,10 +407,8 @@ renderHeader($title);
 
         </div>
 
-        <!-- ================= RIGHT COLUMN ================= -->
         <div class="db-col">
 
-            <!-- #2 OPERATIONAL EXPENSES -->
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">receipt_long</span>Operational expenses
@@ -468,7 +430,6 @@ renderHeader($title);
                 <?php endif; ?>
             </div>
 
-            <!-- #5 REPAIR AND MAINTENANCE -->
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">handyman</span>Repair and maintenance
@@ -484,7 +445,6 @@ renderHeader($title);
                 <?php endif; ?>
             </div>
 
-            <!-- #3 SERVICES UTILIZED -->
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">build</span>Services utilized
@@ -510,7 +470,6 @@ renderHeader($title);
                 <?php endif; ?>
             </div>
 
-            <!-- #4 ACTIVE MEMBERS -->
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">groups</span>Active members
@@ -528,7 +487,6 @@ renderHeader($title);
 
     </div>
 
-    <!-- ================= RECENT ACTIVITY ================= -->
     <div class="db-card">
         <h3>Recent activity</h3>
         <div class="db-table-wrap">

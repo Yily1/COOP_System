@@ -44,52 +44,30 @@ function getNetIncomeSummary(PDO $pdo): array {
     }
     $start = array_key_first($months) . '-01';
 
-    $cutoffId = 0;
-    $cutoffDate = null;
-    try {
-        $cutSql = "SELECT id, expense_date FROM expenses WHERE category = 'Net Income' ORDER BY id DESC LIMIT 1";
-        $cut = $pdo->query($cutSql)->fetch(PDO::FETCH_ASSOC);
-        if ($cut) {
-            $cutoffId = (int) $cut['id'];
-            $cutoffDate = $cut['expense_date'];
-        }
-    } catch (PDOException $e) {
-    }
-
     $incomeWhere = "status = 'confirmed' AND LOWER(payment_type) <> 'registration'";
 
-    $keepCond = '1=1';
-    $loanCut = '';
-    $stockCut = '';
-    $opCut = '';
-    if ($cutoffDate) {
-        $keepCond = "(LOWER(payment_type) = 'investment' OR payment_date > '$cutoffDate')";
-        $loanCut  = "AND DATE(COALESCE(released_at, created_at)) > '$cutoffDate'";
-        $stockCut = "AND purchase_date > '$cutoffDate'";
-    }
-    if ($cutoffId) {
-        $opCut = "AND id > $cutoffId";
-    }
-
-    $sqlPayments = "SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total FROM payments WHERE $incomeWhere AND $keepCond AND payment_date >= '$start' GROUP BY ym";
-    $sqlLoans    = "SELECT DATE_FORMAT(COALESCE(released_at, created_at), '%Y-%m') AS ym, SUM(amount) AS total FROM loans WHERE status = 'released' $loanCut AND COALESCE(released_at, created_at) >= '$start' GROUP BY ym";
-    $sqlStock    = "SELECT DATE_FORMAT(purchase_date, '%Y-%m') AS ym, SUM(total_cost) AS total FROM stock_purchases WHERE purchase_date >= '$start' $stockCut GROUP BY ym";
+    $sqlPayments = "SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total FROM payments WHERE $incomeWhere AND payment_date >= '$start' GROUP BY ym";
+    $sqlLoans    = "SELECT DATE_FORMAT(COALESCE(released_at, created_at), '%Y-%m') AS ym, SUM(amount) AS total FROM loans WHERE status = 'released' AND COALESCE(released_at, created_at) >= '$start' GROUP BY ym";
+    $sqlStock    = "SELECT DATE_FORMAT(purchase_date, '%Y-%m') AS ym, SUM(total_cost) AS total FROM stock_purchases WHERE purchase_date >= '$start' GROUP BY ym";
     $sqlInvest   = "SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total FROM payments WHERE $incomeWhere AND LOWER(payment_type) = 'investment' AND payment_date >= '$start' GROUP BY ym";
-    $sqlOper     = "SELECT DATE_FORMAT(expense_date, '%Y-%m') AS ym, SUM(amount) AS total FROM expenses WHERE category = 'Operational' $opCut AND expense_date >= '$start' GROUP BY ym";
+    $sqlOper     = "SELECT DATE_FORMAT(expense_date, '%Y-%m') AS ym, SUM(amount) AS total FROM expenses WHERE category = 'Operational' AND expense_date >= '$start' GROUP BY ym";
+    $sqlWithdraw = "SELECT DATE_FORMAT(expense_date, '%Y-%m') AS ym, SUM(amount) AS total FROM expenses WHERE category = 'Net Income' AND expense_date >= '$start' GROUP BY ym";
 
     netIncomeAddMonths($pdo, $months, $sqlPayments, 1);
     netIncomeAddMonths($pdo, $months, $sqlLoans, -1);
     netIncomeAddMonths($pdo, $months, $sqlStock, -1);
     netIncomeAddMonths($pdo, $months, $sqlInvest, -1);
     netIncomeAddMonths($pdo, $months, $sqlOper, -1);
+    netIncomeAddMonths($pdo, $months, $sqlWithdraw, -1);
 
-    $paymentsTotal    = fundsScalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere AND $keepCond");
-    $loansTotal       = fundsScalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM loans WHERE status = 'released' $loanCut");
-    $stockTotal       = fundsScalar($pdo, "SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases WHERE 1=1 $stockCut");
-    $investTotal      = fundsScalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere AND LOWER(payment_type) = 'investment'");
-    $operationalTotal = fundsScalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Operational' $opCut");
+    $paymentsTotal  = fundsScalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere");
+    $loansTotal     = fundsScalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM loans WHERE status = 'released'");
+    $stockTotal     = fundsScalar($pdo, "SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases");
+    $investTotal    = fundsScalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere AND LOWER(payment_type) = 'investment'");
+    $operationTotal = fundsScalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Operational'");
+    $withdrawTotal  = fundsScalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Net Income'");
 
-    $total = $paymentsTotal - $loansTotal - $stockTotal - $investTotal - $operationalTotal;
+    $total = $paymentsTotal - $loansTotal - $stockTotal - $investTotal - $operationTotal - $withdrawTotal;
 
     $list = array_values($months);
     return [

@@ -118,6 +118,25 @@ function payerInitials($name) {
 }
 
 // ============================================================
+// RESET AFTER "NET INCOME" WITHDRAWAL
+// After the last Net Income withdrawal, the Investment, Rental,
+// Loan Repayment and Products cards start counting again from 0.
+// The records in the table below are NOT removed. Only the cards
+// (which feed the dashboard) count payments recorded after the
+// withdrawal. Registration, Operator and Repair cards never reset.
+// ============================================================
+$resetTypes = ['investment', 'rental', 'loan_repayment', 'product'];
+$cutoffAt = null;
+try {
+    $cut = $pdo->query("SELECT created_at, expense_date FROM expenses WHERE category = 'Net Income' ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+    if ($cut) {
+        $cutoffAt = $cut['created_at'] ?: ($cut['expense_date'] . ' 23:59:59');
+    }
+} catch (PDOException $e) {
+    $cutoffAt = null; // expenses table not created yet
+}
+
+// ============================================================
 // SUMMARY TOTALS (confirmed payments only, respects current filters)
 // ============================================================
 $totals = ['registration' => 0, 'investment' => 0, 'rental' => 0, 'loan_repayment' => 0, 'product' => 0];
@@ -130,11 +149,18 @@ foreach ($payments as $payment) {
     }
     $operator = (float) ($payment['operator_share'] ?? 0);
     $repair = (float) ($payment['repair_share'] ?? 0);
+    $type = $payment['payment_type'];
+
+    // Count in the card only if the type never resets, or the payment
+    // was recorded after the last Net Income withdrawal.
+    $countInCard = !$cutoffAt
+        || !in_array($type, $resetTypes, true)
+        || $payment['created_at'] > $cutoffAt;
 
     // Coop share only: the amount minus the operator and repair shares.
     // Other payment types have no shares, so their full amount counts.
-    if (isset($totals[$payment['payment_type']])) {
-        $totals[$payment['payment_type']] += $payment['amount'] - $operator - $repair;
+    if ($countInCard && isset($totals[$type])) {
+        $totals[$type] += $payment['amount'] - $operator - $repair;
     }
     $operatorTotal += $operator;
     $repairTotal += $repair;
@@ -351,6 +377,7 @@ renderHeader('Payments');
 <!-- ============================================================
      PAYMENT TOTALS (confirmed payments, by type)
      Operator and Repair and maintenance = the shares set aside from rentals.
+     Investment, Rental, Loan Repayment and Products reset after a Net Income withdrawal.
      ============================================================ -->
 <div class="pay-summary-grid">
     <div class="pay-summary-card pay-card-amber">

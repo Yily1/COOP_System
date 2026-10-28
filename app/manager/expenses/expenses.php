@@ -10,6 +10,13 @@ $expenses = [];
 $total = 0.0;
 $thisMonth = 0.0;
 
+$categoryLabels = [
+    'Operational'  => 'Operational',
+    'Repair'       => 'Repair and maintenance',
+    'Net Income'   => 'Net income withdrawal',
+    'Registration' => 'Registration',
+];
+
 try {
     $stmt = $pdo->query("
         SELECT e.*, u.email AS recorded_by_email
@@ -21,6 +28,8 @@ try {
 
     $currentMonth = date('Y-m');
     foreach ($expenses as $e) {
+        $cat = $e['category'] ?? 'Operational';
+        if ($cat !== 'Operational') continue;
         $total += (float) $e['amount'];
         if (substr($e['expense_date'], 0, 7) === $currentMonth) {
             $thisMonth += (float) $e['amount'];
@@ -35,17 +44,44 @@ renderHeader('Expenses');
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-.ex-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; position: relative; width: 100%; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; }
-.ex-head h1 { margin: 0; flex: 1 1 auto; min-width: 0; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; color: #222; font-size: 26px; font-weight: 600; }
-.ex-btn { background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; border: none !important; padding: 11px 22px !important; border-radius: 10px !important; cursor: pointer; font-size: 14px !important; display: inline-block !important; width: auto !important; max-width: 220px !important; flex: 0 0 auto !important; white-space: nowrap !important; position: static !important; margin-left: auto !important; text-transform: none !important; letter-spacing: normal !important; }
+
+.ex-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; gap: 16px; position: relative; width: 100%;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+.ex-head h1 {
+    margin: 0; flex: 1 1 auto; min-width: 0; position: static !important;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif; color: #222; font-size: 26px; font-weight: 600;
+}
+
+.ex-btn {
+    background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+    font-weight: 600 !important; color: #fff !important; border: none !important;
+    padding: 11px 22px !important; border-radius: 10px !important; cursor: pointer;
+    font-size: 14px !important; font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
+    display: inline-block !important; width: auto !important; max-width: 220px !important;
+    flex: 0 0 auto !important; white-space: nowrap !important;
+    position: static !important; float: none !important; margin-left: auto !important;
+    text-transform: none !important; letter-spacing: normal !important;
+}
 .ex-btn:hover { background: #2e5a0d !important; }
+
 .ex-stats { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; }
-.ex-stat { border-radius: 12px; padding: 0 18px; color: #fff; flex: 0 0 160px; width: 160px; height: 92px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+.ex-stat {
+    border-radius: 12px; padding: 0 18px; color: #fff; flex: 0 0 160px; width: 160px; height: 92px;
+    box-sizing: border-box; display: flex; flex-direction: column; justify-content: center;
+}
 .ex-stat p { margin: 0; }
 .ex-stat .l { font-size: 13px; opacity: .9; margin-bottom: 6px; }
-.ex-stat .v { font-size: 28px; font-weight: 700; line-height: 1.1; font-family: 'Fraunces', 'Times New Roman', Times, serif; white-space: nowrap; }
+.ex-stat .v {
+    font-size: 28px; font-weight: 700; line-height: 1.1;
+    font-family: 'Fraunces', 'Times New Roman', Times, serif;
+    font-variant-numeric: lining-nums tabular-nums; white-space: nowrap;
+}
 .ex-stat-total { background: #a84438; }
 .ex-stat-month { background: #C1892B; }
+
 .ex-table-wrap { overflow-x: auto; border: 1px solid #e2e0d5; border-radius: 10px; background: #fff; }
 .ex-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .ex-table th { text-align: left; padding: 12px 14px; background: #fff; border-bottom: 1px solid #e2e0d5; color: #6b7280; font-weight: 600; white-space: nowrap; }
@@ -53,20 +89,71 @@ renderHeader('Expenses');
 .ex-table tbody tr:last-child td { border-bottom: none; }
 .ex-amount { font-weight: 600; white-space: nowrap; }
 .ex-empty { padding: 28px; text-align: center; color: #6b7280; font-size: 13px; }
+
+.ex-cat { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 7px; white-space: nowrap; background: #F1EFE8; color: #444441; }
+.ex-cat.operational { background: #EAF3DE; color: #27500A; }
+.ex-cat.repair { background: #E1F5EE; color: #085041; }
+.ex-cat.net-income { background: #FAEEDA; color: #633806; }
+
 .ex-setup { background: #FAEEDA; border-left: 3px solid #EF9F27; color: #854F0B; border-radius: 6px; padding: 14px 16px; font-size: 13.5px; line-height: 1.6; }
-#exBackdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
-.ex-modal { background: #fff; border-radius: 14px; padding: 28px 24px 24px; width: 100%; max-width: 400px; box-sizing: border-box; position: relative; display: flex; flex-direction: column; max-height: calc(100vh - 32px); overflow: hidden; }
-.ex-modal h2 { background: none !important; color: #1b3a24 !important; margin: 0 0 14px !important; padding: 0 40px 0 0 !important; font-size: 20px !important; font-weight: 600 !important; text-align: left !important; flex: 0 0 auto; }
-#exClose { position: absolute !important; top: 16px !important; right: 16px !important; display: flex !important; align-items: center !important; justify-content: center !important; width: 28px !important; height: 28px !important; min-width: 0 !important; max-width: 28px !important; padding: 0 !important; margin: 0 !important; background: #fff !important; border: 1px solid #cfd8e3 !important; border-radius: 50% !important; font-size: 16px !important; line-height: 1 !important; cursor: pointer !important; color: #274b81 !important; box-shadow: none !important; z-index: 10; user-select: none; }
+.ex-setup pre { background: #fff; border-radius: 6px; padding: 10px; margin: 10px 0 0; font-size: 12px; white-space: pre-wrap; color: #333; }
+
+#exBackdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000;
+    align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;
+}
+.ex-modal {
+    background: #fff; border-radius: 14px; padding: 28px 24px 24px; width: 100%; max-width: 400px; box-sizing: border-box;
+    position: relative; display: flex; flex-direction: column; max-height: calc(100vh - 32px); overflow: hidden;
+}
+.ex-modal h2 {
+    background: none !important; color: #1b3a24 !important; margin: 0 0 14px !important; padding: 0 40px 0 0 !important;
+    font-size: 20px !important; font-weight: 600 !important; text-align: left !important; flex: 0 0 auto;
+}
+#exClose {
+    position: absolute !important; top: 16px !important; right: 16px !important; display: flex !important;
+    align-items: center !important; justify-content: center !important; width: 28px !important; height: 28px !important;
+    min-width: 0 !important; max-width: 28px !important; padding: 0 !important; margin: 0 !important; background: #fff !important;
+    border: 1px solid #cfd8e3 !important; border-radius: 50% !important; font-size: 16px !important; line-height: 1 !important;
+    cursor: pointer !important; color: #274b81 !important; box-shadow: none !important; z-index: 10; user-select: none;
+}
 #exClose:hover { background: #eef3fb !important; border-color: #274b81 !important; }
 #exErrors { display: none; background: #fbe6e6; color: #a6322f; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; flex: 0 0 auto; }
+
 .ex-form { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 10px; }
 .ex-form .form-group { margin: 0 !important; min-width: 0; }
 .ex-form .form-group label { display: block; font-size: 13px; margin-bottom: 3px !important; }
-.ex-form .form-group input, .ex-form .form-group select { width: 100%; box-sizing: border-box; padding: 7px 9px !important; font-size: 13px !important; }
-.ex-form button[type="submit"] { position: sticky; bottom: 0; z-index: 2; width: 100% !important; box-sizing: border-box; margin: 4px 0 0 !important; padding: 10px !important; background: #639a20 !important; color: #fff !important; border: none !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important; box-shadow: 0 -8px 8px -4px #fff; }
-@media (max-width: 700px) { .ex-table thead { display: none; } .ex-table, .ex-table tbody, .ex-table tr, .ex-table td { display: block; width: 100%; box-sizing: border-box; } .ex-table tr { border-bottom: 1px solid #f0f0ea; padding: 10px 0; } .ex-table tbody tr:last-child { border-bottom: none; } .ex-table td { border-bottom: none !important; padding: 4px 14px; } .ex-table td::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 2px; } }
-@media (max-width: 560px) { #exBackdrop { padding: 10px 34px; } .ex-modal { padding: 18px 16px 14px; max-width: 100%; border-radius: 12px; max-height: calc(100vh - 20px); } .ex-modal h2 { font-size: 17px !important; margin: 0 0 10px !important; } #exClose { top: 12px !important; right: 12px !important; } .ex-form { gap: 8px; } .ex-form .form-group label { font-size: 12px; } .ex-stat { flex: 1 1 140px; width: auto; } }
+.ex-form .form-group input,
+.ex-form .form-group select {
+    width: 100%; box-sizing: border-box; padding: 7px 9px !important; font-size: 13px !important;
+}
+.ex-hint { margin: 4px 0 0; font-size: 12px; color: #6b7280; line-height: 1.4; }
+.ex-form button[type="submit"] {
+    position: sticky; bottom: 0; z-index: 2; width: 100% !important; box-sizing: border-box;
+    margin: 4px 0 0 !important; padding: 10px !important; background: #639a20 !important; color: #fff !important; border: none !important;
+    border-radius: 6px !important; cursor: pointer; font-size: 14px !important; box-shadow: 0 -8px 8px -4px #fff;
+}
+
+@media (max-width: 700px) {
+    .ex-table thead { display: none; }
+    .ex-table, .ex-table tbody, .ex-table tr, .ex-table td { display: block; width: 100%; box-sizing: border-box; }
+    .ex-table tr { border-bottom: 1px solid #f0f0ea; padding: 10px 0; }
+    .ex-table tbody tr:last-child { border-bottom: none; }
+    .ex-table td { border-bottom: none !important; padding: 4px 14px; }
+    .ex-table td::before {
+        content: attr(data-label); display: block; font-size: 11px; font-weight: 600; color: #6b7280;
+        text-transform: uppercase; margin-bottom: 2px;
+    }
+}
+@media (max-width: 560px) {
+    #exBackdrop { padding: 10px 34px; }
+    .ex-modal { padding: 18px 16px 14px; max-width: 100%; border-radius: 12px; max-height: calc(100vh - 20px); }
+    .ex-modal h2 { font-size: 17px !important; margin: 0 0 10px !important; }
+    #exClose { top: 12px !important; right: 12px !important; }
+    .ex-form { gap: 8px; }
+    .ex-form .form-group label { font-size: 12px; }
+    .ex-stat { flex: 1 1 140px; width: auto; }
+}
 </style>
 
 <div class="ex-head">
@@ -77,24 +164,27 @@ renderHeader('Expenses');
 </div>
 
 <?php if ($tableMissing): ?>
+
     <div class="ex-setup">
         <strong>The expenses table hasn&rsquo;t been created yet.</strong><br>
         Run this in phpMyAdmin (SQL tab), then refresh this page:
         <pre>CREATE TABLE expenses (
   id INT AUTO_INCREMENT PRIMARY KEY,
   expense_date DATE NOT NULL,
-  category VARCHAR(50) NOT NULL DEFAULT 'Operational',
+  category VARCHAR(30) NOT NULL DEFAULT 'Operational',
   description VARCHAR(255) NOT NULL,
   amount DECIMAL(12,2) NOT NULL,
   recorded_by INT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_expense_date (expense_date)
 );</pre>
     </div>
+
 <?php else: ?>
 
     <div class="ex-stats">
         <div class="ex-stat ex-stat-total">
-            <p class="l">Total expenses</p>
+            <p class="l">Operational expenses</p>
             <p class="v">₱<?php echo number_format($total, 2); ?></p>
         </div>
         <div class="ex-stat ex-stat-month">
@@ -104,7 +194,7 @@ renderHeader('Expenses');
     </div>
 
     <?php if (empty($expenses)): ?>
-        <div class="ex-table-wrap"><p class="ex-empty">No expenses recorded yet.</p></div>
+        <div class="ex-table-wrap"><p class="ex-empty">No expenses recorded yet. Click &ldquo;+ Add expense&rdquo; to add the first one.</p></div>
     <?php else: ?>
         <div class="ex-table-wrap">
             <table class="ex-table" id="exTable">
@@ -118,20 +208,14 @@ renderHeader('Expenses');
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($expenses as $e): ?>
+                    <?php foreach ($expenses as $e):
+                        $cat = $e['category'] ?? 'Operational';
+                        $catClass = strtolower(str_replace(' ', '-', $cat));
+                        $catLabel = $categoryLabels[$cat] ?? $cat;
+                    ?>
                         <tr>
                             <td data-label="Date" style="white-space:nowrap;"><?php echo date('M j, Y', strtotime($e['expense_date'])); ?></td>
-                            <td data-label="Category">
-                                <?php if($e['category'] === 'Repair'): ?>
-                                    <span style="background:#FAECE7; color:#712B13; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">Repair & Maint.</span>
-                                <?php elseif($e['category'] === 'Net Income'): ?>
-                                    <span style="background:#E1EFDE; color:#2F6B43; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">Withdrawal</span>
-                                <?php elseif($e['category'] === 'Registration'): ?>
-                                    <span style="background:#EAE6FB; color:#4b2f9c; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">Registration Fund</span>
-                                <?php else: ?>
-                                    <span style="background:#EAF3DE; color:#27500A; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">Operational</span>
-                                <?php endif; ?>
-                            </td>
+                            <td data-label="Category"><span class="ex-cat <?php echo htmlspecialchars($catClass); ?>"><?php echo htmlspecialchars($catLabel); ?></span></td>
                             <td data-label="Description"><?php echo htmlspecialchars($e['description']); ?></td>
                             <td data-label="Amount" class="ex-amount">₱<?php echo number_format($e['amount'], 2); ?></td>
                             <td data-label="Recorded by" style="color:#6b7280;"><?php echo htmlspecialchars($e['recorded_by_email'] ?? '-'); ?></td>
@@ -157,16 +241,16 @@ renderHeader('Expenses');
                 <div class="form-group">
                     <label for="exCategory">Category</label>
                     <select name="category" id="exCategory" required>
-                        <option value="Operational">Operational Expenses</option>
-                        <option value="Repair">Repair and Maintenance</option>
-                        <option value="Net Income">Net Income / Withdrawal</option>
-                        <option value="Registration">Registration Fund</option>
+                        <option value="Operational">Operational</option>
+                        <option value="Repair">Repair and maintenance</option>
+                        <option value="Net Income">Net income withdrawal</option>
                     </select>
+                    <p class="ex-hint" id="exHint"></p>
                 </div>
 
                 <div class="form-group">
                     <label for="exDesc">Description</label>
-                    <input type="text" name="description" id="exDesc" maxlength="255" placeholder="e.g. Fuel or withdrawal" required>
+                    <input type="text" name="description" id="exDesc" maxlength="255" placeholder="e.g. Fuel for delivery truck" required>
                 </div>
 
                 <div class="form-group">
@@ -183,10 +267,21 @@ renderHeader('Expenses');
     (function() {
         const API = '<?php echo BASE_URL; ?>/app/manager/expenses/api/';
         const today = '<?php echo date('Y-m-d'); ?>';
+
         const backdrop = document.getElementById('exBackdrop');
         const form = document.getElementById('exForm');
         const errors = document.getElementById('exErrors');
         const submitBtn = document.getElementById('exSubmit');
+        const catSel = document.getElementById('exCategory');
+        const hint = document.getElementById('exHint');
+
+        const hints = {
+            'Operational': 'Deducts from net income.',
+            'Repair': 'Deducts from Repair and maintenance only.',
+            'Net Income': 'Deducts the amount from net income and resets the Operational expenses card.'
+        };
+        function updateHint() { hint.textContent = hints[catSel.value] || ''; }
+        catSel.addEventListener('change', updateHint);
 
         function openModal() { backdrop.style.display = 'flex'; }
         function closeModal() { backdrop.style.display = 'none'; errors.style.display = 'none'; }
@@ -194,6 +289,7 @@ renderHeader('Expenses');
         document.getElementById('exOpenAdd').addEventListener('click', function() {
             form.reset();
             document.getElementById('exDate').value = today;
+            updateHint();
             errors.style.display = 'none';
             openModal();
         });
@@ -229,5 +325,7 @@ renderHeader('Expenses');
         });
     })();
     </script>
+
 <?php endif; ?>
+
 <?php renderFooter(); ?>
