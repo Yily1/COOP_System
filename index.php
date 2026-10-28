@@ -61,7 +61,7 @@ require_once __DIR__ . '/config/config.php';
         
         <!-- Intro Title -->
         <div class="section-head">
-            <h2>Services and Agricultural Resources</h2>
+            <h2>We Offer Services and Agricultural Resources</h2>
             <p>The cooperative provides services and agricultural resources to support our members and help our community grow.</p>
         </div>
 
@@ -89,16 +89,21 @@ require_once __DIR__ . '/config/config.php';
             </div>
         </div>
 
-        <!-- BOX 2: OUR AGRICULTURAL RESOURCES (Isang card na lang) -->
+        <!-- BOX 2: OUR AGRICULTURAL RESOURCES (Seeds and Fertilizer) -->
         <div class="services-section">
             <div class="services-title-wrap">
                 <h3 class="front-title">Our Agricultural Resources</h3>
             </div>
-            <div class="services-grid services-grid--one">
+            <div class="services-grid services-grid--two">
                 <article class="service-card">
-                    <div class="service-icon" aria-hidden="true">🚚</div>
-                    <h4>Resource Distribution</h4>
-                    <p>Distribution of agricultural resources and assistance to eligible cooperative members.</p>
+                    <div class="service-icon" aria-hidden="true">🌾</div>
+                    <h4>Seeds</h4>
+                    <p>Quality seeds distributed to eligible cooperative members for planting.</p>
+                </article>
+                <article class="service-card">
+                    <div class="service-icon" aria-hidden="true">🧪</div>
+                    <h4>Fertilizer</h4>
+                    <p>Fertilizer distributed to eligible members to support healthy crop growth.</p>
                 </article>
             </div>
         </div>

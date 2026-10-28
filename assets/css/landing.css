@@ -254,6 +254,12 @@ section {
 .services-grid--three {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+/* 2 Cards layout (Seeds and Fertilizer, naka-center) */
+.services-grid--two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 680px;
+    margin: 0 auto;
+}
 /* 1 Card layout (Naka-center at may tamang lapad) */
 .services-grid--one {
     grid-template-columns: 1fr;
@@ -528,6 +534,7 @@ section {
     .section-head { margin-bottom: 36px; }
 
     .services-grid--three { grid-template-columns: 1fr; }
+    .services-grid--two { grid-template-columns: 1fr; max-width: 420px; }
     
     .mv-extra { margin-top: 44px; gap: 40px; }
     .cv-card { padding: 22px 16px; }
