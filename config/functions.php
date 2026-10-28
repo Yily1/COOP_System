@@ -698,9 +698,9 @@ function distributionStatusBadge($status) {
 
 
 /**
- * The current user's own active bookings (pending approval, ongoing, or
- * overdue) with the equipment name joined in. Returned/rejected/cancelled
- * bookings are left out since this feeds the "active bookings" summary.
+ * The current user's own bookings: active ones first (pending, ongoing,
+ * overdue), then returned ones, so finished bookings stay visible.
+ * Rejected/cancelled bookings are still left out.
  */
 function getMyEquipmentBookings($pdo, $userId) {
     markOverdueBookings($pdo);
@@ -709,8 +709,8 @@ function getMyEquipmentBookings($pdo, $userId) {
         FROM equipment_bookings b
         INNER JOIN equipment e ON e.id = b.equipment_id
         WHERE b.recorded_by = :user_id
-          AND b.status IN ('pending', 'ongoing', 'overdue')
-        ORDER BY b.start_date ASC
+          AND b.status IN ('pending', 'ongoing', 'overdue', 'returned')
+        ORDER BY (b.status = 'returned') ASC, b.start_date DESC
     ");
     $stmt->execute([':user_id' => $userId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);

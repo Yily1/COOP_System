@@ -10,7 +10,12 @@ requireRole('user');
 
 $equipmentList = getAllEquipment($pdo);
 $availableCount = count(array_filter($equipmentList, fn($eq) => $eq['status'] === 'available'));
+
+// Includes returned bookings too (they stay visible, listed after the active ones)
 $myBookings = getMyEquipmentBookings($pdo, $_SESSION['user_id']);
+
+// The summary card only counts bookings that are not returned yet
+$activeBookingsCount = count(array_filter($myBookings, fn($b) => $b['status'] !== 'returned'));
 
 $iconMap = [
     'Corn Sheller'     => 'agriculture',
@@ -236,6 +241,10 @@ renderHeader('Equipment Rental');
 .eq-status-badge.eq-overdue { background: #fbe6e6; color: #a6322f; }
 .eq-status-badge.eq-returned { background: #e8f5e9; color: #2e7d32; }
 
+/* Returned bookings stay in the table but look a little faded.
+   The status badge keeps its full color so "Returned" is still clear. */
+.eq-row-returned td:not(.eq-cell-status) { opacity: 0.6; }
+
 .eq-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .eq-cal-nav-btn {
     width: auto !important; background: none !important; border: none !important; padding: 6px; border-radius: 6px;
@@ -349,7 +358,7 @@ renderHeader('Equipment Rental');
         </div>
         <div class="eq-metric-card eq-tone-blue">
             <p class="eq-metric-label">Your active bookings</p>
-            <p class="eq-metric-value"><?php echo count($myBookings); ?></p>
+            <p class="eq-metric-value"><?php echo $activeBookingsCount; ?></p>
         </div>
     </div>
 
@@ -411,10 +420,10 @@ renderHeader('Equipment Rental');
                 </thead>
                 <tbody>
                     <?php if (empty($myBookings)): ?>
-                        <tr><td colspan="7" class="eq-muted eq-text-center">You have no active bookings.</td></tr>
+                        <tr><td colspan="7" class="eq-muted eq-text-center">You have no bookings yet.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($myBookings as $b): ?>
-                        <tr>
+                        <tr class="<?php echo $b['status'] === 'returned' ? 'eq-row-returned' : ''; ?>">
                             <td data-label="Equipment" class="eq-cell-equipment"><?php echo htmlspecialchars($b['equipment_name']); ?></td>
                             <td data-label="Qty" class="eq-cell-qty"><?php echo htmlspecialchars(rtrim(rtrim(number_format($b['quantity'], 2), '0'), '.')); ?></td>
                             <td data-label="Start" class="eq-cell-start"><?php echo date('M j', strtotime($b['start_date'])); ?></td>
