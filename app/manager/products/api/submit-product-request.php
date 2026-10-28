@@ -17,16 +17,14 @@ if (!$memberId) {
 $productId   = $_POST['product_id'] ?? '';
 $productName = trim($_POST['requested_product_name'] ?? '');
 $quantity    = $_POST['quantity'] ?? '';
-$pickupDate  = trim($_POST['pickup_date'] ?? '');
 $notes       = trim($_POST['notes'] ?? '');
 $requestedUnit = trim($_POST['requested_unit'] ?? '');
 
+// The pickup date is no longer asked from the member. The manager sets it
+// later, so it is saved as NULL when the request is created.
+
 if ($quantity === '' || !is_numeric($quantity) || (float)$quantity <= 0) {
     echo json_encode(['success' => false, 'message' => 'Enter a valid quantity.']);
-    exit;
-}
-if ($pickupDate === '' || !DateTime::createFromFormat('Y-m-d', $pickupDate)) {
-    echo json_encode(['success' => false, 'message' => 'A valid pickup date is required.']);
     exit;
 }
 
@@ -72,7 +70,7 @@ if ($productId !== '' && ctype_digit((string)$productId)) {
 try {
     $stmt = $pdo->prepare("
         INSERT INTO product_requests (member_id, product_id, requested_product_name, requested_unit, quantity, unit_price, pickup_date, notes, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+        VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 'pending')
     ");
     $stmt->execute([
         $memberId,
@@ -81,10 +79,9 @@ try {
         $requestedUnit !== '' ? $requestedUnit : null,
         $quantity,
         $unitPriceToInsert,
-        $pickupDate,
         $notes !== '' ? $notes : null,
     ]);
     echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
 } catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'Database error. Did you add the unit_price column?']);
+    echo json_encode(['success' => false, 'message' => 'Database error. Did you add the unit_price column and make pickup_date nullable?']);
 }

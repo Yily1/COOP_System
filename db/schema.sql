@@ -480,3 +480,4 @@ ALTER TABLE stock_purchases
     ON DELETE RESTRICT;
 
    ALTER TABLE product_requests MODIFY pickup_date DATE NULL;
+

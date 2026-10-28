@@ -364,6 +364,70 @@ renderHeader('My Crops');
     box-shadow: 0 -8px 8px -4px #fff;
 }
 
+/* ============================================================
+   CONFIRM MODAL (replaces the browser's confirm() / alert())
+   ============================================================ */
+.cc-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1100;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.cc-backdrop.cc-open { display: flex; }
+
+.cc-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 20px 18px;
+    width: 100%;
+    max-width: 320px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.cc-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #e8f5e9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+}
+.cc-icon svg { width: 22px; height: 22px; stroke: #2e7d32; }
+.cc-icon.cc-error { background: #fbe6e6; }
+.cc-icon.cc-error svg { stroke: #a6322f; }
+
+.cc-title { margin: 0 0 6px; color: #1b3a24; font-size: 16px; font-weight: 600; }
+.cc-text { margin: 0 0 16px; color: #667066; font-size: 13.5px; line-height: 1.5; }
+
+.cc-actions { display: flex; gap: 10px; }
+
+button.cc-btn {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    cursor: pointer !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+}
+button.cc-btn-cancel { background: #fff !important; color: #1b3a24 !important; border: 1px solid #eceae4 !important; }
+button.cc-btn-ok { background: #2e7d32 !important; color: #fff !important; border: none !important; }
+button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
+
 @media (max-width: 560px) {
     /* Wider side margins = narrower modal */
     .crop-modal { padding: 10px 34px; }
@@ -391,6 +455,8 @@ renderHeader('My Crops');
     }
     .crop-form button[type="submit"] { padding: 10px !important; font-size: 13px !important; }
     #cropModalErrors, #cropModalSuccess { margin-bottom: 8px !important; font-size: 12.5px !important; }
+
+    .cc-backdrop { padding: 10px 34px; }
 }
 </style>
 
@@ -445,11 +511,11 @@ renderHeader('My Crops');
 
                 <?php if ($c['status'] === 'growing'): ?>
                     <div class="crop-card-footer">
-                        <button class="crop-action-btn crop-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="ready_to_harvest" type="button">Mark ready</button>
+                        <button class="crop-action-btn crop-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="ready_to_harvest" data-crop="<?php echo htmlspecialchars($c['crop_name']); ?>" type="button">Mark ready</button>
                     </div>
                 <?php elseif ($c['status'] === 'ready_to_harvest'): ?>
                     <div class="crop-card-footer">
-                        <button class="crop-action-btn crop-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="harvested" type="button">Mark harvested</button>
+                        <button class="crop-action-btn crop-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="harvested" data-crop="<?php echo htmlspecialchars($c['crop_name']); ?>" type="button">Mark harvested</button>
                     </div>
                 <?php elseif ($c['status'] === 'pending'): ?>
                     <div class="crop-card-footer">
@@ -501,6 +567,21 @@ renderHeader('My Crops');
 
             <button type="submit" id="cropSubmitBtn">Submit planting</button>
         </form>
+    </div>
+</div>
+
+<!-- MODAL - Confirm (replaces the browser confirm() / alert()) -->
+<div class="cc-backdrop" id="ccBackdrop">
+    <div class="cc-card" role="dialog" aria-modal="true" aria-labelledby="ccTitle">
+        <div class="cc-icon" id="ccIcon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <p class="cc-title" id="ccTitle">Confirm</p>
+        <p class="cc-text" id="ccText"></p>
+        <div class="cc-actions">
+            <button type="button" class="cc-btn cc-btn-cancel" id="ccCancel">Cancel</button>
+            <button type="button" class="cc-btn cc-btn-ok" id="ccOk">Confirm</button>
+        </div>
     </div>
 </div>
 
@@ -578,26 +659,95 @@ renderHeader('My Crops');
         }
     });
 
+    /* ============================================================
+       CONFIRM MODAL
+       ============================================================ */
+    const ccBackdrop = document.getElementById('ccBackdrop');
+    const ccIcon = document.getElementById('ccIcon');
+    const ccTitle = document.getElementById('ccTitle');
+    const ccText = document.getElementById('ccText');
+    const ccOk = document.getElementById('ccOk');
+    const ccCancel = document.getElementById('ccCancel');
+
+    const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    const ICON_ERROR = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+
+    let ccOnConfirm = null;
+
+    function ccClose() {
+        ccBackdrop.classList.remove('cc-open');
+        ccOnConfirm = null;
+        ccOk.disabled = false;
+        ccCancel.disabled = false;
+    }
+
+    // Confirm dialog: title, message, then runs onConfirm when OK is tapped
+    function ccConfirm(title, text, okLabel, onConfirm) {
+        ccIcon.className = 'cc-icon';
+        ccIcon.innerHTML = ICON_CHECK;
+        ccTitle.textContent = title;
+        ccText.textContent = text;
+        ccOk.textContent = okLabel || 'Confirm';
+        ccOk.style.display = '';
+        ccCancel.textContent = 'Cancel';
+        ccOnConfirm = onConfirm;
+        ccBackdrop.classList.add('cc-open');
+    }
+
+    // Error dialog: replaces alert(), only one button
+    function ccError(text) {
+        ccIcon.className = 'cc-icon cc-error';
+        ccIcon.innerHTML = ICON_ERROR;
+        ccTitle.textContent = 'Something went wrong';
+        ccText.textContent = text;
+        ccOk.style.display = 'none';
+        ccCancel.textContent = 'Close';
+        ccOnConfirm = null;
+        ccBackdrop.classList.add('cc-open');
+    }
+
+    ccCancel.addEventListener('click', ccClose);
+    ccBackdrop.addEventListener('click', function(e) { if (e.target === ccBackdrop) ccClose(); });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && ccBackdrop.classList.contains('cc-open')) ccClose();
+    });
+    ccOk.addEventListener('click', function() {
+        if (ccOnConfirm) ccOnConfirm();
+    });
+
     document.querySelectorAll('.crop-advance-btn').forEach(function(btn) {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', function() {
             const next = btn.dataset.next;
-            const label = next === 'harvested' ? 'harvested' : 'ready to harvest';
-            if (!confirm('Mark this planting as ' + label + '?')) return;
-            try {
-                const response = await fetch('<?php echo BASE_URL; ?>/app/user/api/planting-action.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'advance', id: btn.dataset.id, status: next })
-                });
-                const payload = await response.json();
-                if (response.ok && payload.success !== false) {
-                    window.location.reload();
-                } else {
-                    alert(payload.message || 'Something went wrong.');
+            const crop = btn.dataset.crop || 'this planting';
+            const isHarvest = (next === 'harvested');
+
+            const title = isHarvest ? 'Mark as harvested?' : 'Mark as ready?';
+            const text = isHarvest
+                ? 'Confirm that your ' + crop + ' has been harvested.'
+                : 'Confirm that your ' + crop + ' is ready to harvest.';
+
+            ccConfirm(title, text, isHarvest ? 'Mark harvested' : 'Mark ready', async function() {
+                ccOk.disabled = true;
+                ccCancel.disabled = true;
+                ccOk.textContent = 'Saving...';
+                try {
+                    const response = await fetch('<?php echo BASE_URL; ?>/app/user/api/planting-action.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'advance', id: btn.dataset.id, status: next })
+                    });
+                    const payload = await response.json();
+                    if (response.ok && payload.success !== false) {
+                        window.location.reload();
+                    } else {
+                        ccClose();
+                        ccError(payload.message || 'Something went wrong.');
+                    }
+                } catch (err) {
+                    ccClose();
+                    ccError('Could not reach the server: ' + err.message);
                 }
-            } catch (err) {
-                alert('Could not reach the server: ' + err.message);
-            }
+            });
         });
     });
 })();
