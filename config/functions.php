@@ -123,6 +123,7 @@ function getRentedThisMonthCount($pdo) {
 /**
  * Flips 'ongoing' bookings whose end_date has already passed to 'overdue'.
  * Runs whenever the bookings lists are loaded, so no cron job is needed.
+ * ('approved' bookings that were never started are left alone.)
  */
 function markOverdueBookings($pdo) {
     $pdo->exec("
@@ -135,8 +136,8 @@ function markOverdueBookings($pdo) {
 
 /**
  * All bookings still relevant to the manager's "Currently rented" table
- * (pending approval, ongoing, or overdue), across ALL members — unlike
- * getMyEquipmentBookings(), which is scoped to a single user.
+ * (pending approval, approved, ongoing, overdue, or returned), across ALL
+ * members — unlike getMyEquipmentBookings(), which is scoped to a single user.
  */
 function getCurrentEquipmentBookings($pdo) {
     markOverdueBookings($pdo);
@@ -144,7 +145,7 @@ function getCurrentEquipmentBookings($pdo) {
         SELECT b.*, e.name AS equipment_name
         FROM equipment_bookings b
         INNER JOIN equipment e ON e.id = b.equipment_id
-        WHERE b.status IN ('pending', 'ongoing', 'overdue', 'returned')
+        WHERE b.status IN ('pending', 'approved', 'ongoing', 'overdue', 'returned')
         ORDER BY (b.status = 'returned') ASC, b.start_date DESC
     ");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -184,7 +185,7 @@ function getAllEquipment($pdo) {
  * Uses an overlap check (start <= last day of month AND end >= first
  * day of month) rather than matching start_date alone, so multi-day
  * bookings that started in an earlier month but run into this one
- * still show up on the calendar.
+ * still show up on the calendar. Rejected/cancelled bookings are left out.
  */
 function getBookingsForMonth($pdo, $year, $month) {
     $monthStart = sprintf('%04d-%02d-01', $year, $month);
@@ -192,11 +193,17 @@ function getBookingsForMonth($pdo, $year, $month) {
         SELECT b.*, e.name AS equipment_name
         FROM equipment_bookings b
         INNER JOIN equipment e ON e.id = b.equipment_id
-        WHERE b.start_date <= LAST_DAY(:month_start)
-          AND b.end_date >= :month_start
+        WHERE b.start_date <= LAST_DAY(:month_start_a)
+          AND b.end_date >= :month_start_b
+          AND b.status IN ('pending', 'approved', 'ongoing', 'overdue', 'returned')
         ORDER BY b.start_date ASC
     ");
-    $stmt->execute([':month_start' => $monthStart]);
+    // Named placeholders must be unique when PDO emulated prepares are off,
+    // so the same date is bound twice under two different names.
+    $stmt->execute([
+        ':month_start_a' => $monthStart,
+        ':month_start_b' => $monthStart,
+    ]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -210,6 +217,7 @@ define('LOAN_ELIGIBILITY_THRESHOLD', 1500.00);
 
 // Simple interest, fixed rate for all loans, set by the manager at
 // release time via the term (months). E.g. 2% per month x 3 months = 6%.
+// NOTE: confirm whether this should be 10.00 or 2.00 per month.
 define('LOAN_INTEREST_RATE_MONTHLY', 10.00);
 
 /**
@@ -698,8 +706,8 @@ function distributionStatusBadge($status) {
 
 
 /**
- * The current user's own bookings: active ones first (pending, ongoing,
- * overdue), then returned ones, so finished bookings stay visible.
+ * The current user's own bookings: active ones first (pending, approved,
+ * ongoing, overdue), then returned ones, so finished bookings stay visible.
  * Rejected/cancelled bookings are still left out.
  */
 function getMyEquipmentBookings($pdo, $userId) {
@@ -709,7 +717,7 @@ function getMyEquipmentBookings($pdo, $userId) {
         FROM equipment_bookings b
         INNER JOIN equipment e ON e.id = b.equipment_id
         WHERE b.recorded_by = :user_id
-          AND b.status IN ('pending', 'ongoing', 'overdue', 'returned')
+          AND b.status IN ('pending', 'approved', 'ongoing', 'overdue', 'returned')
         ORDER BY (b.status = 'returned') ASC, b.start_date DESC
     ");
     $stmt->execute([':user_id' => $userId]);
@@ -735,6 +743,7 @@ function equipmentUnitLabel($unitType) {
 function equipmentStatusBadge($status) {
     $map = [
         'pending'   => ['label' => 'Pending Approval', 'class' => 'eq-rented'],
+        'approved'  => ['label' => 'Approved', 'class' => 'eq-approved'],
         'ongoing'   => ['label' => 'Ongoing', 'class' => 'eq-rented'],
         'overdue'   => ['label' => 'Overdue', 'class' => 'eq-overdue'],
         'returned'  => ['label' => 'Returned', 'class' => 'eq-returned'],
@@ -799,7 +808,7 @@ function renderHeader($title) {
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
         <!-- Google Fonts -->
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="http://localhost/coop-system/assets/css/style.css">
+        <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
 
         <!-- Drawer/Sidebar toggle styles -->
         <style>
@@ -1046,7 +1055,7 @@ function renderHeader($title) {
                             <a class="<?php echo navActive('/app/manager/equipment/equipment.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.php">Equipment</a>
                             <a class="<?php echo navActive('/app/manager/loans/loans.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/loans/loans.php">Loans</a>
                             <a class="<?php echo navActive('/app/manager/crops/crops.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/crops/crops.php">Crops Information</a>
-                            <a class="<?php echo navActive('/app/manager/resources/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/resources/resources.php">Agriculture Resources </a>
+                            <a class="<?php echo navActive('/app/manager/resources/resources.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/resources/resources.php">Agriculture Resources</a>
                             <a class="<?php echo navActive('/app/manager/expenses/expenses.php'); ?>" href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Expenses</a>
                         <?php elseif ($currentRole === 'user'): ?>
                             <a class="<?php echo navActive('/app/user/dashboard.php'); ?>" href="<?php echo BASE_URL; ?>/app/user/dashboard.php">Dashboard</a>

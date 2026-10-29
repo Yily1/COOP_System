@@ -1,4 +1,5 @@
 <?php
+// Location: app/manager/equipment/api/get-month-booking.php
 require_once __DIR__ . '/../../../../config/config.php';
 require_once __DIR__ . '/../../../../config/functions.php';
 
@@ -20,9 +21,7 @@ if ($month < 1 || $month > 12) {
 }
 
 try {
-    // NOTE: getBookingsForMonth() lives in functions.php. Make sure its
-    // SELECT statement includes the `location` column so $b['location']
-    // below is populated (e.g. "SELECT ..., equipment_bookings.location, ...").
+    // getBookingsForMonth() lives in functions.php (b.* includes location and status).
     $bookings = getBookingsForMonth($pdo, $year, $month);
 
     $data = array_map(function ($b) {
@@ -32,11 +31,13 @@ try {
             'location'       => $b['location'] ?? '',
             'start_date'     => $b['start_date'],
             'end_date'       => $b['end_date'],
+            'status'         => $b['status'],
         ];
     }, $bookings);
 
     echo json_encode(['success' => true, 'bookings' => $data]);
-} catch (PDOException $e) {
+} catch (Throwable $e) {
+    error_log('get-month-booking.php: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Database error']);
 }

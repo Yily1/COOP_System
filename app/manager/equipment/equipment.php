@@ -90,7 +90,6 @@ renderHeader('Equipment Rental');
     gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 20px;
-    border-bottom:;
 }
 
 .eq-header h1 { font-size: 26px; }
@@ -679,6 +678,7 @@ renderHeader('Equipment Rental');
     border-radius: 20px;
 }
 .eq-status-badge.eq-rented { background: var(--eq-gold-soft); color: var(--eq-gold); }
+.eq-status-badge.eq-approved { background: #cce5ff; color: #004085; }
 .eq-status-badge.eq-overdue { background: var(--eq-danger-soft); color: var(--eq-danger); }
 .eq-status-badge.eq-returned { background: var(--eq-success-soft); color: var(--eq-success); }
 
@@ -894,6 +894,12 @@ renderHeader('Equipment Rental');
                                         </button>
                                     <?php endif; ?>
 
+                                    <?php if ($b['status'] === 'approved'): ?>
+                                        <button class="eq-btn-link eq-use-btn" data-id="<?php echo $b['id']; ?>" type="button">
+                                            <span class="material-icons">play_arrow</span> Use
+                                        </button>
+                                    <?php endif; ?>
+
                                     <?php if (in_array($b['status'], ['ongoing', 'overdue'], true)): ?>
                                         <button class="eq-btn-link eq-return-btn" data-id="<?php echo $b['id']; ?>" type="button">
                                             <span class="material-icons">undo</span> Mark returned
@@ -1027,7 +1033,7 @@ renderHeader('Equipment Rental');
 <?php if (($_SESSION['role'] ?? '') === 'manager'): ?>
 
 <!-- ============================================================
-     CONFIRM MODAL (shared: approve / reject / mark returned)
+     CONFIRM MODAL (shared: approve / reject / use / mark returned)
      ============================================================ -->
 <div class="eq-modal" id="confirm-modal-wrap">
     <div class="eq-modal-card eq-modal-card-sm">
@@ -1169,7 +1175,7 @@ renderHeader('Equipment Rental');
     window.EQUIPMENT_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/equipment/api/";
 </script>
 
-<script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js"></script>
+<script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js?v=<?php echo filemtime(__DIR__ . '/equipment.js'); ?>"></script>
 
 <!-- Filters for the "Currently rented" table -->
 <script>

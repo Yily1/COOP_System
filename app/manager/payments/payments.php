@@ -608,13 +608,17 @@ renderHeader('Payments');
                 </div>
             </div>
 
+            <!-- Member search: the chosen member's name is shown inside the search box itself -->
             <div id="memberBox" style="margin-bottom: 14px;">
                 <label for="memberSearchBox" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Search member</label>
                 <input type="hidden" name="member_id" id="memberIdInput" value="">
-                <input type="text" id="memberSearchBox" autocomplete="off" placeholder="Type membership ID or name"
-                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                <div style="position: relative;">
+                    <input type="text" id="memberSearchBox" autocomplete="off" placeholder="Type membership ID or name"
+                           style="width: 100%; padding: 8px 32px 8px 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                    <span id="memberClear" role="button" tabindex="0" aria-label="Clear selected member"
+                          style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 18px; line-height: 1; color: #3B6D11;">&times;</span>
+                </div>
                 <div id="memberResults" style="display: none; border: 1px solid #ddd; border-radius: 6px; margin-top: 4px; max-height: 180px; overflow-y: auto; background: #fff;"></div>
-                <div id="memberChosen" style="display: none; margin-top: 6px; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #C0DD97; border-radius: 6px; background: #EAF3DE; font-size: 13px;"></div>
             </div>
 
             <div id="nonMemberBox" style="display: none; margin-bottom: 14px;">
@@ -705,7 +709,7 @@ renderHeader('Payments');
     const memberIdInput = document.getElementById('memberIdInput');
     const memberSearchBox = document.getElementById('memberSearchBox');
     const memberResults = document.getElementById('memberResults');
-    const memberChosen = document.getElementById('memberChosen');
+    const memberClear = document.getElementById('memberClear');
     const payerNameInput = document.getElementById('payerNameInput');
     const amountInput = document.getElementById('amountInput');
     const rentalFields = document.getElementById('rentalFields');
@@ -847,72 +851,29 @@ renderHeader('Payments');
         btn.style.setProperty('color', active ? '#fff' : '#3B6D11', 'important');
     }
 
+    // ---------- Member search (chosen member is shown inside the search box) ----------
     function clearMember() {
         memberIdInput.value = '';
         memberSearchBox.value = '';
-        memberChosen.style.display = 'none';
+        memberClear.style.display = 'none';
         memberResults.style.display = 'none';
         memberResults.textContent = '';
     }
 
-    function setPayerMode(mode) {
-        const isMember = mode === 'member';
-        payerTypeInput.value = isMember ? 'member' : 'non_member';
-        styleTab(tabMember, isMember);
-        styleTab(tabNonMember, !isMember);
-        memberBox.style.display = isMember ? 'block' : 'none';
-        nonMemberBox.style.display = isMember ? 'none' : 'block';
-        payerNameInput.required = !isMember;
-        clearMember();
-        if (isMember) payerNameInput.value = '';
-
-        typeInput.textContent = '';
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = '-- Select --';
-        typeInput.appendChild(placeholder);
-        (isMember ? MEMBER_TYPES : NON_MEMBER_TYPES).forEach(function(t) {
-            const opt = document.createElement('option');
-            opt.value = t[0];
-            opt.textContent = t[1];
-            typeInput.appendChild(opt);
-        });
-        toggleProductFields();
-        toggleRentalFields();
-    }
-
     function chooseMember(m) {
         memberIdInput.value = m.id;
+        // The name now appears inside the search box itself
+        memberSearchBox.value = m.name + (m.membership_id ? ' (' + m.membership_id + ')' : '');
+        memberClear.style.display = 'block';
         memberResults.style.display = 'none';
-        memberChosen.textContent = '';
-        memberChosen.style.display = 'flex';
-
-        const label = document.createElement('span');
-        label.style.flex = '1';
-        const strong = document.createElement('strong');
-        strong.textContent = m.name;
-        const idSpan = document.createElement('span');
-        idSpan.style.color = '#667066';
-        idSpan.textContent = ' ' + (m.membership_id || '');
-        label.appendChild(strong);
-        label.appendChild(idSpan);
-
-        const clear = document.createElement('span');
-        clear.setAttribute('role', 'button');
-        clear.setAttribute('tabindex', '0');
-        clear.setAttribute('aria-label', 'Clear selected member');
-        clear.style.cssText = 'cursor: pointer; font-size: 16px; color: #3B6D11;';
-        clear.textContent = '\u00d7';
-        clear.addEventListener('click', clearMember);
-
-        memberChosen.appendChild(label);
-        memberChosen.appendChild(clear);
+        memberResults.textContent = '';
     }
 
     function renderMemberResults() {
+        // Typing again cancels the previous selection, so a wrong member can't be saved
         const q = memberSearchBox.value.trim().toLowerCase();
         memberIdInput.value = '';
-        memberChosen.style.display = 'none';
+        memberClear.style.display = 'none';
         memberResults.textContent = '';
         if (!q) {
             memberResults.style.display = 'none';
@@ -948,9 +909,39 @@ renderHeader('Payments');
         });
     }
 
+    function setPayerMode(mode) {
+        const isMember = mode === 'member';
+        payerTypeInput.value = isMember ? 'member' : 'non_member';
+        styleTab(tabMember, isMember);
+        styleTab(tabNonMember, !isMember);
+        memberBox.style.display = isMember ? 'block' : 'none';
+        nonMemberBox.style.display = isMember ? 'none' : 'block';
+        payerNameInput.required = !isMember;
+        clearMember();
+        if (isMember) payerNameInput.value = '';
+
+        typeInput.textContent = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Select --';
+        typeInput.appendChild(placeholder);
+        (isMember ? MEMBER_TYPES : NON_MEMBER_TYPES).forEach(function(t) {
+            const opt = document.createElement('option');
+            opt.value = t[0];
+            opt.textContent = t[1];
+            typeInput.appendChild(opt);
+        });
+        toggleProductFields();
+        toggleRentalFields();
+    }
+
     tabMember.addEventListener('click', function() { setPayerMode('member'); });
     tabNonMember.addEventListener('click', function() { setPayerMode('non_member'); });
     memberSearchBox.addEventListener('input', renderMemberResults);
+    memberClear.addEventListener('click', clearMember);
+    memberClear.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); clearMember(); }
+    });
     setPayerMode('member');
 
     function openModal() { backdrop.style.display = 'flex'; }

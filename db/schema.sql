@@ -481,3 +481,6 @@ ALTER TABLE stock_purchases
 
    ALTER TABLE product_requests MODIFY pickup_date DATE NULL;
 
+ALTER TABLE equipment_bookings
+MODIFY status ENUM('pending','approved','ongoing','overdue','returned','rejected','cancelled')
+NOT NULL DEFAULT 'pending';

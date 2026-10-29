@@ -1,4 +1,5 @@
 <?php
+// Location: app/manager/equipment/api/book-equipment.php
 require_once __DIR__ . '/../../../../config/config.php';
 require_once __DIR__ . '/../../../../config/functions.php';
 
@@ -10,8 +11,9 @@ if (!isLoggedIn() || !(hasRole('manager') || hasRole('user'))) {
     exit;
 }
 
-// Managers book directly (ongoing). Regular users need manager approval first (pending).
-$bookingStatus = hasRole('manager') ? 'ongoing' : 'pending';
+// Managers book directly (already approved; press "Use" when the equipment is taken).
+// Regular users need manager approval first (pending).
+$bookingStatus = hasRole('manager') ? 'approved' : 'pending';
 
 $equipmentId    = $_POST['equipment_id'] ?? null;
 $startDate      = $_POST['start_date'] ?? '';
@@ -56,6 +58,23 @@ try {
         exit;
     }
 
+    // Overlap check: block if the same equipment already has an approved,
+    // ongoing or overdue booking that touches the requested dates.
+    // (Pending requests do not block, since they are not confirmed yet.)
+    $overlap = $pdo->prepare("
+        SELECT COUNT(*) FROM equipment_bookings
+        WHERE equipment_id = ?
+          AND status IN ('approved', 'ongoing', 'overdue')
+          AND start_date <= ?
+          AND end_date >= ?
+    ");
+    $overlap->execute([$equipmentId, $endDate, $startDate]);
+    if ((int) $overlap->fetchColumn() > 0) {
+        http_response_code(409);
+        echo json_encode(['success' => false, 'message' => 'This equipment is already booked on those dates. Please choose different dates.']);
+        exit;
+    }
+
     $rate = $membershipType === 'member' ? $rateRow['rate_member'] : $rateRow['rate_nonmember'];
     $totalCost = $quantity * $rate;
 
@@ -65,7 +84,7 @@ try {
     ");
     $insert->execute([$equipmentId, $startDate, $endDate, $renterName, $membershipType, $quantity, $location, $totalCost, $bookingStatus, $_SESSION['user_id']]);
 
-    $message = $bookingStatus === 'ongoing'
+    $message = $bookingStatus === 'approved'
         ? 'Booking submitted.'
         : 'Booking request submitted. Waiting for manager approval.';
 

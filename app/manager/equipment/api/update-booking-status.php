@@ -1,4 +1,5 @@
 <?php
+// Location: app/manager/equipment/api/update-booking-status.php
 require_once __DIR__ . '/../../../../config/config.php';
 require_once __DIR__ . '/../../../../config/functions.php';
 
@@ -13,23 +14,35 @@ if (!isLoggedIn() || !hasRole('manager')) {
 $bookingId = $_POST['booking_id'] ?? null;
 $action    = $_POST['action'] ?? '';
 
-if (!$bookingId || !in_array($action, ['approve', 'reject'], true)) {
+// action => [required current status, new status]
+$transitions = [
+    'approve' => ['pending',  'approved'],
+    'reject'  => ['pending',  'rejected'],
+    'use'     => ['approved', 'ongoing'],
+];
+
+$messages = [
+    'approve' => 'Booking approved.',
+    'reject'  => 'Booking rejected.',
+    'use'     => 'Booking is now ongoing.',
+];
+
+if (!$bookingId || !isset($transitions[$action])) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid request']);
     exit;
 }
 
-$newStatus = $action === 'approve' ? 'ongoing' : 'rejected';
+[$fromStatus, $newStatus] = $transitions[$action];
 
 try {
-    // The "WHERE status = 'pending'" guard prevents a booking from being
-    // approved/rejected twice if two manager tabs are open at once.
+    // The status guard prevents double-handling if two manager tabs are open.
     $stmt = $pdo->prepare("
         UPDATE equipment_bookings
         SET status = ?
-        WHERE id = ? AND status = 'pending'
+        WHERE id = ? AND status = ?
     ");
-    $stmt->execute([$newStatus, $bookingId]);
+    $stmt->execute([$newStatus, $bookingId, $fromStatus]);
 
     if ($stmt->rowCount() === 0) {
         http_response_code(400);
@@ -37,10 +50,7 @@ try {
         exit;
     }
 
-    echo json_encode([
-        'success' => true,
-        'message' => $action === 'approve' ? 'Booking approved.' : 'Booking rejected.',
-    ]);
+    echo json_encode(['success' => true, 'message' => $messages[$action]]);
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Database error']);
