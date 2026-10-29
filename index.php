@@ -12,7 +12,7 @@ require_once __DIR__ . '/config/config.php';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/landing.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/landing.css?v=<?php echo filemtime(__DIR__ . '/assets/css/landing.css'); ?>">
 </head>
 <body>
 
@@ -154,37 +154,13 @@ require_once __DIR__ . '/config/config.php';
         <!-- Core Values -->
         <div class="cv-block">
             <h3 class="mv-heading">Core Values</h3>
-            <p class="mv-intro">
-                These are the principles that guide the cooperative in serving its
-                members and the community.
-            </p>
 
-            <div class="cv-grid cv-grid--five">
-                <div class="cv-card">
-                    <div class="cv-icon" aria-hidden="true">⚖️</div>
-                    <h4>Integrity</h4>
-                    <p>We act honestly, transparently, and fairly in all cooperative transactions and decisions.</p>
-                </div>
-                <div class="cv-card">
-                    <div class="cv-icon" aria-hidden="true">💪</div>
-                    <h4>Resilient</h4>
-                    <p>We remain steadfast and adaptable, overcoming challenges together as a cooperative.</p>
-                </div>
-                <div class="cv-card">
-                    <div class="cv-icon" aria-hidden="true">🤝</div>
-                    <h4>Respect</h4>
-                    <p>We honor the dignity, culture, and religion of every member and of the community we serve.</p>
-                </div>
-                <div class="cv-card">
-                    <div class="cv-icon" aria-hidden="true">⚖️</div>
-                    <h4>Equity</h4>
-                    <p>We ensure fairness and equal opportunity for all members in the services we provide.</p>
-                </div>
-                <div class="cv-card">
-                    <div class="cv-icon" aria-hidden="true">🙏</div>
-                    <h4>God-Fearing</h4>
-                    <p>We uphold moral and spiritual principles in all aspects of our cooperative work.</p>
-                </div>
+            <div class="cv-solid-grid">
+                <div class="cv-solid-card">Integrity</div>
+                <div class="cv-solid-card">Resilient</div>
+                <div class="cv-solid-card">Respect</div>
+                <div class="cv-solid-card">Equity</div>
+                <div class="cv-solid-card">God-Fearing</div>
             </div>
         </div>
 
@@ -265,11 +241,11 @@ require_once __DIR__ . '/config/config.php';
             </div>
             <div class="contact-card">
                 <h3>Phone</h3>
-                <p class="placeholder">09924911712</p>
+                <p>09924911712</p>
             </div>
             <div class="contact-card">
                 <h3>Email</h3>
-                <p class="placeholder">sjfmcoop@gmail.com</p>
+                <p>sjfmcoop@gmail.com</p>
             </div>
         </div>
     </div>

@@ -11,33 +11,52 @@ $action = $input['action'] ?? '';
 switch ($action) {
 
     case 'add':
-        $memberId         = (int) ($input['member_id'] ?? 0);
+        $rawIds           = $input['member_ids'] ?? [];
         $resourceName     = trim($input['resource_name'] ?? '');
         $quantity         = trim($input['quantity'] ?? '');
         $distributionDate = trim($input['distribution_date'] ?? '');
         $notes            = trim($input['notes'] ?? '');
 
-        if ($memberId <= 0 || $resourceName === '' || $quantity === '' || $distributionDate === '') {
+        // Normalize: ints only, positive, no duplicates
+        $memberIds = is_array($rawIds)
+            ? array_values(array_unique(array_filter(array_map('intval', $rawIds), fn($id) => $id > 0)))
+            : [];
+
+        if (empty($memberIds) || $resourceName === '' || $quantity === '' || $distributionDate === '') {
             http_response_code(422);
-            echo json_encode(['success' => false, 'message' => 'Member, resource, quantity, and distribution date are all required.']);
+            echo json_encode(['success' => false, 'message' => 'At least one member, plus resource, quantity, and distribution date, are required.']);
             exit;
         }
 
-        // Server-side eligibility check — don't trust the dropdown alone.
+        // Server-side eligibility check: EVERY selected member must be eligible.
         $eligibleIds = array_map('intval', array_column(getEligibleMembersForDistribution($pdo), 'id'));
-        if (!in_array($memberId, $eligibleIds, true)) {
+        $invalid = array_diff($memberIds, $eligibleIds);
+        if (!empty($invalid)) {
             http_response_code(422);
-            echo json_encode(['success' => false, 'message' => 'This member does not currently have an active crop planting.']);
+            echo json_encode(['success' => false, 'message' => 'One or more selected members do not have a crop planting.']);
             exit;
         }
+
+        $distributedBy = (int) ($_SESSION['user_id'] ?? 0);
+        $notesValue    = $notes !== '' ? $notes : null;
 
         try {
-            $distributedBy = (int) ($_SESSION['user_id'] ?? 0);
-            $ok = addDistribution($pdo, $memberId, $resourceName, $quantity, $distributionDate, $notes !== '' ? $notes : null, $distributedBy);
-            echo json_encode(['success' => $ok]);
+            // All-or-nothing: if one insert fails, none are saved.
+            $pdo->beginTransaction();
+            foreach ($memberIds as $memberId) {
+                $ok = addDistribution($pdo, $memberId, $resourceName, $quantity, $distributionDate, $notesValue, $distributedBy);
+                if (!$ok) {
+                    throw new Exception('Insert failed for member ' . $memberId);
+                }
+            }
+            $pdo->commit();
+            echo json_encode(['success' => true, 'count' => count($memberIds)]);
         } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             http_response_code(500);
-            echo json_encode(['success' => false, 'message' => 'Could not save the distribution. Please try again.']);
+            echo json_encode(['success' => false, 'message' => 'Could not save the distributions. Please try again.']);
         }
         break;
 

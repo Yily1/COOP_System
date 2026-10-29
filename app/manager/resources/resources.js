@@ -61,18 +61,171 @@
 
     const addForm = document.getElementById('add-distribution-form');
     if (addForm) {
+        const members     = window.RESOURCES_MEMBERS || [];
+        const searchInput = document.getElementById('member-search');
+        const clearBtn    = document.getElementById('member-search-clear');
+        const suggestBox  = document.getElementById('member-suggest');
+        const selectAll   = document.getElementById('member-select-all');
+        const chosenWrap  = document.getElementById('member-chosen-wrap');
+        const chosenList  = document.getElementById('member-chosen');
+        const countEl     = document.getElementById('member-count');
+
+        let picked = null;
+
+        const labelOf = (m) => m.name + ' — ' + m.mid;
+
+        function findMatches(query) {
+            const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+            if (tokens.length === 0) return [];
+            return members.filter((m) => {
+                const key = (m.name + ' ' + m.mid).toLowerCase();
+                return tokens.every((t) => key.includes(t));
+            });
+        }
+
+        function hideSuggest() {
+            if (!suggestBox) return;
+            suggestBox.classList.remove('rd-show');
+            suggestBox.innerHTML = '';
+        }
+
+        function renderSuggest() {
+            if (!suggestBox || !searchInput) return;
+            const query = searchInput.value.trim();
+            if (query === '' || picked) {
+                hideSuggest();
+                return;
+            }
+
+            const results = findMatches(query);
+            suggestBox.innerHTML = '';
+
+            if (results.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'rd-suggest-empty';
+                empty.textContent = 'No members match your search.';
+                suggestBox.appendChild(empty);
+            } else {
+                results.forEach((m) => {
+                    const item = document.createElement('div');
+                    item.className = 'rd-suggest-item';
+                    item.textContent = labelOf(m);
+                    // mousedown (not click) so it fires before the input loses focus
+                    item.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        pickMember(m);
+                    });
+                    suggestBox.appendChild(item);
+                });
+            }
+            suggestBox.classList.add('rd-show');
+        }
+
+        function updateClearBtn() {
+            if (!clearBtn || !searchInput) return;
+            clearBtn.classList.toggle('rd-show', searchInput.value !== '' && !searchInput.disabled);
+        }
+
+        function pickMember(m) {
+            picked = m;
+            searchInput.value = labelOf(m);
+            hideSuggest();
+            updateClearBtn();
+        }
+
+        function clearSearch() {
+            picked = null;
+            searchInput.value = '';
+            hideSuggest();
+            updateClearBtn();
+            searchInput.focus();
+        }
+
+        function renderChosen() {
+            if (!chosenWrap || !chosenList || !countEl) return;
+            chosenList.innerHTML = '';
+
+            if (!selectAll || !selectAll.checked) {
+                chosenWrap.classList.remove('rd-show');
+                return;
+            }
+
+            members.forEach((m) => {
+                const row = document.createElement('div');
+                row.className = 'rd-chosen-item';
+                row.textContent = labelOf(m);
+                chosenList.appendChild(row);
+            });
+            countEl.textContent = members.length + ' selected';
+            chosenWrap.classList.add('rd-show');
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                picked = null;
+                updateClearBtn();
+                renderSuggest();
+            });
+
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!picked) {
+                        const results = findMatches(searchInput.value.trim());
+                        if (results.length > 0) pickMember(results[0]);
+                    }
+                } else if (e.key === 'Escape') {
+                    hideSuggest();
+                }
+            });
+
+            searchInput.addEventListener('blur', hideSuggest);
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', clearSearch);
+        }
+
+        // "Select all" = every eligible member (members with a crop planting).
+        // The search is disabled and cleared while it is checked.
+        if (selectAll) {
+            selectAll.addEventListener('change', () => {
+                if (selectAll.checked) {
+                    picked = null;
+                    searchInput.value = '';
+                    hideSuggest();
+                }
+                searchInput.disabled = selectAll.checked;
+                updateClearBtn();
+                renderChosen();
+            });
+        }
+
         addForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             clearError('add-distribution-error');
 
-            const formData = new FormData(addForm);
-            const data = Object.fromEntries(formData.entries());
-            data.action = 'add'; // tells distributions.php which case to run
+            let memberIds = [];
+            if (selectAll && selectAll.checked) {
+                memberIds = members.map((m) => m.id);
+            } else if (picked) {
+                memberIds = [picked.id];
+            }
 
-            if (!data.member_id) {
-                showError('add-distribution-error', 'Please select a member.');
+            if (memberIds.length === 0) {
+                showError('add-distribution-error', 'Please search and pick a member, or select all.');
                 return;
             }
+
+            const fd = new FormData(addForm);
+            const data = {
+                action: 'add',
+                member_ids: memberIds,
+                resource_name: fd.get('resource_name'),
+                quantity: fd.get('quantity'),
+                distribution_date: fd.get('distribution_date'),
+                notes: fd.get('notes'),
+            };
 
             try {
                 await apiRequest('POST', API_URL, data);

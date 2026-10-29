@@ -7,6 +7,14 @@ requireRole('manager');
 $distributions   = getAllDistributions($pdo);
 $eligibleMembers = getEligibleMembersForDistribution($pdo);
 
+$memberOptions = array_map(function ($m) {
+    return [
+        'id'   => (int) $m['id'],
+        'name' => trim($m['last_name'] . ', ' . $m['first_name']),
+        'mid'  => $m['membership_id'],
+    ];
+}, $eligibleMembers);
+
 renderHeader('Resource Distribution');
 ?>
 
@@ -63,7 +71,6 @@ renderHeader('Resource Distribution');
     gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 20px;
-    border-bottom: ;
 }
 .rd-header h1 { font-size: 26px; }
 .rd-header > div:first-child { flex: 1; min-width: 0; }
@@ -251,6 +258,111 @@ renderHeader('Resource Distribution');
 .rd-modal-card select:focus,
 .rd-modal-card textarea:focus { outline: none; border-color: var(--rd-forest); background: #fff; }
 
+/* MEMBER PICKER (search + select all) */
+.rd-search-wrap { position: relative; }
+.rd-modal-card .rd-search-wrap input { padding: 9px 34px; }
+.rd-modal-card .rd-search-wrap input:disabled { opacity: 0.6; cursor: not-allowed; }
+.rd-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 9px;
+    font-size: 18px;
+    color: var(--rd-ink-soft);
+    pointer-events: none;
+}
+.rd-search-clear {
+    display: none;
+    position: absolute;
+    right: 5px;
+    top: 4px;
+    width: 28px !important;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--rd-ink-soft);
+    cursor: pointer;
+    border-radius: 6px;
+}
+.rd-search-clear.rd-show { display: inline-flex; }
+.rd-search-clear:hover { background: var(--rd-paper); color: var(--rd-ink); }
+.rd-search-clear svg { width: 16px; height: 16px; display: block; }
+
+.rd-suggest {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1.5px solid var(--rd-line);
+    border-radius: 8px;
+    box-shadow: var(--rd-shadow);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 5;
+}
+.rd-suggest.rd-show { display: block; }
+.rd-suggest-item {
+    padding: 9px 12px;
+    font-size: 13.5px;
+    color: var(--rd-ink);
+    cursor: pointer;
+}
+.rd-suggest-item:hover { background: var(--rd-paper); }
+.rd-suggest-empty { padding: 10px 12px; font-size: 13px; color: var(--rd-ink-soft); }
+
+.rd-modal-card label.rd-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 7px 12px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--rd-ink);
+    cursor: pointer;
+}
+.rd-modal-card label.rd-check.rd-select-all-box {
+    margin-top: 8px;
+    padding: 9px 12px;
+    background: var(--rd-paper);
+    border: 1.5px solid var(--rd-line);
+    border-radius: 8px;
+    font-weight: 600;
+}
+.rd-modal-card label.rd-check.rd-select-all-box:hover { background: #fff; }
+.rd-modal-card .rd-check input[type="checkbox"] {
+    width: 16px !important;
+    height: 16px;
+    padding: 0;
+    margin: 0;
+    flex: none;
+    accent-color: var(--rd-forest);
+}
+
+.rd-chosen-wrap { display: none; margin-top: 10px; }
+.rd-chosen-wrap.rd-show { display: block; }
+.rd-member-count { margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: var(--rd-ink-soft); }
+.rd-chosen-list {
+    border: 1.5px solid var(--rd-line);
+    border-radius: 8px;
+    background: var(--rd-paper);
+    max-height: 180px;
+    overflow-y: auto;
+}
+.rd-chosen-item {
+    padding: 8px 12px;
+    font-size: 13.5px;
+    color: var(--rd-ink);
+    border-bottom: 1px solid var(--rd-line);
+}
+.rd-chosen-item:last-child { border-bottom: none; }
+
 .rd-error-box, .rd-success-box {
     display: none;
     font-size: 13px;
@@ -360,21 +472,33 @@ renderHeader('Resource Distribution');
         <div id="add-distribution-error" class="rd-error-box"></div>
 
         <form id="add-distribution-form">
-            <label>Member</label>
-            <select name="member_id" required>
-                <option value="">Select a member</option>
-                <?php foreach ($eligibleMembers as $m): ?>
-                    <?php $mName = trim($m['last_name'] . ', ' . $m['first_name']); ?>
-                    <option value="<?php echo $m['id']; ?>">
-                        <?php echo htmlspecialchars($mName); ?> — <?php echo htmlspecialchars($m['membership_id']); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
+            <label>Members</label>
             <?php if (empty($eligibleMembers)): ?>
                 <p class="rd-muted" style="margin-top:4px;">No members have a crop planting yet.</p>
+            <?php else: ?>
+                <div class="rd-search-wrap">
+                    <span class="material-icons rd-search-icon" aria-hidden="true">search</span>
+                    <input type="text" id="member-search" placeholder="Search name or member ID" autocomplete="off">
+                    <button type="button" class="rd-search-clear" id="member-search-clear" aria-label="Clear search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="rd-suggest" id="member-suggest"></div>
+                </div>
+
+                <label class="rd-check rd-select-all-box">
+                    <input type="checkbox" id="member-select-all"> Select all eligible members
+                </label>
+
+                <div class="rd-chosen-wrap" id="member-chosen-wrap">
+                    <p class="rd-member-count" id="member-count">0 selected</p>
+                    <div class="rd-chosen-list" id="member-chosen"></div>
+                </div>
             <?php endif; ?>
 
-            <label>Resource</label>
+            <label style="margin-top:14px;">Resource</label>
             <input type="text" name="resource_name" placeholder="e.g. Fertilizer, Seeds" required>
 
             <label>Quantity</label>
@@ -395,8 +519,9 @@ renderHeader('Resource Distribution');
 <script>
     window.RESOURCES_API_URL = "<?php echo BASE_URL; ?>/app/manager/resources/api/distributions.php";
     window.RESOURCES_LOGIN_URL = "<?php echo BASE_URL; ?>/index.php";
+    window.RESOURCES_MEMBERS = <?php echo json_encode($memberOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 </script>
 
-<script src="<?php echo BASE_URL; ?>/app/manager/resources/resources.js"></script>
+<script src="<?php echo BASE_URL; ?>/app/manager/resources/resources.js?v=<?php echo filemtime(__DIR__ . '/resources.js'); ?>"></script>
 
 <?php renderFooter(); ?>
