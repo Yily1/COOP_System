@@ -886,24 +886,16 @@ renderHeader('Equipment Rental');
                             <?php if (($_SESSION['role'] ?? '') === 'manager'): ?>
                                 <td class="eq-text-right">
                                     <?php if ($b['status'] === 'pending'): ?>
-                                        <button class="eq-btn-link eq-approve-btn" data-id="<?php echo $b['id']; ?>" type="button">
-                                            <span class="material-icons">check</span> Approve
-                                        </button>
-                                        <button class="eq-btn-link eq-btn-link-danger eq-reject-btn" data-id="<?php echo $b['id']; ?>" type="button">
-                                            <span class="material-icons">close</span> Reject
-                                        </button>
+                                        <button class="eq-btn-link eq-approve-btn" data-id="<?php echo $b['id']; ?>" type="button">Approve</button>
+                                        <button class="eq-btn-link eq-btn-link-danger eq-reject-btn" data-id="<?php echo $b['id']; ?>" type="button">Reject</button>
                                     <?php endif; ?>
 
                                     <?php if ($b['status'] === 'approved'): ?>
-                                        <button class="eq-btn-link eq-use-btn" data-id="<?php echo $b['id']; ?>" type="button">
-                                            <span class="material-icons">play_arrow</span> Use
-                                        </button>
+                                        <button class="eq-btn-link eq-use-btn" data-id="<?php echo $b['id']; ?>" type="button">Use</button>
                                     <?php endif; ?>
 
                                     <?php if (in_array($b['status'], ['ongoing', 'overdue'], true)): ?>
-                                        <button class="eq-btn-link eq-return-btn" data-id="<?php echo $b['id']; ?>" type="button">
-                                            <span class="material-icons">undo</span> Mark returned
-                                        </button>
+                                        <button class="eq-btn-link eq-return-btn" data-id="<?php echo $b['id']; ?>" type="button">Mark returned</button>
                                     <?php endif; ?>
                                 </td>
                             <?php endif; ?>
