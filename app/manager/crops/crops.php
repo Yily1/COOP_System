@@ -1,33 +1,33 @@
 <?php
-// Adjust this path if your config.php (session_start, BASE_URL, $pdo) lives elsewhere
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/functions.php';
 
 requireLogin();
 
-// Only manager and user roles can view this page
 if (!canAccessCrops($_SESSION['role'] ?? '')) {
     die("Access denied.");
 }
 
 $role = $_SESSION['role'] ?? '';
-
-// Same account-linking pattern as getAvailableMembers(): users.member_id
-// points at members.id. Adjust this line if your login flow stores it
-// under a different session key.
 $memberId = $_SESSION['member_id'] ?? 0;
+
+$members = [];
 
 if ($role === 'manager') {
     $crops = getAllCrops($pdo);
     $stats = getCropStats($pdo);
+
+    $memberStmt = $pdo->query("
+        SELECT id, membership_id, first_name, last_name
+        FROM members
+        ORDER BY last_name, first_name
+    ");
+    $members = $memberStmt->fetchAll(PDO::FETCH_ASSOC);
 } else {
     $crops = getCropsForMember($pdo, $memberId);
     $stats = getCropStats($pdo, $memberId);
 }
 
-/**
- * "Dela Cruz" + "Juan" -> "DC". Falls back gracefully for blank names.
- */
 function cmInitials($lastName, $firstName) {
     $l = trim((string) $lastName);
     $f = trim((string) $firstName);
@@ -158,6 +158,7 @@ renderHeader('Crops Management');
     color: #fff;
 }
 .cm-btn-primary:hover { background: var(--cm-forest-dark); }
+.cm-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .cm-btn-full { width: 100%; justify-content: center; padding: 11px; }
 
@@ -378,6 +379,35 @@ renderHeader('Crops Management');
 
 .cm-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+/* MEMBER SEARCH (manager add planting) */
+.cm-search-wrap { position: relative; }
+.cm-search-results {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 5;
+    background: var(--cm-card);
+    border: 1.5px solid var(--cm-line);
+    border-radius: 8px;
+    box-shadow: var(--cm-shadow);
+    max-height: 210px;
+    overflow-y: auto;
+}
+.cm-search-results.cm-show { display: block; }
+.cm-search-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--cm-line);
+}
+.cm-search-item:last-child { border-bottom: none; }
+.cm-search-item:hover,
+.cm-search-item.cm-active { background: var(--cm-paper); }
+.cm-search-item-name { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--cm-ink); }
+.cm-search-item-id { margin: 0; font-size: 12px; color: var(--cm-ink-soft); }
+.cm-search-empty { padding: 10px 12px; font-size: 13px; color: var(--cm-ink-soft); }
+
 /* MESSAGES */
 .cm-error-box,
 .cm-success-box {
@@ -405,17 +435,12 @@ renderHeader('Crops Management');
 
 /* ============================================================
    PRINT REPORT
-   Hidden on screen. When the Print button is clicked, only
-   #cmPrintReport is shown in the printout.
-   Columns: Membership ID, Name, Crop, Location, Area (ha), Planted
    ============================================================ */
 #cmPrintReport { display: none; }
 
 @page {
     size: A4 landscape;
     margin: 14mm 12mm 16mm;
-    /* Blank top margin boxes so the browser's own header
-       (date/time and page title) is not printed */
     @top-left   { content: ""; }
     @top-center { content: ""; }
     @top-right  { content: ""; }
@@ -434,13 +459,11 @@ renderHeader('Crops Management');
 }
 
 @media print {
-    /* Remove the page's own content so it doesn't create blank pages */
     .cm-page,
     .cm-modal {
         display: none !important;
     }
 
-    /* Hide everything else (sidebar, top bar, etc.), show only the report */
     body * { visibility: hidden !important; }
     #cmPrintReport,
     #cmPrintReport * { visibility: visible !important; }
@@ -473,7 +496,7 @@ renderHeader('Crops Management');
         font-size: 12px;
         table-layout: fixed;
     }
-    .cm-pr-table thead { display: table-header-group; } /* repeats on every page */
+    .cm-pr-table thead { display: table-header-group; }
     .cm-pr-table th {
         text-align: left;
         padding: 8px 6px;
@@ -491,13 +514,12 @@ renderHeader('Crops Management');
     }
     .cm-pr-table tr { page-break-inside: avoid; }
 
-    /* Column widths (6 columns) */
-    .cm-pr-table th:nth-child(1) { width: 15%; } /* Membership ID */
-    .cm-pr-table th:nth-child(2) { width: 23%; } /* Name */
-    .cm-pr-table th:nth-child(3) { width: 15%; } /* Crop */
-    .cm-pr-table th:nth-child(4) { width: 25%; } /* Location */
-    .cm-pr-table th:nth-child(5) { width: 10%; } /* Area (ha) */
-    .cm-pr-table th:nth-child(6) { width: 12%; } /* Planted */
+    .cm-pr-table th:nth-child(1) { width: 15%; }
+    .cm-pr-table th:nth-child(2) { width: 23%; }
+    .cm-pr-table th:nth-child(3) { width: 15%; }
+    .cm-pr-table th:nth-child(4) { width: 25%; }
+    .cm-pr-table th:nth-child(5) { width: 10%; }
+    .cm-pr-table th:nth-child(6) { width: 12%; }
 }
 </style>
 
@@ -513,6 +535,12 @@ renderHeader('Crops Management');
             <button class="cm-btn cm-btn-outline" id="cm-print-btn" type="button">
                 <span class="material-icons">print</span> Print
             </button>
+
+            <?php if ($role === 'manager'): ?>
+                <button class="cm-btn cm-btn-primary" id="mgr-add-planting-btn" type="button">
+                    <span class="material-icons">add</span> Add planting
+                </button>
+            <?php endif; ?>
 
             <?php if ($role === 'user'): ?>
                 <button class="cm-btn cm-btn-outline" id="add-planting-btn" type="button">
@@ -620,10 +648,7 @@ renderHeader('Crops Management');
 </div>
 
 
-<!-- ============================================================
-     PRINT REPORT (hidden on screen, shown only when printing)
-     Membership ID, Name, Crop, Location, Area (ha), Planted
-     ============================================================ -->
+<!-- PRINT REPORT -->
 <div id="cmPrintReport">
     <div class="cm-pr-head">
         <div>
@@ -659,9 +684,63 @@ renderHeader('Crops Management');
 </div>
 
 
+<?php if ($role === 'manager'): ?>
+<!-- ============================================================
+     MANAGER: ADD PLANTING MODAL (member search)
+     ============================================================ -->
+<div class="cm-modal" id="mgr-add-modal">
+    <div class="cm-modal-card">
+        <div class="cm-modal-header">
+            <h2>Add planting</h2>
+            <button class="cm-icon-btn" id="mgr-add-close" type="button" aria-label="Close">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div id="mgr-add-error" class="cm-error-box"></div>
+
+        <form id="mgr-add-form" autocomplete="off">
+            <input type="hidden" name="member_id" id="mgr-member-id" value="">
+
+            <label>Member</label>
+            <div class="cm-search-wrap">
+                <input type="text" id="mgr-member-search" placeholder="Search by name or membership ID">
+                <div class="cm-search-results" id="mgr-member-results"></div>
+            </div>
+
+            <label>Crop</label>
+            <input type="text" name="crop_name" placeholder="e.g. Rice, Corn, Eggplant" required>
+
+            <label>Farm location</label>
+            <input type="text" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
+
+            <label>Area (hectares)</label>
+            <input type="number" name="area_hectares" placeholder="e.g. 1.5" min="0.01" step="0.01" required>
+
+            <div class="cm-form-row">
+                <div>
+                    <label>Planting date</label>
+                    <input type="date" name="planting_date" required>
+                </div>
+                <div>
+                    <label>Expected harvest date</label>
+                    <input type="date" name="expected_harvest_date" required>
+                </div>
+            </div>
+
+            <button type="submit" id="mgr-add-submit" class="cm-btn cm-btn-primary cm-btn-full" style="margin-top:16px;">Add planting</button>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+
+
 <?php if ($role === 'user'): ?>
 <!-- ============================================================
-     ADD PLANTING MODAL
+     ADD PLANTING MODAL (user)
      ============================================================ -->
 <div class="cm-modal" id="add-planting-modal-wrap">
     <div class="cm-modal-card">
@@ -712,11 +791,167 @@ renderHeader('Crops Management');
 <script>
     window.CROPS_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/crops/api/";
 
-    // Print: only the report (#cmPrintReport) shows in the printout
     document.getElementById('cm-print-btn')?.addEventListener('click', function() {
         window.print();
     });
 </script>
+
+<?php if ($role === 'manager'): ?>
+<script>
+(function() {
+    const MEMBERS = <?php echo json_encode($members, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+    const openBtn   = document.getElementById('mgr-add-planting-btn');
+    const modal     = document.getElementById('mgr-add-modal');
+    const closeBtn  = document.getElementById('mgr-add-close');
+    const form      = document.getElementById('mgr-add-form');
+    const errorBox  = document.getElementById('mgr-add-error');
+    const submitBtn = document.getElementById('mgr-add-submit');
+    const searchEl  = document.getElementById('mgr-member-search');
+    const resultsEl = document.getElementById('mgr-member-results');
+    const memberEl  = document.getElementById('mgr-member-id');
+
+    if (!openBtn) return;
+
+    function showError(msg) {
+        errorBox.textContent = msg;
+        errorBox.classList.add('cm-show');
+    }
+    function clearError() {
+        errorBox.textContent = '';
+        errorBox.classList.remove('cm-show');
+    }
+
+    function openModal() { modal.classList.add('cm-open'); }
+    function closeModal() {
+        modal.classList.remove('cm-open');
+        form.reset();
+        memberEl.value = '';
+        resultsEl.classList.remove('cm-show');
+        clearError();
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('cm-open')) closeModal();
+    });
+
+    function memberLabel(m) {
+        return (m.last_name + ', ' + m.first_name).trim();
+    }
+
+    function renderResults(term) {
+        const q = term.trim().toLowerCase();
+        resultsEl.innerHTML = '';
+
+        if (q === '') {
+            resultsEl.classList.remove('cm-show');
+            return;
+        }
+
+        const matches = MEMBERS.filter(function(m) {
+            const hay = (m.first_name + ' ' + m.last_name + ' ' + m.last_name + ' ' + m.first_name + ' ' + m.membership_id).toLowerCase();
+            return hay.indexOf(q) !== -1;
+        }).slice(0, 8);
+
+        if (matches.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'cm-search-empty';
+            empty.textContent = 'No members found.';
+            resultsEl.appendChild(empty);
+        } else {
+            matches.forEach(function(m) {
+                const item = document.createElement('div');
+                item.className = 'cm-search-item';
+
+                const name = document.createElement('p');
+                name.className = 'cm-search-item-name';
+                name.textContent = memberLabel(m);
+
+                const id = document.createElement('p');
+                id.className = 'cm-search-item-id';
+                id.textContent = m.membership_id;
+
+                item.appendChild(name);
+                item.appendChild(id);
+
+                item.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    memberEl.value = m.id;
+                    searchEl.value = memberLabel(m) + ' (' + m.membership_id + ')';
+                    resultsEl.classList.remove('cm-show');
+                    clearError();
+                });
+
+                resultsEl.appendChild(item);
+            });
+        }
+
+        resultsEl.classList.add('cm-show');
+    }
+
+    searchEl.addEventListener('input', function() {
+        memberEl.value = '';
+        renderResults(searchEl.value);
+    });
+    searchEl.addEventListener('focus', function() {
+        if (memberEl.value === '') renderResults(searchEl.value);
+    });
+    searchEl.addEventListener('blur', function() {
+        setTimeout(function() { resultsEl.classList.remove('cm-show'); }, 120);
+    });
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        clearError();
+
+        const data = Object.fromEntries(new FormData(form).entries());
+
+        if (!data.member_id) {
+            showError('Select a member from the search results.');
+            return;
+        }
+        if (new Date(data.expected_harvest_date) < new Date(data.planting_date)) {
+            showError('Expected harvest date cannot be before the planting date.');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+
+        try {
+            const response = await fetch(window.CROPS_AJAX_BASE + 'add-planting.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const rawText = await response.text();
+            let payload;
+            try {
+                payload = JSON.parse(rawText);
+            } catch (parseErr) {
+                console.error('Non-JSON response:', rawText);
+                showError('Server error. Check the console (F12).');
+                return;
+            }
+
+            if (response.ok && payload.success !== false) {
+                window.location.reload();
+            } else {
+                showError(payload.message || 'Something went wrong.');
+            }
+        } catch (err) {
+            showError('Could not reach the server: ' + err.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Add planting';
+        }
+    });
+})();
+</script>
+<?php endif; ?>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/crops/crops.js"></script>
 

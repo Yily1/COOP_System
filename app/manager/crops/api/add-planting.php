@@ -3,56 +3,56 @@ require_once __DIR__ . '/../../../../config/config.php';
 require_once __DIR__ . '/../../../../config/functions.php';
 
 header('Content-Type: application/json');
-requireLogin();
 
-$role = $_SESSION['role'] ?? '';
-if ($role !== 'user') {
+if (($_SESSION['role'] ?? '') !== 'manager') {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Only members can submit a planting.']);
+    echo json_encode(['success' => false, 'message' => 'Access denied.']);
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true) ?? [];
+$input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'Invalid request.']);
+    exit;
+}
 
-$cropName     = trim($input['crop_name'] ?? '');
-$location     = trim($input['location'] ?? '');
-$areaHectares = $input['area_hectares'] ?? '';
-$plantingDate = trim($input['planting_date'] ?? '');
-$harvestDate  = trim($input['expected_harvest_date'] ?? '');
+$memberId = (int) ($input['member_id'] ?? 0);
+$cropName = trim($input['crop_name'] ?? '');
+$location = trim($input['location'] ?? '');
+$area     = (float) ($input['area_hectares'] ?? 0);
+$planted  = trim($input['planting_date'] ?? '');
+$expected = trim($input['expected_harvest_date'] ?? '');
 
-if ($cropName === '' || $location === '' || $areaHectares === '' || $plantingDate === '' || $harvestDate === '') {
+if ($memberId <= 0 || $cropName === '' || $location === '' || $area <= 0 || $planted === '' || $expected === '') {
     http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Crop, location, area, planting date, and expected harvest date are all required.']);
+    echo json_encode(['success' => false, 'message' => 'Please fill in all fields.']);
     exit;
 }
 
-if (!is_numeric($areaHectares) || (float) $areaHectares <= 0) {
-    http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Area (hectares) must be a positive number.']);
-    exit;
-}
-
-if (strtotime($harvestDate) < strtotime($plantingDate)) {
+if (strtotime($expected) < strtotime($planted)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'message' => 'Expected harvest date cannot be before the planting date.']);
     exit;
 }
 
-// Same account-linking pattern as getAvailableMembers(): users.member_id
-// points at members.id. Adjust this line if your login flow stores it
-// under a different session key.
-$memberId = (int) ($_SESSION['member_id'] ?? 0);
-
-if ($memberId <= 0) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'No linked member record found for this account.']);
+$check = $pdo->prepare("SELECT id FROM members WHERE id = ?");
+$check->execute([$memberId]);
+if (!$check->fetch()) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'message' => 'Member not found.']);
     exit;
 }
 
 try {
-    $ok = addCropPlanting($pdo, $memberId, $cropName, $location, (float) $areaHectares, $plantingDate, $harvestDate);
-    echo json_encode(['success' => $ok]);
-} catch (Exception $e) {
+    $stmt = $pdo->prepare("
+        INSERT INTO crops (member_id, crop_name, location, area_hectares, planting_date, expected_harvest_date, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'growing')
+    ");
+    $stmt->execute([$memberId, $cropName, $location, $area, $planted, $expected]);
+
+    echo json_encode(['success' => true]);
+} catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Could not save the planting. Please try again.']);
+    echo json_encode(['success' => false, 'message' => 'Could not save the planting.']);
 }
