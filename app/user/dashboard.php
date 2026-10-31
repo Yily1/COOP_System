@@ -256,7 +256,7 @@ button.md-close { position: absolute !important; top: 8px !important; right: 8px
         </a>
         <a class="nav-card purple" href="<?php echo BASE_URL; ?>/app/user/checkins.php">
             <div class="nav-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-            <div><p class="nav-card-title">Meetings</p><p class="nav-card-sub">View meeting history</p></div>
+            <div><p class="nav-card-title">Meetings Records</p><p class="nav-card-sub">View meeting history</p></div>
         </a>
         <a class="nav-card green" href="<?php echo BASE_URL; ?>/app/user/payments.php">
             <div class="nav-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg></div>

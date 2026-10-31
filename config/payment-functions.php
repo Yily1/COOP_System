@@ -18,7 +18,7 @@ const MEETINGS_REQUIRED_FOR_ASSOCIATE = 3;
 // (Ito lang ang lugar na kailangan mong i-edit; lalabas ito sa
 // "Pay via GCash to" box sa user payments page.)
 // ------------------------------------------------------------
-const COOP_GCASH_ACCOUNT_NAME = 'Juan Dela Cruz';
+const COOP_GCASH_ACCOUNT_NAME = 'Lielane Marie Dagdagan';
 const COOP_GCASH_NUMBER = '0917 123 4567';
 
 /**

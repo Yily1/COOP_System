@@ -35,6 +35,22 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// All payments for the Print modal: ignores the type filter above (the type is
+// chosen inside the Print modal), but still follows the payer filter.
+$printQuery = "
+    SELECT p.*, m.first_name, m.last_name, m.membership_id
+    FROM payments p
+    LEFT JOIN members m ON p.member_id = m.id
+    WHERE 1=1
+";
+if ($filterPayer === 'member') {
+    $printQuery .= " AND p.member_id IS NOT NULL";
+} elseif ($filterPayer === 'non_member') {
+    $printQuery .= " AND p.member_id IS NULL";
+}
+$printQuery .= " ORDER BY (p.status = 'pending') DESC, p.payment_date DESC, p.created_at DESC";
+$printPayments = $pdo->query($printQuery)->fetchAll(PDO::FETCH_ASSOC);
+
 $stmt2 = $pdo->query("SELECT id, membership_id, last_name, first_name FROM members ORDER BY last_name, first_name");
 $members = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
@@ -166,6 +182,42 @@ foreach ($payments as $payment) {
     $repairTotal += $repair;
 }
 
+// ============================================================
+// PRINT DATA (Name, Type, Amount, Date) for the Print modal
+// ============================================================
+$printRows = [];
+foreach ($printPayments as $pp) {
+    $isNonMember = empty($pp['member_id']);
+    if ($isNonMember) {
+        $pName = $pp['payer_name'] ?: '-';
+        $pSearch = strtolower($pName . ' non-member');
+    } else {
+        $pName = $pp['last_name'] . ', ' . $pp['first_name'];
+        $pSearch = strtolower($pName . ' ' . $pp['membership_id']);
+    }
+
+    $pSub = '';
+    if ($pp['payment_type'] === 'product' && !empty($pp['product_name'])) {
+        $pSub = $pp['product_name'];
+    } elseif ($pp['payment_type'] === 'rental' && !empty($pp['equipment'])) {
+        $pSub = rentalEquipmentLabel($pp['equipment']);
+        if (!empty($pp['quantity'])) {
+            $pSub .= ' · ' . rtrim(rtrim(number_format((float) $pp['quantity'], 2), '0'), '.') . ' ' . rentalEquipmentUnit($pp['equipment']);
+        }
+    }
+
+    $pMeta = paymentTypeMeta($pp['payment_type']);
+    $printRows[] = [
+        'name'      => $pName,
+        'type'      => $pp['payment_type'],
+        'typeLabel' => $pMeta['label'],
+        'sub'       => $pSub,
+        'amount'    => '₱' . number_format($pp['amount'], 2),
+        'date'      => date('M d, Y', strtotime($pp['payment_date'])),
+        'search'    => $pSearch,
+    ];
+}
+
 renderHeader('Payments');
 ?>
 
@@ -206,7 +258,8 @@ renderHeader('Payments');
 
 /* Bright green buttons (same as the "Add product" button) */
 #openModalBtn:hover,
-#submitBtn:hover { background: #2e5a0d !important; }
+#submitBtn:hover,
+#printConfirmBtn:hover { background: #2e5a0d !important; }
 
 /* Print button: outlined green so "+ Add payment" stays the main action */
 .pay-print-btn {
@@ -258,9 +311,11 @@ renderHeader('Payments');
 
 /* ============================================================
    PRINT REPORT
-   Hidden on screen. The rows are built from the table on the
-   page right before printing, so the printout follows the
-   current filters and search. Columns: Name, Type, Amount, Date
+   Hidden on screen. When the Print modal is confirmed, the rows
+   are built from PRINT_ROWS for the chosen type, so the printout
+   follows the type picked in the modal (or All types), the payer
+   filter, and the search box.
+   Columns: Name, Type, Amount, Date
    ============================================================ */
 #payPrintReport { display: none; }
 
@@ -291,7 +346,8 @@ renderHeader('Payments');
     .pay-screen-only,
     .pay-summary-grid,
     #proofModalBackdrop,
-    #paymentModalBackdrop {
+    #paymentModalBackdrop,
+    #printModalBackdrop {
         display: none !important;
     }
 
@@ -561,7 +617,7 @@ renderHeader('Payments');
     <div class="pay-pr-head">
         <div>
             <div class="pay-pr-title">SJFMC Cooperative</div>
-            <div class="pay-pr-sub">Payments list</div>
+            <div class="pay-pr-sub" id="payPrintSub">Payments list: All types</div>
         </div>
         <div class="pay-pr-total" id="payPrintTotal">Total: 0 payments</div>
     </div>
@@ -576,6 +632,35 @@ renderHeader('Payments');
         </thead>
         <tbody id="payPrintBody"></tbody>
     </table>
+</div>
+
+<!-- MODAL - Print payments (choose the type) -->
+<div id="printModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box;">
+    <div style="background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 380px; box-sizing: border-box; position: relative;">
+        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Print payments</h2>
+        <button id="closePrintModalBtn" type="button"
+                style="position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important; font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important; max-width: 28px !important; flex: 0 0 auto !important; color: #333 !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;">&times;</button>
+
+        <label for="printTypeSelect" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payment type</label>
+        <select id="printTypeSelect" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+            <option value="">All types</option>
+            <option value="registration">Registration</option>
+            <option value="investment">Investment</option>
+            <option value="rental">Rental</option>
+            <option value="loan_repayment">Loan Repayment</option>
+            <option value="product">Products</option>
+        </select>
+        <div id="printCountNote" style="font-size: 12px; color: #667066; margin: 6px 0 18px;"></div>
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button type="button" id="cancelPrintBtn" style="padding: 10px 18px !important; border-radius: 6px; border: 1px solid #ccc; background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
+                Cancel
+            </button>
+            <button type="button" id="printConfirmBtn" style="padding: 10px 18px !important; border-radius: 6px; border: none; background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
+                Print
+            </button>
+        </div>
+    </div>
 </div>
 
 <!-- MODAL - Proof of payment image -->
@@ -1231,12 +1316,42 @@ renderHeader('Payments');
     });
 
     // ---------- Print ----------
-    // The report (Name, Type, Amount, Date) is built from the rows that are
-    // visible in the table right now, so it follows the type/payer filters,
-    // the search box, newly added payments, and removed ones.
+    // Clicking Print opens a small modal to choose the payment type
+    // (or All types). The report is built from PRINT_ROWS, so it works for
+    // any type no matter which type is filtered on the page. The search box
+    // and the payer filter still apply.
+    const PRINT_ROWS = <?php echo json_encode($printRows, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    const PAGE_TYPE = <?php echo json_encode($filterType); ?>;
+
     const printBtn = document.getElementById('payPrintBtn');
     const printBody = document.getElementById('payPrintBody');
     const printTotal = document.getElementById('payPrintTotal');
+    const printSub = document.getElementById('payPrintSub');
+    const printModal = document.getElementById('printModalBackdrop');
+    const printTypeSelect = document.getElementById('printTypeSelect');
+    const printCountNote = document.getElementById('printCountNote');
+    const printConfirmBtn = document.getElementById('printConfirmBtn');
+    const cancelPrintBtn = document.getElementById('cancelPrintBtn');
+    const closePrintModalBtn = document.getElementById('closePrintModalBtn');
+
+    // Type used for the report. Starts as the type filtered on the page,
+    // so Ctrl+P also prints what you are looking at.
+    let printType = PAGE_TYPE || '';
+
+    function typeLabelFor(type) {
+        if (!type) return 'All types';
+        const opt = printTypeSelect.querySelector('option[value="' + type + '"]');
+        return opt ? opt.textContent : type;
+    }
+
+    function getPrintRows(type) {
+        const q = memberSearchInput.value.trim().toLowerCase();
+        return PRINT_ROWS.filter(function(r) {
+            if (type && r.type !== type) return false;
+            if (q && r.search.indexOf(q) === -1) return false;
+            return true;
+        });
+    }
 
     function makeCell(text, className) {
         const td = document.createElement('td');
@@ -1246,40 +1361,29 @@ renderHeader('Payments');
     }
 
     function buildPrintReport() {
+        const rows = getPrintRows(printType);
         printBody.textContent = '';
-        let count = 0;
 
-        tableBody.querySelectorAll('tr[data-payment-id]').forEach(function(row) {
-            if (row.style.display === 'none') return; // hidden by the search box
-
-            const cells = row.children;
-            const nameEl = cells[0].querySelector('p');
-            const typeLabelEl = cells[1].querySelector('span');
-            const subLineEl = cells[1].querySelector('div');
-
+        rows.forEach(function(r) {
             const tr = document.createElement('tr');
-
-            // Name only (members: "Last, First" / non-members: the typed name)
-            tr.appendChild(makeCell(nameEl ? nameEl.textContent.trim() : '-'));
+            tr.appendChild(makeCell(r.name));
 
             // Type (+ product name or equipment underneath)
-            const typeTd = makeCell(typeLabelEl ? typeLabelEl.textContent.trim() : '-');
-            if (subLineEl && subLineEl.textContent.trim() !== '') {
+            const typeTd = makeCell(r.typeLabel);
+            if (r.sub) {
                 const sub = document.createElement('div');
                 sub.className = 'pay-pr-sub-line';
-                sub.textContent = subLineEl.textContent.trim();
+                sub.textContent = r.sub;
                 typeTd.appendChild(sub);
             }
             tr.appendChild(typeTd);
 
-            tr.appendChild(makeCell(cells[2].textContent.trim(), 'pay-pr-amt'));
-            tr.appendChild(makeCell(cells[3].textContent.trim(), 'pay-pr-date'));
-
+            tr.appendChild(makeCell(r.amount, 'pay-pr-amt'));
+            tr.appendChild(makeCell(r.date, 'pay-pr-date'));
             printBody.appendChild(tr);
-            count++;
         });
 
-        if (count === 0) {
+        if (rows.length === 0) {
             const tr = document.createElement('tr');
             const td = makeCell('No payment records.');
             td.colSpan = 4;
@@ -1287,16 +1391,44 @@ renderHeader('Payments');
             printBody.appendChild(tr);
         }
 
-        printTotal.textContent = 'Total: ' + count + (count === 1 ? ' payment' : ' payments');
+        printSub.textContent = 'Payments list: ' + typeLabelFor(printType);
+        printTotal.textContent = 'Total: ' + rows.length + (rows.length === 1 ? ' payment' : ' payments');
     }
 
-    // Also runs when printing with Ctrl+P instead of the button
-    window.addEventListener('beforeprint', buildPrintReport);
+    function updatePrintCount() {
+        const n = getPrintRows(printTypeSelect.value).length;
+        printCountNote.textContent = n === 0
+            ? 'No payments to print.'
+            : n + (n === 1 ? ' payment' : ' payments') + ' will be printed.';
+    }
 
-    printBtn.addEventListener('click', function() {
+    function openPrintModal() {
+        printTypeSelect.value = PAGE_TYPE || '';
+        updatePrintCount();
+        printModal.style.display = 'flex';
+    }
+    function closePrintModal() {
+        printModal.style.display = 'none';
+    }
+
+    printBtn.addEventListener('click', openPrintModal);
+    printTypeSelect.addEventListener('change', updatePrintCount);
+    cancelPrintBtn.addEventListener('click', closePrintModal);
+    closePrintModalBtn.addEventListener('click', closePrintModal);
+    printModal.addEventListener('click', function(e) { if (e.target === printModal) closePrintModal(); });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && printModal.style.display === 'flex') closePrintModal();
+    });
+
+    printConfirmBtn.addEventListener('click', function() {
+        printType = printTypeSelect.value;
+        closePrintModal();
         buildPrintReport();
         window.print();
     });
+
+    // Also runs when printing with Ctrl+P instead of the button
+    window.addEventListener('beforeprint', buildPrintReport);
 })();
 </script>
 
