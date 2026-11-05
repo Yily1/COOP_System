@@ -49,20 +49,29 @@ $windowStart = $months[0]['key'] . '-01';
 
 /* ============================================================
    RESET PAGKATAPOS NG "NET INCOME" WITHDRAWAL
-   Ang huling withdrawal ang simula ng bagong cycle. Lahat ng nasa
-   ibaba (Total income, Net income, Operational expenses, at ang
-   chart/legend nila) ay bibilang lang ng galing PAGKATAPOS nito.
+   Ang huling withdrawal ang simula ng bagong cycle.
+   - Operational expenses: nagre-reset sa zero.
+   - Total income / Net income: nagsisimula sa CARRY-OVER (ang natira
+     sa huling withdrawal), tapos dinadagdagan ng kita pagkatapos ng cutoff.
    Hindi nire-reset: Reserve fund (Registration) at Repair and maintenance.
+
+   Ang withdrawal ay $withdrawRate (40%) ng net income noon, kaya ang
+   natira (carry-over) = amount x (1 - rate) / rate.
    ============================================================ */
+$withdrawRate = 0.40; // dapat kapareho ng NET_INCOME_WITHDRAW_RATE sa add-expense.php
+
 $expensesReady = !empty(dash_rows($pdo, "SHOW TABLES LIKE 'expenses'"));
 
 $cutoffId = 0;
 $cutoffAt = null;
+$carryOver = 0.0;
 if ($expensesReady) {
-    $cut = dash_rows($pdo, "SELECT id, created_at, expense_date FROM expenses WHERE category = 'Net Income' ORDER BY id DESC LIMIT 1");
+    $cut = dash_rows($pdo, "SELECT id, created_at, expense_date, amount FROM expenses WHERE category = 'Net Income' ORDER BY id DESC LIMIT 1");
     if ($cut) {
         $cutoffId = (int) $cut[0]['id'];
         $cutoffAt = $cut[0]['created_at'] ?: ($cut[0]['expense_date'] . ' 23:59:59');
+        // Ang natira (60%) sa huling withdrawal ay dadalhin sa bagong cycle
+        $carryOver = (float) $cut[0]['amount'] * (1 - $withdrawRate) / $withdrawRate;
     }
 }
 $cutQ = $cutoffAt ? $pdo->quote($cutoffAt) : null;
@@ -74,7 +83,7 @@ $loanCut  = $cutQ ? "AND COALESCE(released_at, created_at) > {$cutQ}" : '';
 $stockHasCreated = !empty(dash_rows($pdo, "SHOW COLUMNS FROM stock_purchases LIKE 'created_at'"));
 $stockCut = $cutQ ? ($stockHasCreated ? "AND created_at > {$cutQ}" : "AND purchase_date > DATE({$cutQ})") : '';
 
-/* #1 TOTAL INCOME (cycle na ito: galing lang pagkatapos ng huling withdrawal) */
+/* #1 TOTAL INCOME (cycle na ito: carry-over + galing pagkatapos ng huling withdrawal) */
 $coop = coopIncomeSql();
 $incomeWhere = "status = 'confirmed' AND LOWER(payment_type) <> 'registration' $payCut";
 
@@ -112,7 +121,8 @@ foreach (dash_rows($pdo, "
     if (isset($stockPurchasedByMonth[$r['ym']])) $stockPurchasedByMonth[$r['ym']] = (float) $r['total'];
 }
 
-$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere") - $loanReleasedTotal - $stockPurchasedTotal;
+// Kasama ang carry-over (natira sa huling withdrawal)
+$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere") - $loanReleasedTotal - $stockPurchasedTotal + $carryOver;
 
 $thisMonthIncome = (float) dash_scalar($pdo, "
     SELECT COALESCE(SUM($coop),0) FROM payments
@@ -195,29 +205,65 @@ if ($expensesReady) {
     }
 }
 
-/* NET INCOME (cycle) = Total income (kasama ang Investment) - Operational expenses */
+/* NET INCOME (cycle) = Total income (kasama ang carry-over at Investment) - Operational expenses */
 $netIncome = $totalIncome - $totalOperational;
 
-$netByMonth = [];
-foreach ($incomeByMonth as $ym => $inc) {
-    $netByMonth[$ym] = $inc - ($expenseByMonth[$ym] ?? 0.0);
+/* NET INCOME GRAPH: BY YEAR (huling 5 taon, kasama ang kasalukuyan)
+   Kita ng taon (coop share) - loans released - stock purchases - Operational expenses.
+   Hindi ito nare-reset ng withdrawal, kaya nakikita pa rin ang history kada taon. */
+$years = [];
+for ($i = 4; $i >= 0; $i--) {
+    $years[] = (string) ((int) date('Y') - $i);
+}
+$yearStart = $years[0] . '-01-01';
+$netByYear = array_fill_keys($years, 0.0);
+
+foreach (dash_rows($pdo, "
+    SELECT YEAR(payment_date) AS y, SUM($coop) AS total
+    FROM payments
+    WHERE status = 'confirmed' AND LOWER(payment_type) <> 'registration' AND payment_date >= '{$yearStart}'
+    GROUP BY y") as $r) {
+    if (isset($netByYear[$r['y']])) $netByYear[$r['y']] += (float) $r['total'];
+}
+foreach (dash_rows($pdo, "
+    SELECT YEAR(COALESCE(released_at, created_at)) AS y, SUM(amount) AS total
+    FROM loans
+    WHERE status = 'released' AND COALESCE(released_at, created_at) >= '{$yearStart}'
+    GROUP BY y") as $r) {
+    if (isset($netByYear[$r['y']])) $netByYear[$r['y']] -= (float) $r['total'];
+}
+foreach (dash_rows($pdo, "
+    SELECT YEAR(purchase_date) AS y, SUM(total_cost) AS total
+    FROM stock_purchases
+    WHERE purchase_date >= '{$yearStart}'
+    GROUP BY y") as $r) {
+    if (isset($netByYear[$r['y']])) $netByYear[$r['y']] -= (float) $r['total'];
+}
+if ($expensesReady) {
+    foreach (dash_rows($pdo, "
+        SELECT YEAR(expense_date) AS y, SUM(amount) AS total
+        FROM expenses
+        WHERE category = 'Operational' AND expense_date >= '{$yearStart}'
+        GROUP BY y") as $r) {
+        if (isset($netByYear[$r['y']])) $netByYear[$r['y']] -= (float) $r['total'];
+    }
 }
 
-$netThisMonth = $netByMonth[$months[5]['key']] ?? 0.0;
-$netLastMonth = $netByMonth[$months[4]['key']] ?? 0.0;
-if ($netLastMonth > 0) {
-    $netDiff = $netThisMonth - $netLastMonth;
+$netThisYear = $netByYear[$years[4]] ?? 0.0;
+$netLastYear = $netByYear[$years[3]] ?? 0.0;
+if ($netLastYear > 0) {
+    $netDiff = $netThisYear - $netLastYear;
     $netDeltaUp = $netDiff >= 0;
-    $netDeltaText = dash_peso0(abs($netDiff)) . ($netDeltaUp ? ' more' : ' less') . ' than last month';
-} elseif ($netThisMonth > 0) {
+    $netDeltaText = dash_peso0(abs($netDiff)) . ($netDeltaUp ? ' more' : ' less') . ' than last year';
+} elseif ($netThisYear > 0) {
     $netDeltaUp = true;
-    $netDeltaText = dash_peso0($netThisMonth) . ' net this month';
-} elseif ($netThisMonth < 0) {
+    $netDeltaText = dash_peso0($netThisYear) . ' net this year';
+} elseif ($netThisYear < 0) {
     $netDeltaUp = false;
-    $netDeltaText = dash_peso0(abs($netThisMonth)) . ' net loss this month';
+    $netDeltaText = dash_peso0(abs($netThisYear)) . ' net loss this year';
 } else {
     $netDeltaUp = null;
-    $netDeltaText = 'No income this month';
+    $netDeltaText = 'No income this year';
 }
 
 /* RESERVE FUND (Registration) - hindi nire-reset */
@@ -371,7 +417,7 @@ renderHeader($title);
                     <?php echo dash_e($netDeltaText); ?>
                 </div>
                 <div class="db-chart-net">
-                    <canvas id="netChart" role="img" aria-label="Line chart of net income per month for the last six months"></canvas>
+                    <canvas id="netChart" role="img" aria-label="Line chart of net income per year for the last five years"></canvas>
                 </div>
             </div>
 
@@ -552,10 +598,10 @@ renderHeader($title);
 
     const net = document.getElementById('netChart');
     if (net) {
-        const netData = <?php echo json_encode(array_values($netByMonth)); ?>;
+        const netData = <?php echo json_encode(array_values($netByYear)); ?>;
         new Chart(net, {
             type: 'line',
-            data: { labels: monthLabels, datasets: [{ data: netData, borderColor: '#1baf7a', backgroundColor: 'rgba(27,175,122,0.10)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: netData.map((_, i) => i === netData.length - 1 ? 4 : 0), pointBackgroundColor: '#1baf7a' }] },
+            data: { labels: <?php echo json_encode(array_values($years)); ?>, datasets: [{ data: netData, borderColor: '#1baf7a', backgroundColor: 'rgba(27,175,122,0.10)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: netData.map((_, i) => i === netData.length - 1 ? 4 : 0), pointBackgroundColor: '#1baf7a' }] },
             options: Object.assign({}, base, { plugins: { legend: { display: false }, tooltip: tip }, scales: { y: { display: false }, x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } } } })
         });
     }

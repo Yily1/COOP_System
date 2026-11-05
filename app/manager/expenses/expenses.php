@@ -26,10 +26,19 @@ try {
     ");
     $expenses = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Pareho ng Dashboard: nagre-reset ang Operational pagkatapos ng huling withdrawal
+    $cutoffId = 0;
+    foreach ($expenses as $e) {
+        if (($e['category'] ?? '') === 'Net Income') {
+            $cutoffId = max($cutoffId, (int) $e['id']);
+        }
+    }
+
     $currentMonth = date('Y-m');
     foreach ($expenses as $e) {
         $cat = $e['category'] ?? 'Operational';
         if ($cat !== 'Operational') continue;
+        if ($cutoffId && (int) $e['id'] <= $cutoffId) continue;
         $total += (float) $e['amount'];
         if (substr($e['expense_date'], 0, 7) === $currentMonth) {
             $thisMonth += (float) $e['amount'];
@@ -127,6 +136,7 @@ renderHeader('Expenses');
 .ex-form .form-group select {
     width: 100%; box-sizing: border-box; padding: 7px 9px !important; font-size: 13px !important;
 }
+.ex-form .form-group input:disabled { background: #f3f4f0; color: #9aa39a; cursor: not-allowed; }
 .ex-hint { margin: 4px 0 0; font-size: 12px; color: #6b7280; line-height: 1.4; }
 .ex-form button[type="submit"] {
     position: sticky; bottom: 0; z-index: 2; width: 100% !important; box-sizing: border-box;
@@ -274,13 +284,29 @@ renderHeader('Expenses');
         const submitBtn = document.getElementById('exSubmit');
         const catSel = document.getElementById('exCategory');
         const hint = document.getElementById('exHint');
+        const amountInput = document.getElementById('exAmount');
+        const descInput = document.getElementById('exDesc');
 
         const hints = {
             'Operational': 'Deducts from net income.',
             'Repair': 'Deducts from Repair and maintenance only.',
-            'Net Income': 'Deducts the amount from net income and resets the Operational expenses card.'
+            'Net Income': 'Automatically withdraws 40% of the available net income. The other 60% stays in Total income and Net income, and the Operational expenses card resets to zero.'
         };
-        function updateHint() { hint.textContent = hints[catSel.value] || ''; }
+
+        function updateHint() {
+            hint.textContent = hints[catSel.value] || '';
+            const isNet = catSel.value === 'Net Income';
+
+            // Net income withdrawal: amount is computed by the server
+            amountInput.disabled = isNet;
+            amountInput.required = !isNet;
+            amountInput.placeholder = isNet ? 'Computed automatically' : '';
+            if (isNet) amountInput.value = '';
+
+            // Description is optional for a withdrawal (server fills it in)
+            descInput.required = !isNet;
+            descInput.placeholder = isNet ? 'Optional' : 'e.g. Fuel for delivery truck';
+        }
         catSel.addEventListener('change', updateHint);
 
         function openModal() { backdrop.style.display = 'flex'; }
