@@ -44,15 +44,22 @@ function getAvailableFunds(PDO $pdo): float {
 /* ============================================================
    NET INCOME SUMMARY: PAREHO NG MANAGER DASHBOARD
 
-   Net income = (Coop income - Loans released - Stock purchases)
-                - Operational expenses
+   Net income = (Coop income - Loans released - Stock purchases
+                 + Carry-over) - Operational expenses
 
    Nagre-reset pagkatapos ng huling "Net Income" withdrawal
-   (expenses.category = 'Net Income'). Ang investment ay kasama
-   sa income (hindi ibinabawas).
+   (expenses.category = 'Net Income'):
+   - Operational expenses: bumabalik sa zero.
+   - Total income / Net income: nagsisimula sa CARRY-OVER, ang natira
+     sa huling withdrawal, tapos dinadagdagan ng kita pagkatapos ng cutoff.
+
+   Ang withdrawal ay 40% ng net income noon, kaya ang natira
+   (carry-over) = amount x (1 - rate) / rate.
+   Ang investment ay kasama sa income (hindi ibinabawas).
 
    Returns:
-     'total'      => float (cycle total, galing sa huling withdrawal)
+     'total'      => float (cycle total, kasama ang carry-over)
+     'carry_over' => float (natira sa huling withdrawal)
      'this_month' => float
      'last_month' => float
      'months'     => [ ['key'=>'2026-05','label'=>'May','net'=>float], ... ] (6 buwan)
@@ -60,6 +67,10 @@ function getAvailableFunds(PDO $pdo): float {
 
 function getNetIncomeSummary(PDO $pdo): array {
     $coop = coopIncomeSql();
+
+    // Dapat kapareho ng NET_INCOME_WITHDRAW_RATE sa add-expense.php
+    // at ng $withdrawRate sa manager dashboard.
+    $withdrawRate = 0.40;
 
     // ---- Huling 6 na buwan ----
     $months = [];
@@ -76,11 +87,14 @@ function getNetIncomeSummary(PDO $pdo): array {
 
     $cutoffId = 0;
     $cutoffAt = null;
+    $carryOver = 0.0;
     if ($expensesReady) {
-        $cut = fundsRows($pdo, "SELECT id, created_at, expense_date FROM expenses WHERE category = 'Net Income' ORDER BY id DESC LIMIT 1");
+        $cut = fundsRows($pdo, "SELECT id, created_at, expense_date, amount FROM expenses WHERE category = 'Net Income' ORDER BY id DESC LIMIT 1");
         if ($cut) {
             $cutoffId = (int) $cut[0]['id'];
             $cutoffAt = $cut[0]['created_at'] ?: ($cut[0]['expense_date'] . ' 23:59:59');
+            // Ang natira sa huling withdrawal ay dadalhin sa bagong cycle
+            $carryOver = (float) $cut[0]['amount'] * (1 - $withdrawRate) / $withdrawRate;
         }
     }
     $cutQ = $cutoffAt ? $pdo->quote($cutoffAt) : null;
@@ -120,7 +134,8 @@ function getNetIncomeSummary(PDO $pdo): array {
     $incomeWhere = "status = 'confirmed' AND LOWER(payment_type) <> 'registration' $payCut";
 
     $paymentsTotal = fundsScalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere");
-    $totalIncome = $paymentsTotal - $loanTotal - $stockTotal;
+    // Kasama ang carry-over (natira sa huling withdrawal)
+    $totalIncome = $paymentsTotal - $loanTotal - $stockTotal + $carryOver;
 
     $incomeByMonth = array_fill_keys($keys, 0.0);
     foreach (fundsRows($pdo, "
@@ -160,6 +175,7 @@ function getNetIncomeSummary(PDO $pdo): array {
 
     return [
         'total'      => round($totalIncome - $totalOperational, 2),
+        'carry_over' => round($carryOver, 2),
         'this_month' => $list[5]['net'],
         'last_month' => $list[4]['net'],
         'months'     => $list,
