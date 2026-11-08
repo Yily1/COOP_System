@@ -362,7 +362,8 @@ renderHeader('Payments');
         <p style="color: #666;">No member profile is linked to your account yet.</p>
     <?php else: ?>
 
-        <div class="stat-grid">
+        <!-- id="payStatLive": ang laman nito ay awtomatikong nire-refresh (tingnan ang script sa ibaba) -->
+        <div class="stat-grid" id="payStatLive">
             <div class="stat-card <?php echo $eligibility['registration_paid'] ? 'stat-green' : 'stat-gray'; ?>">
                 <div class="stat-label">Registration Fee</div>
                 <div class="stat-number">
@@ -384,6 +385,10 @@ renderHeader('Payments');
             <h3>Payment History</h3>
             <button id="openPayModalBtn" class="add-payment-btn" type="button">+ Add payment</button>
         </div>
+
+        <!-- id="payHistoryLive": awtomatikong nire-refresh ang listahan o ang table sa loob nito.
+             Hindi kasama ang "+ Add payment" button sa itaas, para hindi masira ang click nito. -->
+        <div id="payHistoryLive">
         <?php if (empty($paymentHistory)): ?>
             <p style="color: #666;">Wala pang payment history.</p>
         <?php else: ?>
@@ -450,6 +455,7 @@ renderHeader('Payments');
                 </table>
             </div>
         <?php endif; ?>
+        </div><!-- /#payHistoryLive -->
         </div>
 
     <?php endif; ?>
@@ -760,6 +766,61 @@ renderHeader('Payments');
             submitBtn.textContent = 'Submit for confirmation';
         }
     });
+
+    // ============================================================
+    // AUTO-UPDATE (AJAX POLLING)
+    // Kapag kinonfirm ng manager ang payment, kusang magbabago mula
+    // Pending papuntang Confirmed dito (pati ang Registration Fee at
+    // Total Investment cards), nang hindi nagre-refresh ang member.
+    // Bawat 5 segundo, tahimik na kinukuha ang bagong bersyon ng page,
+    // tapos pinapalitan lang ang stat cards at ang history kapag may nagbago.
+    // ============================================================
+    const LIVE_CHECK_MS = 5000;
+    const statLive = document.getElementById('payStatLive');
+    const historyLive = document.getElementById('payHistoryLive');
+    let liveChecking = false;
+
+    async function refreshLive() {
+        if (liveChecking || document.hidden) return;
+        // Huwag galawin habang nakabukas ang Add payment modal
+        if (backdrop.style.display === 'flex') return;
+
+        liveChecking = true;
+        try {
+            const res = await fetch(window.location.href, {
+                cache: 'no-store',
+                credentials: 'same-origin'
+            });
+            if (!res.ok) return;
+
+            const html = await res.text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const freshHistory = doc.getElementById('payHistoryLive');
+            const freshStat = doc.getElementById('payStatLive');
+            // Walang history area = malamang nag-expire ang session
+            if (!freshHistory) return;
+            // Baka binuksan ang modal habang naghihintay ng sagot
+            if (backdrop.style.display === 'flex') return;
+
+            if (statLive && freshStat && statLive.innerHTML.trim() !== freshStat.innerHTML.trim()) {
+                statLive.innerHTML = freshStat.innerHTML;
+            }
+            if (historyLive && historyLive.innerHTML.trim() !== freshHistory.innerHTML.trim()) {
+                historyLive.innerHTML = freshHistory.innerHTML;
+            }
+        } catch (err) {
+            // Walang internet o may error: subukan ulit sa susunod
+        } finally {
+            liveChecking = false;
+        }
+    }
+
+    setInterval(refreshLive, LIVE_CHECK_MS);
+    // Kapag bumalik ang member sa tab o app, tingnan agad
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) refreshLive();
+    });
+    window.addEventListener('focus', refreshLive);
 })();
 </script>
 

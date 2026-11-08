@@ -1320,7 +1320,8 @@ renderHeader('Payments');
     // (or All types). The report is built from PRINT_ROWS, so it works for
     // any type no matter which type is filtered on the page. The search box
     // and the payer filter still apply.
-    const PRINT_ROWS = <?php echo json_encode($printRows, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    // NOTE: "let" (hindi "const") para ma-update ng auto-refresh ang listahan.
+    let PRINT_ROWS = <?php echo json_encode($printRows, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     const PAGE_TYPE = <?php echo json_encode($filterType); ?>;
 
     const printBtn = document.getElementById('payPrintBtn');
@@ -1429,6 +1430,116 @@ renderHeader('Payments');
 
     // Also runs when printing with Ctrl+P instead of the button
     window.addEventListener('beforeprint', buildPrintReport);
+
+    // ============================================================
+    // AUTO-UPDATE (AJAX POLLING)
+    // Kapag nag-submit ng payment ang member, kusang lumalabas ito dito
+    // nang hindi nagre-refresh ang manager. Bawat 5 segundo, tahimik na
+    // kinukuha ang bagong bersyon ng page (kasama ang kasalukuyang filter
+    // sa URL), tapos pinapalitan lang ang table at ang summary cards
+    // kapag may nagbago.
+    // ============================================================
+    const LIVE_CHECK_MS = 5000;
+    const summaryGrid = document.querySelector('.pay-summary-grid');
+    let liveChecking = false;
+
+    // "id:status" ng bawat row, para malaman kung may bago o nagbago
+    function rowSignature(root) {
+        const parts = [];
+        root.querySelectorAll('tr[data-payment-id]').forEach(function(tr) {
+            const statusCell = tr.children[4];
+            parts.push(tr.dataset.paymentId + ':' + (statusCell ? statusCell.textContent.trim() : ''));
+        });
+        return parts.join('|');
+    }
+
+    // Huwag galawin ang table habang may nakabukas na modal
+    function anyModalOpen() {
+        return [backdrop, printModal, proofBackdrop].some(function(m) {
+            return m && m.style.display === 'flex';
+        });
+    }
+
+    // Paliitin ang font ng halaga para magkasya sa card (parehong logic ng nasa ibaba ng page)
+    function fitCardValues() {
+        document.querySelectorAll('.pay-card-value').forEach(function(el) {
+            let size = 22;
+            el.style.fontSize = size + 'px';
+            while (el.scrollWidth > el.clientWidth && size > 12) {
+                size--;
+                el.style.fontSize = size + 'px';
+            }
+        });
+    }
+
+    async function refreshPayments() {
+        if (liveChecking || document.hidden || anyModalOpen()) return;
+        // May Confirm/Reject na pinoproseso: huwag galawin ang table
+        if (tableBody.querySelector('button:disabled')) return;
+
+        liveChecking = true;
+        try {
+            const res = await fetch(window.location.href, {
+                cache: 'no-store',
+                credentials: 'same-origin'
+            });
+            if (!res.ok) return;
+
+            const html = await res.text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const freshBody = doc.getElementById('paymentsTableBody');
+            // Walang table = malamang nag-expire ang session
+            if (!freshBody) return;
+
+            // Walang nagbago: walang gagawin
+            if (rowSignature(freshBody) === rowSignature(tableBody)) return;
+            // Baka may nagbukas ng modal habang naghihintay ng sagot
+            if (anyModalOpen()) return;
+
+            const oldIds = new Set(
+                Array.from(tableBody.querySelectorAll('tr[data-payment-id]')).map(function(tr) { return tr.dataset.paymentId; })
+            );
+
+            // Palitan ang table
+            tableBody.innerHTML = freshBody.innerHTML;
+
+            // Saglit na i-highlight ang mga bagong row
+            tableBody.querySelectorAll('tr[data-payment-id]').forEach(function(tr) {
+                if (!oldIds.has(tr.dataset.paymentId)) {
+                    tr.style.background = '#E1EFDE';
+                    tr.style.transition = 'background 2s ease';
+                    setTimeout(function() { tr.style.background = ''; }, 1500);
+                }
+            });
+
+            // Palitan ang summary cards
+            const freshGrid = doc.querySelector('.pay-summary-grid');
+            if (summaryGrid && freshGrid) {
+                summaryGrid.innerHTML = freshGrid.innerHTML;
+                fitCardValues();
+            }
+
+            // I-update ang data na ginagamit ng Print
+            const m = html.match(/let PRINT_ROWS = (\[.*\]);/);
+            if (m) {
+                try { PRINT_ROWS = JSON.parse(m[1]); } catch (err) {}
+            }
+
+            // I-apply ulit ang search ng pangalan, kung may tinype
+            memberSearchInput.dispatchEvent(new Event('input'));
+        } catch (err) {
+            // Walang internet o may error: subukan ulit sa susunod
+        } finally {
+            liveChecking = false;
+        }
+    }
+
+    setInterval(refreshPayments, LIVE_CHECK_MS);
+    // Kapag bumalik ang manager sa tab o app, tingnan agad
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) refreshPayments();
+    });
+    window.addEventListener('focus', refreshPayments);
 })();
 </script>
 
