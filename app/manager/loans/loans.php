@@ -343,6 +343,13 @@ renderHeader('Loans');
 .ln-status-badge.ln-rejected { background: var(--ln-danger-soft); color: var(--ln-danger); }
 .ln-status-badge.ln-overdue  { background: var(--ln-danger-soft); color: var(--ln-danger); margin-top: 4px; }
 
+/* LIVE UPDATE FLASH (new or changed row) */
+@keyframes lnFlashRow {
+    from { background: #e3f4e1; }
+    to   { background: transparent; }
+}
+.ln-page tr.ln-flash td { animation: lnFlashRow 2.2s ease-out; }
+
 /* MODAL (confirm / release / add loan) */
 .ln-modal {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -546,9 +553,11 @@ renderHeader('Loans');
         </div>
 
         <div class="ln-header-actions">
-            <?php if ($pendingLoanCount): ?>
-                <span class="ln-pending-pill"><?php echo $pendingLoanCount; ?> pending</span>
-            <?php endif; ?>
+            <span id="lnPendingLive">
+                <?php if ($pendingLoanCount): ?>
+                    <span class="ln-pending-pill"><?php echo $pendingLoanCount; ?> pending</span>
+                <?php endif; ?>
+            </span>
 
             <button class="ln-btn ln-btn-primary" id="add-loan-btn" type="button">
                 <span class="material-icons">add</span> Add loan
@@ -557,7 +566,7 @@ renderHeader('Loans');
     </div>
 
     <!-- SUMMARY -->
-    <div class="ln-summary-grid">
+    <div class="ln-summary-grid" id="lnSummaryLive">
         <div class="ln-metric-card ln-tone-success">
             <p class="ln-metric-label">Total loaned</p>
             <p class="ln-metric-value ln-value-sm">₱<?php echo number_format($stats['total_loaned'], 2); ?></p>
@@ -587,7 +596,7 @@ renderHeader('Loans');
             <h2>All loan requests</h2>
         </div>
 
-        <div class="ln-table-wrap">
+        <div class="ln-table-wrap" id="lnTableLive">
             <table>
                 <thead>
                     <tr>
@@ -616,7 +625,7 @@ renderHeader('Loans');
                             $paidOff    = ($loan['status'] === 'released' && $row && ($row['closed'] || $row['balance'] <= 0.004));
                             $interestPerMonth = (float) $loan['amount'] * LOAN_INTEREST_RATE_MONTHLY / 100;
                         ?>
-                        <tr>
+                        <tr data-loan-id="<?php echo (int) $loan['id']; ?>">
                             <td>
                                 <div class="ln-member-cell">
                                     <div class="ln-avatar"><?php echo htmlspecialchars(lnInitials($loan['last_name'], $loan['first_name'])); ?></div>
@@ -833,35 +842,38 @@ renderHeader('Loans');
         errorBox.classList.add('ln-show');
     }
 
-    document.querySelectorAll('.loan-action-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const action = btn.dataset.action;
-            const copy = COPY[action];
-            if (!copy) return;
+    // Event delegation on the table container, so Approve / Reject / Release
+    // keep working after the auto-update replaces the rows.
+    document.getElementById('lnTableLive').addEventListener('click', function (e) {
+        const btn = e.target.closest('.loan-action-btn');
+        if (!btn) return;
 
-            current = { btn: btn, id: btn.dataset.id, action: action };
+        const action = btn.dataset.action;
+        const copy = COPY[action];
+        if (!copy) return;
 
-            const who = btn.dataset.member + ' (₱' + btn.dataset.amount + ')';
-            titleEl.textContent = copy.title;
-            messageEl.textContent = copy.verb + ' the loan of ' + who + '?'
-                + (action === 'reject' ? ' This cannot be undone.' : '');
+        current = { btn: btn, id: btn.dataset.id, action: action };
 
-            errorBox.classList.remove('ln-show');
+        const who = btn.dataset.member + ' (₱' + btn.dataset.amount + ')';
+        titleEl.textContent = copy.title;
+        messageEl.textContent = copy.verb + ' the loan of ' + who + '?'
+            + (action === 'reject' ? ' This cannot be undone.' : '');
 
-            noteEl.classList.toggle('ln-show', action === 'release');
-            if (action === 'release') {
-                document.querySelectorAll('.loan-interest-amt').forEach(function (el) {
-                    el.textContent = btn.dataset.interest;
-                });
-            }
+        errorBox.classList.remove('ln-show');
 
-            okBtn.textContent = copy.verb;
-            okBtn.classList.toggle('ln-btn-danger', copy.danger);
-            okBtn.classList.toggle('ln-btn-primary', !copy.danger);
-            okBtn.disabled = false;
+        noteEl.classList.toggle('ln-show', action === 'release');
+        if (action === 'release') {
+            document.querySelectorAll('.loan-interest-amt').forEach(function (el) {
+                el.textContent = btn.dataset.interest;
+            });
+        }
 
-            openModal();
-        });
+        okBtn.textContent = copy.verb;
+        okBtn.classList.toggle('ln-btn-danger', copy.danger);
+        okBtn.classList.toggle('ln-btn-primary', !copy.danger);
+        okBtn.disabled = false;
+
+        openModal();
     });
 
     okBtn.addEventListener('click', async function () {
@@ -1120,6 +1132,90 @@ renderHeader('Loans');
             submitBtn.textContent = 'Add loan';
         }
     });
+})();
+</script>
+
+<!-- ============================================================
+     AUTO-UPDATE (AJAX POLLING)
+     Fetches this same page, then swaps only the parts that changed.
+     Paused while a modal is open or the tab is hidden.
+     ============================================================ -->
+<script>
+(function () {
+    // Each check re-renders the whole page on the server (ledger per member),
+    // so this page polls a little slower than the others.
+    const LIVE_CHECK_MS = 5000;
+
+    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
+    function itemMap(root, sel, attr) {
+        const m = new Map();
+        if (!sel) return m;
+        root.querySelectorAll(sel).forEach(el => m.set(el.getAttribute(attr), el.outerHTML));
+        return m;
+    }
+
+    const liveParts = [
+        { id: 'lnPendingLive' },
+        { id: 'lnSummaryLive' },
+        { id: 'lnTableLive', sel: 'tr[data-loan-id]', attr: 'data-loan-id' }
+    ].filter(function (p) {
+        p.el = document.getElementById(p.id);
+        if (!p.el) return false;
+        p.html = p.el.innerHTML;
+        p.items = itemMap(p.el, p.sel, p.attr);
+        return true;
+    });
+
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    function anyModalOpen() {
+        return !!document.querySelector('.ln-modal.ln-open');
+    }
+
+    async function liveCheck() {
+        // Skip while the tab is hidden, a modal is open, or a check is running
+        if (document.hidden || busy || anyModalOpen()) return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const fresh = liveParts.map(p => doc.getElementById(p.id));
+
+            // If an expected element is missing (e.g. login page), leave the page alone
+            if (fresh.every(Boolean)) {
+                liveParts.forEach(function (p, i) {
+                    const f = fresh[i];
+                    if (f.innerHTML === p.html) return;
+                    p.html = f.innerHTML;
+                    const newItems = itemMap(f, p.sel, p.attr);
+                    p.el.innerHTML = p.html;
+                    if (p.sel) {
+                        p.el.querySelectorAll(p.sel).forEach(function (el) {
+                            const id = el.getAttribute(p.attr);
+                            if (p.items.get(id) !== newItems.get(id)) el.classList.add('ln-flash');
+                        });
+                    }
+                    p.items = newItems;
+                });
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff on error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function () { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) liveCheck(); });
+    schedule();
 })();
 </script>
 

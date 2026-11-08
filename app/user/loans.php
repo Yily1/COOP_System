@@ -130,6 +130,18 @@ renderHeader('Loans');
 .svc-table tbody tr:last-child td { border-bottom: none; }
 .svc-empty { padding: 20px; text-align: center; color: #667066; font-size: 13px; }
 
+/* Green flash for a new or changed loan (auto-update) */
+@keyframes svcFlashRow {
+    from { background: #e3f4e1; }
+    to   { background: transparent; }
+}
+@keyframes svcFlashStat {
+    from { box-shadow: 0 0 0 3px #a5d6a7; }
+    to   { box-shadow: 0 0 0 0 transparent; }
+}
+.svc-table tr.svc-flash td { animation: svcFlashRow 2.2s ease-out; }
+.svc-stat-card.svc-flash { animation: svcFlashStat 2.2s ease-out; }
+
 #svcLoanModalBackdrop {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5);
     z-index: 100; align-items: center; justify-content: center; padding: 16px;
@@ -207,7 +219,7 @@ renderHeader('Loans');
         </a>
     </div>
 
-    <div class="svc-stat-grid">
+    <div class="svc-stat-grid" id="svcStatLive">
         <div class="svc-stat-card svc-stat-investment">
             <p class="svc-stat-label">Total Investment</p>
             <p class="svc-stat-value">₱<?php echo number_format($totalInvestment, 2); ?></p>
@@ -226,12 +238,14 @@ renderHeader('Loans');
         </div>
     </div>
 
-    <?php if (!$isLoanEligible): ?>
-        <div class="svc-notice">
-            You need at least ₱<?php echo number_format(LOAN_ELIGIBILITY_THRESHOLD, 2); ?> in confirmed investment to request a loan.
-            You currently have ₱<?php echo number_format($totalInvestment, 2); ?>.
-        </div>
-    <?php endif; ?>
+    <div id="svcNoticeLive">
+        <?php if (!$isLoanEligible): ?>
+            <div class="svc-notice">
+                You need at least ₱<?php echo number_format(LOAN_ELIGIBILITY_THRESHOLD, 2); ?> in confirmed investment to request a loan.
+                You currently have ₱<?php echo number_format($totalInvestment, 2); ?>.
+            </div>
+        <?php endif; ?>
+    </div>
 
     <div class="svc-section-head">
         <h2>My Loans</h2>
@@ -240,6 +254,7 @@ renderHeader('Loans');
         </button>
     </div>
 
+    <div id="svcLoansLive">
     <?php if (empty($myLoans)): ?>
         <p class="svc-empty">You haven't requested any loans yet.</p>
     <?php else: ?>
@@ -251,7 +266,7 @@ renderHeader('Loans');
                 <tbody>
                     <?php foreach ($myLoans as $loan): ?>
                         <?php $totalDue = $loan['total_due'] ?? $loan['amount']; ?>
-                        <tr>
+                        <tr data-loan-id="<?php echo htmlspecialchars((string) ($loan['id'] ?? $loan['created_at'])); ?>">
                             <td data-label="Amount" style="font-weight:600;">₱<?php echo number_format($loan['amount'], 2); ?></td>
                             <td data-label="Total Due">₱<?php echo number_format($totalDue, 2); ?></td>
                             <td data-label="Purpose"><?php echo htmlspecialchars($loan['purpose'] ?: '—'); ?></td>
@@ -273,6 +288,7 @@ renderHeader('Loans');
             </table>
         </div>
     <?php endif; ?>
+    </div>
 
 </div>
 
@@ -287,11 +303,11 @@ renderHeader('Loans');
         <div id="loanModalSuccess" class="svc-modal-success">Loan request submitted. Waiting for manager review.</div>
 
         <form id="loanForm">
-            <p style="font-size:13px; color:#667066; margin:0 0 4px;">Available credit: <strong>₱<?php echo number_format($availableCredit, 2); ?></strong></p>
+            <p id="svcCreditLine" style="font-size:13px; color:#667066; margin:0 0 4px;">Available credit: <strong>₱<?php echo number_format($availableCredit, 2); ?></strong></p>
             <p style="font-size:12px; color:#98a498; margin:0 0 14px;">Interest: <?php echo number_format(LOAN_INTEREST_RATE_MONTHLY, 2); ?>% per month, plus a due date, will be set when the manager releases your loan.</p>
 
             <label class="svc-form-label">Amount (₱)</label>
-            <input type="number" name="amount" class="svc-form-input" step="0.01" min="1" max="<?php echo $availableCredit; ?>" required>
+            <input type="number" name="amount" id="svcLoanAmount" class="svc-form-input" step="0.01" min="1" max="<?php echo $availableCredit; ?>" required>
 
             <label class="svc-form-label">Purpose</label>
             <textarea name="purpose" rows="3" class="svc-form-input" placeholder="e.g. Farm inputs for next planting season" required></textarea>
@@ -341,6 +357,116 @@ renderHeader('Loans');
             errorsEl.style.display = 'block';
         }
     });
+})();
+</script>
+
+<!-- ============================================================
+     AUTO-UPDATE (AJAX POLLING)
+     Fetches this same page, then swaps only the parts that changed.
+     Paused while the request modal is open or the tab is hidden.
+     ============================================================ -->
+<script>
+(function () {
+    const LIVE_CHECK_MS = 5000;   // set to 3000 for faster updates, 10000 for fewer requests
+
+    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
+    function itemMap(root, sel, attr) {
+        const m = new Map();
+        if (!sel) return m;
+        root.querySelectorAll(sel).forEach(el => m.set(el.getAttribute(attr), el.outerHTML));
+        return m;
+    }
+
+    const liveParts = [
+        { id: 'svcStatLive',   sel: '.svc-stat-card', index: true },
+        { id: 'svcNoticeLive' },
+        { id: 'svcLoansLive',  sel: 'tr[data-loan-id]', attr: 'data-loan-id' }
+    ].filter(function (p) {
+        p.el = document.getElementById(p.id);
+        if (!p.el) return false;
+        p.html = p.el.innerHTML;
+        p.items = itemMap(p.el, p.sel, p.attr);
+        return true;
+    });
+
+    // Stat cards have no id, so compare them by position
+    function statMap(root) {
+        const m = new Map();
+        root.querySelectorAll('.svc-stat-card').forEach((el, i) => m.set(String(i), el.outerHTML));
+        return m;
+    }
+
+    const openBtn = document.getElementById('openLoanBtn');
+    const amountInput = document.getElementById('svcLoanAmount');
+    const creditLine = document.getElementById('svcCreditLine');
+
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    function modalOpen() {
+        return document.getElementById('svcLoanModalBackdrop').style.display === 'flex';
+    }
+
+    async function liveCheck() {
+        // Skip while the tab is hidden, the modal is open, or a check is running
+        if (document.hidden || busy || modalOpen()) return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const fresh = liveParts.map(p => doc.getElementById(p.id));
+
+            // If an expected element is missing (e.g. login page), leave the page alone
+            if (fresh.every(Boolean)) {
+                liveParts.forEach(function (p, i) {
+                    const f = fresh[i];
+                    if (f.innerHTML === p.html) return;
+                    p.html = f.innerHTML;
+                    const newItems = p.index ? statMap(f) : itemMap(f, p.sel, p.attr);
+                    p.el.innerHTML = p.html;
+                    if (p.sel) {
+                        p.el.querySelectorAll(p.sel).forEach(function (el, idx) {
+                            const id = p.index ? String(idx) : el.getAttribute(p.attr);
+                            if (p.items.get(id) !== newItems.get(id)) el.classList.add('svc-flash');
+                        });
+                    }
+                    p.items = newItems;
+                });
+
+                // Keep the "Request a Loan" button and the modal's credit info in step
+                const freshBtn = doc.getElementById('openLoanBtn');
+                if (openBtn && freshBtn) openBtn.disabled = freshBtn.disabled;
+
+                const freshAmount = doc.getElementById('svcLoanAmount');
+                if (amountInput && freshAmount) amountInput.max = freshAmount.max;
+
+                const freshCredit = doc.getElementById('svcCreditLine');
+                if (creditLine && freshCredit && creditLine.innerHTML !== freshCredit.innerHTML) {
+                    creditLine.innerHTML = freshCredit.innerHTML;
+                }
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff on error
+        } finally {
+            busy = false;
+        }
+    }
+
+    // Seed the stat cards by position (they have no id)
+    liveParts.forEach(function (p) {
+        if (p.index) p.items = statMap(p.el);
+    });
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function () { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) liveCheck(); });
+    schedule();
 })();
 </script>
 
