@@ -168,6 +168,13 @@ renderHeader($title);
 .meeting-preview-chevron { flex-shrink: 0; color: #a9a79f; }
 .meeting-preview-empty { padding: 16px; border-radius: 14px; border: 1px dashed #eceae4; text-align: center; color: #667066; font-size: 13px; margin-bottom: 22px; }
 
+/* Green flash for a newly appeared meeting (auto-update) */
+@keyframes mtgFlash {
+    from { background: #e3f4e1; border-color: #2e7d32; }
+    to   { background: #ffffff; border-color: #eceae4; }
+}
+.meeting-preview-card.mtg-flash { animation: mtgFlash 2.2s ease-out; }
+
 /* TIP */
 .tip-box { padding: 12px 14px; background: #e8f5e9; border-radius: 10px; display: flex; gap: 10px; align-items: flex-start; }
 .tip-box svg { width: 16px; height: 16px; fill: #2e7d32; flex-shrink: 0; margin-top: 1px; }
@@ -218,7 +225,7 @@ button.md-close { position: absolute !important; top: 8px !important; right: 8px
     </div>
 
     <!-- COOP NET INCOME -->
-    <div class="net-card">
+    <div class="net-card" id="netLive">
         <p class="net-card-label">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>
             Coop net income
@@ -289,10 +296,12 @@ button.md-close { position: absolute !important; top: 8px !important; right: 8px
         <div><h2>Upcoming Meetings</h2></div>
     </div>
 
+    <div id="meetingsLive">
     <?php if (!empty($upcomingMeetings)): ?>
         <div class="meeting-preview-list">
             <?php foreach ($upcomingMeetings as $meeting): ?>
                 <div class="meeting-preview-card"
+                     data-id="<?php echo (int)$meeting['id']; ?>"
                      data-title="<?php echo htmlspecialchars($meeting['title']); ?>"
                      data-location="<?php echo htmlspecialchars($meeting['location'] ?? ''); ?>"
                      data-agenda="<?php echo htmlspecialchars($meeting['description'] ?? ''); ?>"
@@ -316,6 +325,7 @@ button.md-close { position: absolute !important; top: 8px !important; right: 8px
     <?php else: ?>
         <div class="meeting-preview-empty">No upcoming meetings scheduled.</div>
     <?php endif; ?>
+    </div>
 
     <!-- TIP -->
     <div class="tip-box">
@@ -359,21 +369,81 @@ button.md-close { position: absolute !important; top: 8px !important; right: 8px
     const mdLocationWrap = document.getElementById('mdLocationWrap');
     const mdAgenda = document.getElementById('mdAgenda');
     const mdDescWrap = document.getElementById('mdDescWrap');
+    const netBox = document.getElementById('netLive');
+    const meetBox = document.getElementById('meetingsLive');
 
     function closeModal() { backdrop.style.display = 'none'; }
     closeBtn.addEventListener('click', closeModal);
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
 
-    document.querySelectorAll('.meeting-preview-card').forEach(function(card) {
-        card.addEventListener('click', function() {
-            mdTitle.textContent = card.dataset.title;
-            mdDate.textContent = card.dataset.date;
-            mdTime.textContent = card.dataset.time || 'Not set';
-            if (card.dataset.location) { mdLocation.textContent = card.dataset.location; mdLocationWrap.style.display = 'block'; } else { mdLocationWrap.style.display = 'none'; }
-            if (card.dataset.agenda) { mdAgenda.textContent = card.dataset.agenda; mdDescWrap.style.display = 'block'; } else { mdDescWrap.style.display = 'none'; }
-            backdrop.style.display = 'flex';
-        });
+    // Event delegation: gumagana pa rin kahit napalitan ang mga card ng auto-update
+    meetBox.addEventListener('click', function(e) {
+        const card = e.target.closest('.meeting-preview-card');
+        if (!card) return;
+        mdTitle.textContent = card.dataset.title;
+        mdDate.textContent = card.dataset.date;
+        mdTime.textContent = card.dataset.time || 'Not set';
+        if (card.dataset.location) { mdLocation.textContent = card.dataset.location; mdLocationWrap.style.display = 'block'; } else { mdLocationWrap.style.display = 'none'; }
+        if (card.dataset.agenda) { mdAgenda.textContent = card.dataset.agenda; mdDescWrap.style.display = 'block'; } else { mdDescWrap.style.display = 'none'; }
+        backdrop.style.display = 'flex';
     });
+
+    // ============================================================
+    // AUTO-UPDATE (AJAX POLLING)
+    // ============================================================
+    const LIVE_CHECK_MS = 5000;   // gawing 10000 para mas kaunti ang requests
+    let lastNetHtml = netBox.innerHTML;
+    let lastMeetHtml = meetBox.innerHTML;
+    let knownIds = cardIds(meetBox);
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    function cardIds(root) {
+        return Array.from(root.querySelectorAll('.meeting-preview-card')).map(c => c.dataset.id);
+    }
+
+    async function liveCheck() {
+        // Hindi gagana habang nakatago ang tab o bukas ang details modal
+        if (document.hidden || busy || backdrop.style.display === 'flex') return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const newNet = doc.getElementById('netLive');
+            const newMeet = doc.getElementById('meetingsLive');
+
+            // Kung wala ang inaasahang elemento (hal. login page na), huwag galawin ang page
+            if (newNet && newMeet) {
+                if (newNet.innerHTML !== lastNetHtml) {
+                    lastNetHtml = newNet.innerHTML;
+                    netBox.innerHTML = lastNetHtml;
+                }
+                if (newMeet.innerHTML !== lastMeetHtml) {
+                    lastMeetHtml = newMeet.innerHTML;
+                    meetBox.innerHTML = lastMeetHtml;
+                    meetBox.querySelectorAll('.meeting-preview-card').forEach(c => {
+                        if (!knownIds.includes(c.dataset.id)) c.classList.add('mtg-flash');
+                    });
+                    knownIds = cardIds(meetBox);
+                }
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff kapag nag-error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async () => { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) liveCheck(); });
+    schedule();
 })();
 </script>
 

@@ -205,6 +205,16 @@ renderHeader($pageTitle);
         box-shadow: 0 2px 8px rgba(46, 125, 50, 0.08);
     }
 
+    /* Green flash for a newly appeared check-in (auto-update) */
+    @keyframes mtgFlash {
+        from { background: #e3f4e1; border-color: #2e7d32; }
+        to   { background: #ffffff; border-color: #eceae4; }
+    }
+
+    .meeting-preview-card.mtg-flash {
+        animation: mtgFlash 2.2s ease-out;
+    }
+
     .meeting-preview-date {
         flex-shrink: 0;
         width: 46px;
@@ -412,7 +422,7 @@ renderHeader($pageTitle);
         </a>
     </div>
 
-    <div class="checkins-stat-grid">
+    <div class="checkins-stat-grid" id="mtgStatLive">
         <div class="checkins-stat-card total">
             <p class="checkins-stat-label">Total meetings</p>
             <p class="checkins-stat-count"><?php echo $totalMeetings; ?></p>
@@ -429,6 +439,7 @@ renderHeader($pageTitle);
         </div>
     </div>
 
+    <div id="mtgHistoryLive">
     <?php if (!$linkedMemberId): ?>
 
         <div class="meeting-preview-empty">Your account isn't linked to a member profile yet.</div>
@@ -442,6 +453,7 @@ renderHeader($pageTitle);
         <div class="meeting-preview-list">
             <?php foreach ($checkins as $meeting): ?>
                 <div class="meeting-preview-card"
+                     data-id="<?php echo (int)$meeting['id']; ?>"
                      data-title="<?php echo htmlspecialchars($meeting['title']); ?>"
                      data-location="<?php echo htmlspecialchars($meeting['location'] ?? ''); ?>"
                      data-agenda="<?php echo htmlspecialchars($meeting['description'] ?? ''); ?>"
@@ -468,6 +480,7 @@ renderHeader($pageTitle);
         </div>
 
     <?php endif; ?>
+    </div>
 
 </div>
 
@@ -519,35 +532,96 @@ renderHeader($pageTitle);
     const mdLocationWrap = document.getElementById('mdLocationWrap');
     const mdAgenda = document.getElementById('mdAgenda');
     const mdDescWrap = document.getElementById('mdDescWrap');
+    const statBox = document.getElementById('mtgStatLive');
+    const historyBox = document.getElementById('mtgHistoryLive');
 
     function closeModal() { backdrop.style.display = 'none'; }
     closeBtn.addEventListener('click', closeModal);
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
 
-    document.querySelectorAll('.meeting-preview-card').forEach(function(card) {
-        card.addEventListener('click', function() {
-            mdTitle.textContent = card.dataset.title;
-            mdDate.textContent = card.dataset.date;
-            mdTime.textContent = card.dataset.time || 'Not set';
+    // Event delegation: gumagana pa rin kahit napalitan ang mga card ng auto-update
+    historyBox.addEventListener('click', function(e) {
+        const card = e.target.closest('.meeting-preview-card');
+        if (!card) return;
 
-            // Hide Location / Description when empty
-            if (card.dataset.location) {
-                mdLocation.textContent = card.dataset.location;
-                mdLocationWrap.style.display = 'block';
-            } else {
-                mdLocationWrap.style.display = 'none';
-            }
+        mdTitle.textContent = card.dataset.title;
+        mdDate.textContent = card.dataset.date;
+        mdTime.textContent = card.dataset.time || 'Not set';
 
-            if (card.dataset.agenda) {
-                mdAgenda.textContent = card.dataset.agenda;
-                mdDescWrap.style.display = 'block';
-            } else {
-                mdDescWrap.style.display = 'none';
-            }
+        // Hide Location / Description when empty
+        if (card.dataset.location) {
+            mdLocation.textContent = card.dataset.location;
+            mdLocationWrap.style.display = 'block';
+        } else {
+            mdLocationWrap.style.display = 'none';
+        }
 
-            backdrop.style.display = 'flex';
-        });
+        if (card.dataset.agenda) {
+            mdAgenda.textContent = card.dataset.agenda;
+            mdDescWrap.style.display = 'block';
+        } else {
+            mdDescWrap.style.display = 'none';
+        }
+
+        backdrop.style.display = 'flex';
     });
+
+    // ============================================================
+    // AUTO-UPDATE (AJAX POLLING)
+    // ============================================================
+    const LIVE_CHECK_MS = 5000;   // gawing 10000 para mas kaunti ang requests
+    let lastStatHtml = statBox.innerHTML;
+    let lastHistHtml = historyBox.innerHTML;
+    let knownIds = cardIds(historyBox);
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    function cardIds(root) {
+        return Array.from(root.querySelectorAll('.meeting-preview-card')).map(c => c.dataset.id);
+    }
+
+    async function liveCheck() {
+        // Hindi gagana habang nakatago ang tab o bukas ang details modal
+        if (document.hidden || busy || backdrop.style.display === 'flex') return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const newStat = doc.getElementById('mtgStatLive');
+            const newHist = doc.getElementById('mtgHistoryLive');
+
+            // Kung wala ang inaasahang elemento (hal. login page na), huwag galawin ang page
+            if (newStat && newHist) {
+                if (newStat.innerHTML !== lastStatHtml) {
+                    lastStatHtml = newStat.innerHTML;
+                    statBox.innerHTML = lastStatHtml;
+                }
+                if (newHist.innerHTML !== lastHistHtml) {
+                    lastHistHtml = newHist.innerHTML;
+                    historyBox.innerHTML = lastHistHtml;
+                    historyBox.querySelectorAll('.meeting-preview-card').forEach(c => {
+                        if (!knownIds.includes(c.dataset.id)) c.classList.add('mtg-flash');
+                    });
+                    knownIds = cardIds(historyBox);
+                }
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff kapag nag-error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async () => { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) liveCheck(); });
+    schedule();
 })();
 </script>
 

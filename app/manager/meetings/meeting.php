@@ -180,7 +180,7 @@ if ($viewingId) {
     }
 
     function loadAttendance() {
-        apiFetch('api/checkins.php?meeting_id=' + meetingId)
+        return apiFetch('api/checkins.php?meeting_id=' + meetingId, { cache: 'no-store' })
             .then(r => r.json())
             .then(res => {
                 const data = res.data || [];
@@ -201,6 +201,19 @@ if ($viewingId) {
             });
     }
     loadAttendance();
+
+    // ============================================================
+    // AUTO-UPDATE (AJAX POLLING) — attendance list
+    // ============================================================
+    const LIVE_CHECK_MS = 5000;   // gawing 10000 para mas kaunti ang requests
+    let attBusy = false;
+    async function pollAttendance() {
+        if (document.hidden || attBusy) return;
+        attBusy = true;
+        try { await loadAttendance(); } catch (e) { /* subukan ulit sa susunod */ } finally { attBusy = false; }
+    }
+    setInterval(pollAttendance, LIVE_CHECK_MS);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) pollAttendance(); });
 
     input.addEventListener('input', () => {
         clearTimeout(debounceTimer);
@@ -522,6 +535,13 @@ renderHeader('Meetings');
         text-transform:none !important; letter-spacing:normal !important; box-shadow:none !important;
     }
     button.mtg-btn-secondary:hover { background:#f3f6f1 !important; }
+
+    /* Green flash for a newly appeared meeting (auto-update) */
+    @keyframes mtgFlash {
+        from { background:#e3f4e1; border-color:#2e7d32; }
+        to   { background:#fff;    border-color:#e2e0d5; }
+    }
+    .mtg-event-card.mtg-flash { animation: mtgFlash 2.2s ease-out; }
 </style>
 
 <div class="mtg-page-head">
@@ -565,6 +585,7 @@ renderHeader('Meetings');
             <?php endif; ?>
         </div>
 
+        <div id="mtgListLive">
         <?php if (empty($meetings)): ?>
             <p style="font-size:13px; color:#6b7280;">No meetings found.</p>
         <?php else: ?>
@@ -591,6 +612,7 @@ renderHeader('Meetings');
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
+        </div>
 
         <div id="mtg-checkin-overlay" class="mtg-modal-overlay">
             <div class="mtg-modal mtg-checkin-modal">
@@ -643,7 +665,7 @@ renderHeader('Meetings');
         </div>
     </div>
 
-    <div class="mtg-calendar">
+    <div class="mtg-calendar" id="mtgCalLive">
         <div class="mtg-cal-header">
             <a href="?m=<?= $prevMonth ?>&y=<?= $prevYear ?>">&lsaquo;</a>
             <span class="month"><?= $monthLabel ?></span>
@@ -770,6 +792,7 @@ function mtgViewAttendance(meetingId) {
     const row = document.getElementById('mtg-row-' + meetingId);
     if (!row) return;
 
+    vaMeetingId = meetingId;
     vaTitle.textContent = row.dataset.meetingName || '';
     vaList.innerHTML = '';
     vaCount.textContent = '(0)';
@@ -868,6 +891,100 @@ document.addEventListener('click', (e) => {
         ilSuggestions.style.display = 'none';
     }
 });
+
+// ============================================================
+// AUTO-UPDATE (AJAX POLLING)
+// ============================================================
+const LIVE_CHECK_MS = 5000;   // gawing 10000 para mas kaunti ang requests
+const liveList = document.getElementById('mtgListLive');
+const liveCal  = document.getElementById('mtgCalLive');
+let lastListHtml = liveList.innerHTML;
+let lastCalHtml  = liveCal.innerHTML;
+let knownMeetingIds = liveIds(liveList);
+let vaMeetingId = null;
+let vaLastKey = '';
+let liveBusy = false;
+let liveFails = 0;
+let liveTimer = null;
+
+function liveIds(root) {
+    return Array.from(root.querySelectorAll('[data-meeting-id]')).map(el => el.dataset.meetingId);
+}
+
+function vaRender(data) {
+    vaCount.textContent = '(' + data.length + ')';
+    vaList.innerHTML = '';
+    vaEmpty.style.display = data.length ? 'none' : 'block';
+    data.forEach(m => {
+        const li = document.createElement('li');
+        const av = document.createElement('div');
+        av.className = 'mtg-avatar';
+        av.textContent = vaInitials(m.name);
+        const box = document.createElement('div');
+        const n = document.createElement('p');
+        n.className = 'att-name';
+        n.textContent = m.name;
+        const i = document.createElement('p');
+        i.className = 'att-id';
+        i.textContent = m.membership_id;
+        box.append(n, i);
+        li.append(av, box);
+        vaList.appendChild(li);
+    });
+}
+
+async function liveCheck() {
+    if (document.hidden || liveBusy) return;
+    liveBusy = true;
+    try {
+        const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+        const newList = doc.getElementById('mtgListLive');
+        const newCal  = doc.getElementById('mtgCalLive');
+
+        // Kung wala ang inaasahang elemento (hal. login page na), huwag galawin ang page.
+        if (newList && newCal) {
+            if (newList.innerHTML !== lastListHtml) {
+                lastListHtml = newList.innerHTML;
+                liveList.innerHTML = lastListHtml;
+                liveList.querySelectorAll('[data-meeting-id]').forEach(el => {
+                    if (!knownMeetingIds.includes(el.dataset.meetingId)) el.classList.add('mtg-flash');
+                });
+                knownMeetingIds = liveIds(liveList);
+            }
+            if (newCal.innerHTML !== lastCalHtml) {
+                lastCalHtml = newCal.innerHTML;
+                liveCal.innerHTML = lastCalHtml;
+            }
+        }
+
+        // Kung bukas ang "View" (attendance) modal, i-refresh din ang listahan ng checked-in.
+        if (vaOverlay.style.display === 'flex' && vaMeetingId) {
+            const id = vaMeetingId;
+            const rr = await apiFetch('api/checkins.php?meeting_id=' + id, { cache: 'no-store' });
+            const data = (await rr.json()).data || [];
+            const key = id + ':' + JSON.stringify(data);
+            if (id === vaMeetingId && vaOverlay.style.display === 'flex' && key !== vaLastKey) {
+                vaLastKey = key;
+                vaRender(data);
+            }
+        }
+        liveFails = 0;
+    } catch (e) {
+        liveFails++;   // backoff kapag nag-error
+    } finally {
+        liveBusy = false;
+    }
+}
+
+function scheduleLive() {
+    clearTimeout(liveTimer);
+    const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, liveFails), 60000);
+    liveTimer = setTimeout(async () => { await liveCheck(); scheduleLive(); }, delay);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) liveCheck(); });
+scheduleLive();
 </script>
 
 <div id="create-modal" class="mtg-modal-overlay">
