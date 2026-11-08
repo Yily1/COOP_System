@@ -203,6 +203,14 @@ renderHeader('Products');
 .svc-request-card-note { font-size: 12.5px; color: #667066; background: #f7f8f5; border-radius: 8px; padding: 8px 10px; margin-top: 4px; }
 .svc-request-card-note strong { color: #1b3a24; }
 
+/* Green flash for a new or changed item (auto-update) */
+@keyframes svcFlashCard {
+    from { background: #e3f4e1; border-color: #2e7d32; }
+    to   { background: #ffffff; border-color: #eceae4; }
+}
+.svc-product-card.svc-flash,
+.svc-request-card.svc-flash { animation: svcFlashCard 2.2s ease-out; }
+
 #svcProductReqModalBackdrop, #svcNewProductModalBackdrop {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5);
     z-index: 100; align-items: center; justify-content: center; padding: 16px;
@@ -261,6 +269,7 @@ renderHeader('Products');
         <h2>Available Products</h2>
     </div>
 
+    <div id="svcAvailLive">
     <?php if (empty($products)): ?>
         <p class="svc-empty">No products available right now.</p>
     <?php else: ?>
@@ -271,7 +280,7 @@ renderHeader('Products');
                     $hasPhoto = !empty($p['photo_path']);
                     $photoUrl = $hasPhoto ? BASE_URL . '/' . ltrim($p['photo_path'], '/') : '';
                 ?>
-                <div class="svc-product-card">
+                <div class="svc-product-card" data-product-id="<?php echo (int) $p['id']; ?>">
                     <div class="svc-product-photo">
                         <?php if ($hasPhoto): ?>
                             <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="<?php echo htmlspecialchars($p['name']); ?>">
@@ -300,6 +309,7 @@ renderHeader('Products');
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
+    </div>
 
     <!-- ============================================================
          MY REQUESTS
@@ -308,6 +318,7 @@ renderHeader('Products');
         <h2>My Requests</h2>
         <button type="button" class="svc-btn svc-btn-outline" id="openNewProductBtn">+ Request a Product</button>
     </div>
+    <div id="svcMyReqLive">
     <?php if (empty($myProductRequests)): ?>
         <p class="svc-empty">You haven't requested any products yet.</p>
     <?php else: ?>
@@ -323,7 +334,7 @@ renderHeader('Products');
                     $pd = $r['pickup_date'] ?? '';
                     $hasPickup = !empty($pd) && strpos($pd, '0000') !== 0;
                 ?>
-                <div class="svc-request-card">
+                <div class="svc-request-card" data-request-id="<?php echo (int) $r['id']; ?>">
                     <div class="svc-request-card-head">
                         <p class="svc-request-card-name"><?php echo htmlspecialchars($productLabel); ?></p>
                         <?php echo productRequestStatusBadge($r['status']); ?>
@@ -357,6 +368,7 @@ renderHeader('Products');
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
+    </div>
 
 </div>
 
@@ -458,19 +470,20 @@ renderHeader('Products');
     }
     productReqQty.addEventListener('input', updateReqTotal);
 
-    document.querySelectorAll('.request-product-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            productReqForm.reset();
-            productReqErrors.style.display = 'none';
-            productReqSuccess.style.display = 'none';
-            currentPrice = parseFloat(btn.dataset.price) || 0;
-            updateReqTotal();
-            document.getElementById('productReqProductId').value = btn.dataset.id;
-            document.getElementById('productReqTitle').textContent = 'Request: ' + btn.dataset.name;
-            document.getElementById('productReqQtyLabel').textContent = 'Quantity (' + btn.dataset.unit + ')';
-            productReqQty.max = btn.dataset.stock;
-            productReqBackdrop.style.display = 'flex';
-        });
+    // Event delegation: gumagana pa rin ang "Avail" button kahit napalitan ang mga card ng auto-update
+    document.getElementById('svcAvailLive').addEventListener('click', function(e) {
+        const btn = e.target.closest('.request-product-btn');
+        if (!btn || btn.disabled) return;
+        productReqForm.reset();
+        productReqErrors.style.display = 'none';
+        productReqSuccess.style.display = 'none';
+        currentPrice = parseFloat(btn.dataset.price) || 0;
+        updateReqTotal();
+        document.getElementById('productReqProductId').value = btn.dataset.id;
+        document.getElementById('productReqTitle').textContent = 'Request: ' + btn.dataset.name;
+        document.getElementById('productReqQtyLabel').textContent = 'Quantity (' + btn.dataset.unit + ')';
+        productReqQty.max = btn.dataset.stock;
+        productReqBackdrop.style.display = 'flex';
     });
     document.getElementById('closeProductReqModalBtn').addEventListener('click', function() { productReqBackdrop.style.display = 'none'; });
     productReqBackdrop.addEventListener('click', function(e) { if (e.target === productReqBackdrop) productReqBackdrop.style.display = 'none'; });
@@ -567,6 +580,78 @@ renderHeader('Products');
             newProductErrors.style.display = 'block';
         }
     });
+
+    // ============================================================
+    // AUTO-UPDATE (AJAX POLLING)
+    // ============================================================
+    const LIVE_CHECK_MS = 3000;   // gawing 5000 o 10000 para mas kaunti ang requests
+    const MODAL_IDS = ['svcProductReqModalBackdrop', 'svcNewProductModalBackdrop'];
+
+    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
+    function itemMap(root, sel, attr) {
+        const m = new Map();
+        root.querySelectorAll(sel).forEach(el => m.set(el.getAttribute(attr), el.outerHTML));
+        return m;
+    }
+
+    const liveParts = [
+        { id: 'svcAvailLive', sel: '.svc-product-card', attr: 'data-product-id' },
+        { id: 'svcMyReqLive', sel: '.svc-request-card', attr: 'data-request-id' }
+    ].map(function(p) {
+        p.el = document.getElementById(p.id);
+        p.html = p.el.innerHTML;
+        p.items = itemMap(p.el, p.sel, p.attr);
+        return p;
+    });
+
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    function anyModalOpen() {
+        return MODAL_IDS.some(id => document.getElementById(id).style.display === 'flex');
+    }
+
+    async function liveCheck() {
+        // Hindi gagana habang nakatago ang tab o may nakabukas na modal
+        if (document.hidden || busy || anyModalOpen()) return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const fresh = liveParts.map(p => doc.getElementById(p.id));
+
+            // Kung wala ang inaasahang elemento (hal. login page na), huwag galawin ang page
+            if (fresh.every(Boolean)) {
+                liveParts.forEach(function(p, i) {
+                    const f = fresh[i];
+                    if (f.innerHTML === p.html) return;   // walang nagbago
+                    p.html = f.innerHTML;
+                    const newItems = itemMap(f, p.sel, p.attr);
+                    p.el.innerHTML = p.html;
+                    p.el.querySelectorAll(p.sel).forEach(function(el) {
+                        const id = el.getAttribute(p.attr);
+                        if (p.items.get(id) !== newItems.get(id)) el.classList.add('svc-flash');
+                    });
+                    p.items = newItems;
+                });
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff kapag nag-error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function() { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', function() { if (!document.hidden) liveCheck(); });
+    schedule();
 })();
 </script>
 

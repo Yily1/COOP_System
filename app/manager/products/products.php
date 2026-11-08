@@ -237,6 +237,18 @@ renderHeader('Products');
 .svc-muted { color: #666; }
 .svc-empty { padding: 20px; text-align: center; color: #6b7280; font-size: 13px; }
 
+/* Green flash for a new or changed item (auto-update) */
+@keyframes svcFlashCard {
+    from { background: #e3f4e1; border-color: #2e7d32; }
+    to   { background: #fff;    border-color: #e2e0d5; }
+}
+@keyframes svcFlashRow {
+    from { background: #e3f4e1; }
+    to   { background: transparent; }
+}
+.svc-product-card.svc-flash { animation: svcFlashCard 2.2s ease-out; }
+.svc-table tr.svc-flash td { animation: svcFlashRow 2.2s ease-out; }
+
 #svcModalBackdrop, #svcRequestModalBackdrop, #svcBuyModalBackdrop, #svcApproveModalBackdrop, #svcRejectModalBackdrop {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5);
     z-index: 100; align-items: center; justify-content: center; padding: 16px;
@@ -307,7 +319,7 @@ renderHeader('Products');
     </div>
 </div>
 
-<div class="svc-stat-grid">
+<div class="svc-stat-grid" id="svcStatLive">
     <div class="svc-stat-card svc-stat-total">
         <p class="svc-stat-label">Total Products</p>
         <p class="svc-stat-value"><?php echo $stats['total']; ?></p>
@@ -332,6 +344,7 @@ renderHeader('Products');
 <div class="svc-section-head">
     <h2>Products</h2>
 </div>
+<div id="svcProductsLive">
 <?php if (empty($products)): ?>
     <p class="svc-empty">No products added yet.</p>
 <?php else: ?>
@@ -349,7 +362,7 @@ renderHeader('Products');
                     $pillClass = 'svc-status-other';
                 }
             ?>
-            <div class="svc-product-card" data-product='<?php echo $pJson; ?>'>
+            <div class="svc-product-card" data-id="<?php echo (int) $p['id']; ?>" data-product='<?php echo $pJson; ?>'>
                 <div class="svc-product-photo">
                     <?php if ($hasPhoto): ?>
                         <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="<?php echo htmlspecialchars($p['name']); ?>">
@@ -380,6 +393,7 @@ renderHeader('Products');
         <?php endforeach; ?>
     </div>
 <?php endif; ?>
+</div>
 
 <!-- ============================================================
      PRODUCT REQUESTS (stays a table)
@@ -391,6 +405,7 @@ renderHeader('Products');
 <div class="svc-section-head">
     <h2>List of Avail Products and Product Requests</h2>
 </div>
+<div id="svcRequestsLive">
 <?php if (empty($productRequests)): ?>
     <p class="svc-empty">No product requests yet.</p>
 <?php else: ?>
@@ -419,7 +434,7 @@ renderHeader('Products');
                         $reqQtyText = rtrim(rtrim(number_format((float) $r['quantity'], 2, '.', ''), '0'), '.');
                         $reqSummary = ($r['product_name'] ?? $r['requested_product_name']) . ' · ' . trim($reqQtyText . ' ' . $reqUnit) . ' · ' . $r['last_name'] . ', ' . $r['first_name'];
                     ?>
-                    <tr>
+                    <tr data-request-id="<?php echo (int) $r['id']; ?>">
                         <td data-label="Member">
                             <div class="svc-member-cell">
                                 <div class="svc-avatar" style="background: <?php echo $avatar['bg']; ?>; color: <?php echo $avatar['text']; ?>;"><?php echo htmlspecialchars($initials); ?></div>
@@ -481,6 +496,7 @@ renderHeader('Products');
         </table>
     </div>
 <?php endif; ?>
+</div>
 
 <!-- ============================================================
      MODAL - Add / Edit Product
@@ -777,16 +793,19 @@ renderHeader('Products');
     document.getElementById('closeSvcModalBtn').addEventListener('click', function() { productBackdrop.style.display = 'none'; });
     productBackdrop.addEventListener('click', function(e) { if (e.target === productBackdrop) productBackdrop.style.display = 'none'; });
 
-    document.querySelectorAll('.edit-product-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const card = btn.closest('.svc-product-card');
+    // Event delegation: gumagana pa rin ang Edit / Delete kahit napalitan ang mga card ng auto-update
+    const productsBox = document.getElementById('svcProductsLive');
+    productsBox.addEventListener('click', async function(e) {
+        const editBtn = e.target.closest('.edit-product-btn');
+        if (editBtn) {
+            const card = editBtn.closest('.svc-product-card');
             openEditProduct(JSON.parse(card.dataset.product));
-        });
-    });
+            return;
+        }
 
-    document.querySelectorAll('.delete-product-btn').forEach(function(btn) {
-        btn.addEventListener('click', async function() {
-            const card = btn.closest('.svc-product-card');
+        const delBtn = e.target.closest('.delete-product-btn');
+        if (delBtn) {
+            const card = delBtn.closest('.svc-product-card');
             const p = JSON.parse(card.dataset.product);
             if (!confirm('Delete "' + p.name + '"? This cannot be undone.')) return;
             try {
@@ -802,7 +821,7 @@ renderHeader('Products');
             } catch (err) {
                 alert('Could not connect to server.');
             }
-        });
+        }
     });
 
     productForm.addEventListener('submit', async function(e) {
@@ -1019,20 +1038,18 @@ renderHeader('Products');
     }
     approvePrice.addEventListener('input', updateApproveTotal);
 
-    document.querySelectorAll('.approve-request-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('svcApproveId').value = btn.dataset.id;
-            document.getElementById('svcApproveSummary').textContent = btn.dataset.summary || '';
-            document.getElementById('svcApproveNote').value = '';
-            approveQty = parseFloat(btn.dataset.qty) || 0;
-            approvePrice.value = btn.dataset.price || '';
-            document.getElementById('svcApprovePriceLabel').textContent =
-                btn.dataset.unit ? 'Price per ' + btn.dataset.unit + ' (₱)' : 'Price per unit (₱)';
-            updateApproveTotal();
-            approveErrors.style.display = 'none';
-            approveBackdrop.style.display = 'flex';
-        });
-    });
+    function openApprove(btn) {
+        document.getElementById('svcApproveId').value = btn.dataset.id;
+        document.getElementById('svcApproveSummary').textContent = btn.dataset.summary || '';
+        document.getElementById('svcApproveNote').value = '';
+        approveQty = parseFloat(btn.dataset.qty) || 0;
+        approvePrice.value = btn.dataset.price || '';
+        document.getElementById('svcApprovePriceLabel').textContent =
+            btn.dataset.unit ? 'Price per ' + btn.dataset.unit + ' (₱)' : 'Price per unit (₱)';
+        updateApproveTotal();
+        approveErrors.style.display = 'none';
+        approveBackdrop.style.display = 'flex';
+    }
     approveForm.addEventListener('submit', function(e) {
         e.preventDefault();
         submitRequestForm(approveForm, approveErrors, document.getElementById('svcApproveSubmit'));
@@ -1043,15 +1060,13 @@ renderHeader('Products');
     const rejectForm = document.getElementById('svcRejectForm');
     const rejectErrors = document.getElementById('svcRejectErrors');
 
-    document.querySelectorAll('.reject-request-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('svcRejectId').value = btn.dataset.id;
-            document.getElementById('svcRejectSummary').textContent = btn.dataset.summary || '';
-            document.getElementById('svcRejectNote').value = '';
-            rejectErrors.style.display = 'none';
-            rejectBackdrop.style.display = 'flex';
-        });
-    });
+    function openReject(btn) {
+        document.getElementById('svcRejectId').value = btn.dataset.id;
+        document.getElementById('svcRejectSummary').textContent = btn.dataset.summary || '';
+        document.getElementById('svcRejectNote').value = '';
+        rejectErrors.style.display = 'none';
+        rejectBackdrop.style.display = 'flex';
+    }
     rejectForm.addEventListener('submit', function(e) {
         e.preventDefault();
         submitRequestForm(rejectForm, rejectErrors, document.getElementById('svcRejectSubmit'));
@@ -1062,21 +1077,105 @@ renderHeader('Products');
     const requestForm = document.getElementById('svcRequestForm');
     const requestErrors = document.getElementById('svcRequestModalErrors');
 
-    document.querySelectorAll('.update-request-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('svcRequestId').value = btn.dataset.id;
-            document.getElementById('svcRequestSummary').textContent = btn.dataset.summary || '';
-            // Approved (or the older Processing) starts at Ready for Pickup; Ready for Pickup moves to Claimed
-            document.getElementById('svcRequestStatus').value = (btn.dataset.status === 'ready_for_pickup') ? 'claimed' : 'ready_for_pickup';
-            document.getElementById('svcRequestNote').value = btn.dataset.note || '';
-            requestErrors.style.display = 'none';
-            requestBackdrop.style.display = 'flex';
-        });
-    });
+    function openUpdate(btn) {
+        document.getElementById('svcRequestId').value = btn.dataset.id;
+        document.getElementById('svcRequestSummary').textContent = btn.dataset.summary || '';
+        // Approved (or the older Processing) starts at Ready for Pickup; Ready for Pickup moves to Claimed
+        document.getElementById('svcRequestStatus').value = (btn.dataset.status === 'ready_for_pickup') ? 'claimed' : 'ready_for_pickup';
+        document.getElementById('svcRequestNote').value = btn.dataset.note || '';
+        requestErrors.style.display = 'none';
+        requestBackdrop.style.display = 'flex';
+    }
     requestForm.addEventListener('submit', function(e) {
         e.preventDefault();
         submitRequestForm(requestForm, requestErrors, requestForm.querySelector('button[type="submit"]'));
     });
+
+    // Event delegation: gumagana pa rin ang Approve / Reject / Update kahit napalitan ang table
+    const requestsBox = document.getElementById('svcRequestsLive');
+    requestsBox.addEventListener('click', function(e) {
+        const approveBtn = e.target.closest('.approve-request-btn');
+        if (approveBtn) { openApprove(approveBtn); return; }
+        const rejectBtn = e.target.closest('.reject-request-btn');
+        if (rejectBtn) { openReject(rejectBtn); return; }
+        const updateBtn = e.target.closest('.update-request-btn');
+        if (updateBtn) { openUpdate(updateBtn); }
+    });
+
+    // ============================================================
+    // AUTO-UPDATE (AJAX POLLING)
+    // ============================================================
+    const LIVE_CHECK_MS = 3000;   // gawing 5000 o 10000 para mas kaunti ang requests
+    const MODAL_IDS = ['svcModalBackdrop', 'svcRequestModalBackdrop', 'svcBuyModalBackdrop', 'svcApproveModalBackdrop', 'svcRejectModalBackdrop'];
+
+    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
+    function itemMap(root, sel, attr) {
+        const m = new Map();
+        root.querySelectorAll(sel).forEach(el => m.set(el.getAttribute(attr), el.outerHTML));
+        return m;
+    }
+
+    const liveParts = [
+        { id: 'svcStatLive',     sel: null,                  attr: null },
+        { id: 'svcProductsLive', sel: '.svc-product-card',   attr: 'data-id' },
+        { id: 'svcRequestsLive', sel: 'tr[data-request-id]', attr: 'data-request-id' }
+    ].map(function(p) {
+        p.el = document.getElementById(p.id);
+        p.html = p.el.innerHTML;
+        p.items = p.sel ? itemMap(p.el, p.sel, p.attr) : null;
+        return p;
+    });
+
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    function anyModalOpen() {
+        return MODAL_IDS.some(id => document.getElementById(id).style.display === 'flex');
+    }
+
+    async function liveCheck() {
+        // Hindi gagana habang nakatago ang tab, may nakabukas na modal, o may pinoproseso
+        if (document.hidden || busy || anyModalOpen()) return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const fresh = liveParts.map(p => doc.getElementById(p.id));
+
+            // Kung wala ang inaasahang elemento (hal. login page na), huwag galawin ang page
+            if (fresh.every(Boolean)) {
+                liveParts.forEach(function(p, i) {
+                    const f = fresh[i];
+                    if (f.innerHTML === p.html) return;   // walang nagbago
+                    p.html = f.innerHTML;
+                    const newItems = p.sel ? itemMap(f, p.sel, p.attr) : null;
+                    p.el.innerHTML = p.html;
+                    if (p.sel) {
+                        p.el.querySelectorAll(p.sel).forEach(function(el) {
+                            const id = el.getAttribute(p.attr);
+                            if (p.items.get(id) !== newItems.get(id)) el.classList.add('svc-flash');
+                        });
+                        p.items = newItems;
+                    }
+                });
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff kapag nag-error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function() { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', function() { if (!document.hidden) liveCheck(); });
+    schedule();
 })();
 </script>
 
