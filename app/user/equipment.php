@@ -17,6 +17,19 @@ $myBookings = getMyEquipmentBookings($pdo, $_SESSION['user_id']);
 // The summary card only counts bookings that are not returned yet
 $activeBookingsCount = count(array_filter($myBookings, fn($b) => $b['status'] !== 'returned'));
 
+// Renter name comes from the logged-in member's profile, not from typing
+$renterName = trim($_SESSION['full_name'] ?? '');
+try {
+    $stmt = $pdo->prepare("SELECT m.first_name, m.last_name FROM users u JOIN members m ON m.id = u.member_id WHERE u.id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $mrow = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($mrow) {
+        $renterName = trim($mrow['first_name'] . ' ' . $mrow['last_name']);
+    }
+} catch (PDOException $e) {
+    // Falls back to the session name if the table or column names differ
+}
+
 $iconMap = [
     'Corn Sheller'     => 'agriculture',
     'Harvester'        => 'agriculture',
@@ -245,6 +258,18 @@ renderHeader('Equipment Rental');
    The status badge keeps its full color so "Returned" is still clear. */
 .eq-row-returned td:not(.eq-cell-status) { opacity: 0.6; }
 
+/* Green flash for a new or changed item (auto-update) */
+@keyframes eqFlashCard {
+    from { background: #e3f4e1; border-color: #2e7d32; }
+    to   { background: #fff;    border-color: #eceae4; }
+}
+@keyframes eqFlashRow {
+    from { background: #e3f4e1; }
+    to   { background: transparent; }
+}
+.eq-card.eq-flash { animation: eqFlashCard 2.2s ease-out; }
+.eq-page tr.eq-flash td { animation: eqFlashRow 2.2s ease-out; }
+
 .eq-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .eq-cal-nav-btn {
     width: auto !important; background: none !important; border: none !important; padding: 6px; border-radius: 6px;
@@ -351,7 +376,7 @@ renderHeader('Equipment Rental');
         </a>
     </div>
 
-    <div class="eq-summary-grid">
+    <div class="eq-summary-grid" id="eqSummaryLive">
         <div class="eq-metric-card">
             <p class="eq-metric-label">Available now</p>
             <p class="eq-metric-value"><?php echo $availableCount; ?></p>
@@ -362,7 +387,7 @@ renderHeader('Equipment Rental');
         </div>
     </div>
 
-    <div class="eq-equipment-grid">
+    <div class="eq-equipment-grid" id="eqGridLive">
         <?php foreach ($equipmentList as $eq): ?>
             <?php
                 $isAvailable = $eq['status'] === 'available';
@@ -371,7 +396,7 @@ renderHeader('Equipment Rental');
                 $hasPhoto = !empty($eq['photo_path']);
                 $photoUrl = $hasPhoto ? BASE_URL . '/' . ltrim($eq['photo_path'], '/') : '';
             ?>
-            <div class="eq-card" data-status="<?php echo $eq['status']; ?>">
+            <div class="eq-card" data-equipment-id="<?php echo (int) $eq['id']; ?>" data-status="<?php echo $eq['status']; ?>">
                 <div class="eq-photo">
                     <?php if ($hasPhoto): ?>
                         <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="<?php echo htmlspecialchars($eq['name']); ?>">
@@ -405,7 +430,7 @@ renderHeader('Equipment Rental');
             </div>
         </div>
 
-        <div class="eq-table-wrap">
+        <div class="eq-table-wrap" id="eqTableLive">
             <table>
                 <thead>
                     <tr>
@@ -423,7 +448,7 @@ renderHeader('Equipment Rental');
                         <tr><td colspan="7" class="eq-muted eq-text-center">You have no bookings yet.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($myBookings as $b): ?>
-                        <tr class="<?php echo $b['status'] === 'returned' ? 'eq-row-returned' : ''; ?>">
+                        <tr data-booking-id="<?php echo (int) $b['id']; ?>" class="<?php echo $b['status'] === 'returned' ? 'eq-row-returned' : ''; ?>">
                             <td data-label="Equipment" class="eq-cell-equipment"><?php echo htmlspecialchars($b['equipment_name']); ?></td>
                             <td data-label="Qty" class="eq-cell-qty"><?php echo htmlspecialchars(rtrim(rtrim(number_format($b['quantity'], 2), '0'), '.')); ?></td>
                             <td data-label="Start" class="eq-cell-start"><?php echo date('M j', strtotime($b['start_date'])); ?></td>
@@ -499,10 +524,11 @@ renderHeader('Equipment Rental');
                 </div>
             </div>
 
-            <label>Renter (member name)</label>
+            <label>Renter</label>
             <input type="text" id="renter-name" name="renter_name"
-                   value="<?php echo htmlspecialchars($_SESSION['full_name'] ?? ''); ?>"
-                   placeholder="Juan Dela Cruz" required>
+                   value="<?php echo htmlspecialchars($renterName); ?>"
+                   readonly tabindex="-1"
+                   style="background:#eef1ec; color:#667066; cursor:not-allowed;">
 
             <div class="eq-cost-summary">
                 <div class="eq-cost-row"><span id="qty-summary-label">Quantity</span><span id="sum-days">0</span></div>
@@ -550,5 +576,92 @@ renderHeader('Equipment Rental');
 </script>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js"></script>
+
+<!-- ============================================================
+     AUTO-UPDATE (AJAX POLLING)
+     Fetches this same page, then swaps only the parts that changed.
+     Paused while a modal is open or the tab is hidden.
+     ============================================================ -->
+<script>
+(function () {
+    var LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+
+    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
+    function itemMap(root, sel, attr) {
+        var m = new Map();
+        if (!sel) return m;
+        root.querySelectorAll(sel).forEach(function (el) { m.set(el.getAttribute(attr), el.outerHTML); });
+        return m;
+    }
+
+    var liveParts = [
+        { id: 'eqSummaryLive' },
+        { id: 'eqGridLive',  sel: '.eq-card',            attr: 'data-equipment-id' },
+        { id: 'eqTableLive', sel: 'tr[data-booking-id]', attr: 'data-booking-id' },
+        { id: 'book-equipment', keepValue: true }
+    ].filter(function (p) {
+        p.el = document.getElementById(p.id);
+        if (!p.el) return false;
+        p.html = p.el.innerHTML;
+        p.items = itemMap(p.el, p.sel, p.attr);
+        return true;
+    });
+
+    var busy = false, fails = 0, timer = null;
+
+    function anyModalOpen() {
+        return !!document.querySelector('.eq-modal.eq-open');
+    }
+
+    async function liveCheck() {
+        // Skip while the tab is hidden, a modal is open, or a check is running
+        if (document.hidden || busy || anyModalOpen()) return;
+        busy = true;
+        try {
+            var r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+
+            var fresh = liveParts.map(function (p) { return doc.getElementById(p.id); });
+            // If an expected element is missing (e.g. login page), leave the page alone
+            if (fresh.every(Boolean)) {
+                var changed = false;
+                liveParts.forEach(function (p, i) {
+                    var f = fresh[i];
+                    if (f.innerHTML === p.html) return;
+                    changed = true;
+                    p.html = f.innerHTML;
+                    var newItems = itemMap(f, p.sel, p.attr);
+                    var keep = p.keepValue ? p.el.value : null;
+                    p.el.innerHTML = p.html;
+                    if (p.keepValue && keep !== null) p.el.value = keep;
+                    if (p.sel) {
+                        p.el.querySelectorAll(p.sel).forEach(function (el) {
+                            var id = el.getAttribute(p.attr);
+                            if (p.items.get(id) !== newItems.get(id)) el.classList.add('eq-flash');
+                        });
+                    }
+                    p.items = newItems;
+                });
+                if (changed) document.dispatchEvent(new CustomEvent('eq:refreshed'));
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff on error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        var delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function () { await liveCheck(); schedule(); }, delay);
+    }
+
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) liveCheck(); });
+    schedule();
+})();
+</script>
 
 <?php renderFooter(); ?>

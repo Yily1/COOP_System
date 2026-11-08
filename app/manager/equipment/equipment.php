@@ -683,6 +683,21 @@ renderHeader('Equipment Rental');
 .eq-status-badge.eq-returned { background: var(--eq-success-soft); color: var(--eq-success); }
 
 /* =========================
+   LIVE UPDATE FLASH (new or changed item)
+   ========================= */
+
+@keyframes eqFlashCard {
+    from { background: #e3f4e1; border-color: #3E7A4B; }
+    to   { background: var(--eq-card); border-color: var(--eq-line); }
+}
+@keyframes eqFlashRow {
+    from { background: #e3f4e1; }
+    to   { background: transparent; }
+}
+.eq-card.eq-flash { animation: eqFlashCard 2.2s ease-out; }
+.eq-page tr.eq-flash td { animation: eqFlashRow 2.2s ease-out; }
+
+/* =========================
    CONFIRM DIALOG
    ========================= */
 
@@ -745,7 +760,7 @@ renderHeader('Equipment Rental');
     </div>
 
     <!-- SUMMARY -->
-    <div class="eq-summary-grid">
+    <div class="eq-summary-grid" id="eqSummaryLive">
         <div class="eq-metric-card">
             <p class="eq-metric-label">Total equipment</p>
             <p class="eq-metric-value"><?php echo $totalEquipment; ?></p>
@@ -763,7 +778,7 @@ renderHeader('Equipment Rental');
     </div>
 
     <!-- EQUIPMENT CARDS -->
-    <div class="eq-equipment-grid">
+    <div class="eq-equipment-grid" id="eqGridLive">
         <?php foreach ($equipmentList as $eq): ?>
             <?php
                 $isAvailable = $eq['status'] === 'available';
@@ -846,7 +861,7 @@ renderHeader('Equipment Rental');
             </div>
         </div>
 
-        <div class="eq-table-wrap">
+        <div class="eq-table-wrap" id="eqTableLive">
             <table>
                 <thead>
                     <tr>
@@ -872,7 +887,8 @@ renderHeader('Equipment Rental');
                         <td colspan="10" class="eq-muted eq-text-center">No rentals match these filters.</td>
                     </tr>
                     <?php foreach ($currentBookings as $b): ?>
-                        <tr data-type="<?php echo ($b['membership_type'] ?? 'member') === 'nonmember' ? 'nonmember' : 'member'; ?>"
+                        <tr data-booking-id="<?php echo (int) $b['id']; ?>"
+                            data-type="<?php echo ($b['membership_type'] ?? 'member') === 'nonmember' ? 'nonmember' : 'member'; ?>"
                             data-equipment="<?php echo htmlspecialchars($b['equipment_name']); ?>">
                             <td><?php echo htmlspecialchars($b['equipment_name']); ?></td>
                             <td><?php echo htmlspecialchars($b['renter_name']); ?></td>
@@ -1169,16 +1185,17 @@ renderHeader('Equipment Rental');
 
 <script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js?v=<?php echo filemtime(__DIR__ . '/equipment.js'); ?>"></script>
 
-<!-- Filters for the "Currently rented" table -->
+<!-- Filters for the "Currently rented" table.
+     Rows are looked up on every run, so the filters still work after the table is auto-updated. -->
 <script>
 (function () {
     var renterSel = document.getElementById('filter-renter');
     var equipSel  = document.getElementById('filter-equipment');
-    var rows      = document.querySelectorAll('.eq-table-wrap tbody tr[data-type]');
-    var emptyRow  = document.getElementById('eq-filter-empty');
     if (!renterSel && !equipSel) return;
 
     function applyFilters() {
+        var rows = document.querySelectorAll('.eq-table-wrap tbody tr[data-type]');
+        var emptyRow = document.getElementById('eq-filter-empty');
         var shown = 0;
         rows.forEach(function (row) {
             var okType  = !renterSel || renterSel.value === 'all' || row.dataset.type === renterSel.value;
@@ -1194,6 +1211,96 @@ renderHeader('Equipment Rental');
 
     if (renterSel) renterSel.addEventListener('change', applyFilters);
     if (equipSel) equipSel.addEventListener('change', applyFilters);
+
+    // Re-apply the filters after every auto-update
+    document.addEventListener('eq:refreshed', applyFilters);
+})();
+</script>
+
+<!-- ============================================================
+     AUTO-UPDATE (AJAX POLLING)
+     Fetches this same page, then swaps only the parts that changed.
+     Fires the "eq:refreshed" event after a swap.
+     ============================================================ -->
+<script>
+(function () {
+    var LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+
+    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
+    function itemMap(root, sel, attr) {
+        var m = new Map();
+        if (!sel) return m;
+        root.querySelectorAll(sel).forEach(function (el) { m.set(el.getAttribute(attr), el.outerHTML); });
+        return m;
+    }
+
+    var liveParts = [
+        { id: 'eqSummaryLive' },
+        { id: 'eqGridLive',  sel: '.eq-card',            attr: 'data-equipment-id' },
+        { id: 'eqTableLive', sel: 'tr[data-booking-id]', attr: 'data-booking-id' },
+        { id: 'book-equipment', keepValue: true }
+    ].filter(function (p) {
+        p.el = document.getElementById(p.id);
+        if (!p.el) return false;
+        p.html = p.el.innerHTML;
+        p.items = itemMap(p.el, p.sel, p.attr);
+        return true;
+    });
+
+    var busy = false, fails = 0, timer = null;
+
+    function anyModalOpen() {
+        return !!document.querySelector('.eq-modal.eq-open');
+    }
+
+    async function liveCheck() {
+        // Skip while the tab is hidden, a modal is open, or a check is running
+        if (document.hidden || busy || anyModalOpen()) return;
+        busy = true;
+        try {
+            var r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+
+            var fresh = liveParts.map(function (p) { return doc.getElementById(p.id); });
+            // If an expected element is missing (e.g. login page), leave the page alone
+            if (fresh.every(Boolean)) {
+                var changed = false;
+                liveParts.forEach(function (p, i) {
+                    var f = fresh[i];
+                    if (f.innerHTML === p.html) return;
+                    changed = true;
+                    p.html = f.innerHTML;
+                    var newItems = itemMap(f, p.sel, p.attr);
+                    var keep = p.keepValue ? p.el.value : null;
+                    p.el.innerHTML = p.html;
+                    if (p.keepValue && keep !== null) p.el.value = keep;
+                    if (p.sel) {
+                        p.el.querySelectorAll(p.sel).forEach(function (el) {
+                            var id = el.getAttribute(p.attr);
+                            if (p.items.get(id) !== newItems.get(id)) el.classList.add('eq-flash');
+                        });
+                    }
+                    p.items = newItems;
+                });
+                if (changed) document.dispatchEvent(new CustomEvent('eq:refreshed'));
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff on error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        var delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function () { await liveCheck(); schedule(); }, delay);
+    }
+
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) liveCheck(); });
+    schedule();
 })();
 </script>
 

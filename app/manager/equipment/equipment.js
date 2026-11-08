@@ -379,6 +379,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     recalcCost();
 
+    // The page's auto-update can replace the equipment options, so recompute then too
+    document.addEventListener('eq:refreshed', recalcCost);
+
     /* ---------- Booking form submit (AJAX) ---------- */
     var bookingForm = document.getElementById('booking-form');
     var errorBox = document.getElementById('booking-error');
@@ -457,23 +460,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    /* ---------- Toggle equipment status (manager only) ---------- */
-    document.querySelectorAll('.eq-status-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var id = btn.dataset.id;
-            var ajaxBase = typeof EQUIPMENT_AJAX_BASE !== 'undefined' ? EQUIPMENT_AJAX_BASE : '';
-
-            fetch(ajaxBase + 'toggle-status.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'equipment_id=' + encodeURIComponent(id)
-            })
-                .then(function (res) { return res.json(); })
-                .then(function () { window.location.reload(); })
-                .catch(function () { console.error('Could not toggle status.'); });
-        });
-    });
-
     /* ---------- Reusable photo preview wiring (used by both add + edit forms) ---------- */
     function wirePhotoPreview(inputId, dropTextId, previewId, previewImgId) {
         var input = document.getElementById(inputId);
@@ -540,7 +526,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    /* ---------- Edit equipment: open modal pre-filled from the clicked card ---------- */
+    /* ---------- Edit equipment form (modal fields + submit) ---------- */
     var editForm = document.getElementById('edit-equipment-form');
     var editErrorBox = document.getElementById('edit-equipment-error');
     var editIdInput = document.getElementById('edit-equipment-id');
@@ -553,35 +539,29 @@ document.addEventListener('DOMContentLoaded', function () {
     var editPhotoDropText = document.getElementById('edit-photo-drop-text');
     var editPhotoInput = document.getElementById('edit-photo-input');
 
-    document.querySelectorAll('.eq-edit-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var card = btn.closest('.eq-card');
-            if (!card) return;
+    function openEditFromCard(card) {
+        if (editErrorBox) editErrorBox.classList.remove('eq-show');
+        if (editPhotoInput) editPhotoInput.value = '';
+        if (editPhotoDropText) editPhotoDropText.textContent = 'Click to change photo';
 
-            if (editErrorBox) editErrorBox.classList.remove('eq-show');
-            if (editPhotoInput) editPhotoInput.value = '';
-            if (editPhotoDropText) editPhotoDropText.textContent = 'Click to change photo';
+        if (editIdInput) editIdInput.value = card.dataset.equipmentId || '';
+        if (editNameInput) editNameInput.value = card.dataset.name || '';
+        if (editRateMemberInput) editRateMemberInput.value = card.dataset.rateMember || '';
+        if (editRateNonmemberInput) editRateNonmemberInput.value = card.dataset.rateNonmember || '';
+        if (editUnitSelect) editUnitSelect.value = card.dataset.unitType || 'day';
 
-            if (editIdInput) editIdInput.value = card.dataset.equipmentId || '';
-            if (editNameInput) editNameInput.value = card.dataset.name || '';
-            if (editRateMemberInput) editRateMemberInput.value = card.dataset.rateMember || '';
-            if (editRateNonmemberInput) editRateNonmemberInput.value = card.dataset.rateNonmember || '';
-            if (editUnitSelect) editUnitSelect.value = card.dataset.unitType || 'day';
+        var photoUrl = card.dataset.photoUrl || '';
+        if (photoUrl) {
+            if (editPhotoPreviewImg) editPhotoPreviewImg.src = photoUrl;
+            if (editPhotoPreview) editPhotoPreview.classList.add('eq-show');
+        } else {
+            if (editPhotoPreview) editPhotoPreview.classList.remove('eq-show');
+            if (editPhotoPreviewImg) editPhotoPreviewImg.src = '';
+        }
 
-            var photoUrl = card.dataset.photoUrl || '';
-            if (photoUrl) {
-                if (editPhotoPreviewImg) editPhotoPreviewImg.src = photoUrl;
-                if (editPhotoPreview) editPhotoPreview.classList.add('eq-show');
-            } else {
-                if (editPhotoPreview) editPhotoPreview.classList.remove('eq-show');
-                if (editPhotoPreviewImg) editPhotoPreviewImg.src = '';
-            }
+        openModal(editModal);
+    }
 
-            openModal(editModal);
-        });
-    });
-
-    /* ---------- Edit equipment form submit (AJAX) ---------- */
     if (editForm) {
         editForm.addEventListener('submit', function (e) {
             e.preventDefault();
@@ -618,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    /* ---------- Booking actions: approve / reject / use / mark returned (manager only) ---------- */
+    /* ---------- Booking actions helpers ---------- */
     function rowInfo(btn) {
         var row = btn.closest('tr');
         if (!row || !row.cells || row.cells.length < 2) return '';
@@ -652,57 +632,91 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
-    document.querySelectorAll('.eq-approve-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+    /* ---------- Delegated clicks (manager only) ----------
+       One listener on the document, so these buttons keep working
+       after the page's auto-update replaces the cards and table rows.
+       Covers: status toggle, edit, approve, reject, use, mark returned. */
+    document.addEventListener('click', function (e) {
+        var target = e.target;
+        if (!target || !target.closest) return;
+        var ajaxBase = typeof EQUIPMENT_AJAX_BASE !== 'undefined' ? EQUIPMENT_AJAX_BASE : '';
+
+        // Toggle equipment status (Available / Under repair)
+        var statusBtn = target.closest('.eq-status-btn');
+        if (statusBtn) {
+            fetch(ajaxBase + 'toggle-status.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'equipment_id=' + encodeURIComponent(statusBtn.dataset.id)
+            })
+                .then(function (res) { return res.json(); })
+                .then(function () { window.location.reload(); })
+                .catch(function () { console.error('Could not toggle status.'); });
+            return;
+        }
+
+        // Edit equipment (pre-fills the modal from the clicked card)
+        var editBtn = target.closest('.eq-edit-btn');
+        if (editBtn) {
+            var card = editBtn.closest('.eq-card');
+            if (card) openEditFromCard(card);
+            return;
+        }
+
+        // Approve
+        var approveBtn = target.closest('.eq-approve-btn');
+        if (approveBtn) {
             confirmDialog({
                 title: 'Approve booking',
-                message: 'Approve the booking of ' + rowInfo(btn) + '?',
+                message: 'Approve the booking of ' + rowInfo(approveBtn) + '?',
                 confirmText: 'Approve'
             }, function () {
-                sendBookingRequest(btn, 'update-booking-status.php',
-                    'booking_id=' + encodeURIComponent(btn.dataset.id) + '&action=approve');
+                sendBookingRequest(approveBtn, 'update-booking-status.php',
+                    'booking_id=' + encodeURIComponent(approveBtn.dataset.id) + '&action=approve');
             });
-        });
-    });
+            return;
+        }
 
-    document.querySelectorAll('.eq-reject-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        // Reject
+        var rejectBtn = target.closest('.eq-reject-btn');
+        if (rejectBtn) {
             confirmDialog({
                 title: 'Reject booking',
-                message: 'Reject the booking of ' + rowInfo(btn) + '? This cannot be undone.',
+                message: 'Reject the booking of ' + rowInfo(rejectBtn) + '? This cannot be undone.',
                 confirmText: 'Reject',
                 danger: true
             }, function () {
-                sendBookingRequest(btn, 'update-booking-status.php',
-                    'booking_id=' + encodeURIComponent(btn.dataset.id) + '&action=reject');
+                sendBookingRequest(rejectBtn, 'update-booking-status.php',
+                    'booking_id=' + encodeURIComponent(rejectBtn.dataset.id) + '&action=reject');
             });
-        });
-    });
+            return;
+        }
 
-    // approved -> ongoing (equipment is now actually being used)
-    document.querySelectorAll('.eq-use-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        // approved -> ongoing (equipment is now actually being used)
+        var useBtn = target.closest('.eq-use-btn');
+        if (useBtn) {
             confirmDialog({
                 title: 'Start use',
-                message: 'Mark ' + rowInfo(btn) + ' as in use (ongoing)?',
+                message: 'Mark ' + rowInfo(useBtn) + ' as in use (ongoing)?',
                 confirmText: 'Use'
             }, function () {
-                sendBookingRequest(btn, 'update-booking-status.php',
-                    'booking_id=' + encodeURIComponent(btn.dataset.id) + '&action=use');
+                sendBookingRequest(useBtn, 'update-booking-status.php',
+                    'booking_id=' + encodeURIComponent(useBtn.dataset.id) + '&action=use');
             });
-        });
-    });
+            return;
+        }
 
-    document.querySelectorAll('.eq-return-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        // Mark returned
+        var returnBtn = target.closest('.eq-return-btn');
+        if (returnBtn) {
             confirmDialog({
                 title: 'Mark as returned',
-                message: 'Mark ' + rowInfo(btn) + ' as returned?',
+                message: 'Mark ' + rowInfo(returnBtn) + ' as returned?',
                 confirmText: 'Mark returned'
             }, function () {
-                sendBookingRequest(btn, 'mark-returned.php',
-                    'booking_id=' + encodeURIComponent(btn.dataset.id));
+                sendBookingRequest(returnBtn, 'mark-returned.php',
+                    'booking_id=' + encodeURIComponent(returnBtn.dataset.id));
             });
-        });
+        }
     });
 });
