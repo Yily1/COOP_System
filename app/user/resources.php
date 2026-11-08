@@ -68,8 +68,6 @@ renderHeader('My Resources');
     font-size: 13.5px;
 }
 
-/* Back to dashboard (round arrow, right side of the header row).
-   An <a> link, not a <button>, so the site-wide button rules can't touch it. */
 .page-back {
     margin-left: auto;
     flex: none;
@@ -144,6 +142,13 @@ renderHeader('My Resources');
     margin-bottom: 10px;
 }
 
+/* Green flash for a new or changed distribution (auto-update) */
+@keyframes resFlashCard {
+    from { background: #e3f4e1; border-color: #2e7d32; }
+    to   { background: #ffffff; border-color: #eceae4; }
+}
+.res-card.res-flash { animation: resFlashCard 2.2s ease-out; }
+
 .res-card-top {
     display: flex;
     justify-content: space-between;
@@ -205,27 +210,29 @@ renderHeader('My Resources');
             <p class="page-sub">DA resources given to you by the cooperative</p>
         </div>
 
-        <!-- Back to dashboard: adjust the href if your user dashboard file is named differently -->
         <a href="<?php echo BASE_URL; ?>/app/user/dashboard.php" class="page-back" aria-label="Back to dashboard" title="Back to dashboard">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </a>
     </div>
 
-    <div class="stat-card">
-        <p class="stat-label">Total distributions</p>
-        <p class="stat-number"><?php echo count($distributions); ?></p>
+    <div id="resStatLive">
+        <div class="stat-card">
+            <p class="stat-label">Total distributions</p>
+            <p class="stat-number"><?php echo count($distributions); ?></p>
+        </div>
     </div>
 
     <div class="section-intro">
         <h2>Distribution history</h2>
     </div>
 
+    <div id="resListLive">
     <?php if (empty($distributions)): ?>
         <p class="empty-note">No resources have been given to you yet.</p>
     <?php else: ?>
-        <?php foreach ($distributions as $d): ?>
+        <?php foreach ($distributions as $i => $d): ?>
             <?php $isReleased = $d['status'] === 'released'; ?>
-            <div class="res-card">
+            <div class="res-card" data-res-id="<?php echo (int) ($d['id'] ?? $i); ?>">
                 <div class="res-card-top">
                     <p class="res-name"><?php echo htmlspecialchars($d['resource_name']); ?></p>
                     <span class="status-badge <?php echo $isReleased ? 'released' : 'not_released'; ?>">
@@ -244,7 +251,83 @@ renderHeader('My Resources');
             </div>
         <?php endforeach; ?>
     <?php endif; ?>
+    </div>
 
 </div>
+
+<!-- ============================================================
+     AUTO-UPDATE (AJAX POLLING)
+     Fetches this same page, then swaps only the parts that changed.
+     Paused while the tab is hidden.
+     ============================================================ -->
+<script>
+(function () {
+    const LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+
+    function itemMap(root, sel, attr) {
+        const m = new Map();
+        if (!sel) return m;
+        root.querySelectorAll(sel).forEach(el => m.set(el.getAttribute(attr), el.outerHTML));
+        return m;
+    }
+
+    const liveParts = [
+        { id: 'resStatLive' },
+        { id: 'resListLive', sel: '.res-card', attr: 'data-res-id' }
+    ].filter(function (p) {
+        p.el = document.getElementById(p.id);
+        if (!p.el) return false;
+        p.html = p.el.innerHTML;
+        p.items = itemMap(p.el, p.sel, p.attr);
+        return true;
+    });
+
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    async function liveCheck() {
+        if (document.hidden || busy) return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const fresh = liveParts.map(p => doc.getElementById(p.id));
+
+            // If an expected element is missing (e.g. login page), leave the page alone
+            if (fresh.every(Boolean)) {
+                liveParts.forEach(function (p, i) {
+                    const f = fresh[i];
+                    if (f.innerHTML === p.html) return;
+                    p.html = f.innerHTML;
+                    const newItems = itemMap(f, p.sel, p.attr);
+                    p.el.innerHTML = p.html;
+                    if (p.sel) {
+                        p.el.querySelectorAll(p.sel).forEach(function (el) {
+                            const id = el.getAttribute(p.attr);
+                            if (p.items.get(id) !== newItems.get(id)) el.classList.add('res-flash');
+                        });
+                    }
+                    p.items = newItems;
+                });
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff on error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function () { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) liveCheck(); });
+    schedule();
+})();
+</script>
 
 <?php renderFooter(); ?>

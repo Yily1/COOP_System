@@ -4,8 +4,14 @@
     const API_URL = window.RESOURCES_API_URL;
     const LOGIN_URL = window.RESOURCES_LOGIN_URL;
 
-    function openModal(id) { document.getElementById(id).classList.add('rd-open'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('rd-open'); }
+    function openModal(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('rd-open');
+    }
+    function closeModal(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('rd-open');
+    }
     function showError(boxId, message) {
         const box = document.getElementById(boxId);
         if (!box) return;
@@ -24,6 +30,7 @@
     async function apiRequest(method, url, data) {
         const res = await fetch(url, {
             method: method,
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: data ? JSON.stringify(data) : undefined,
         });
@@ -42,13 +49,13 @@
         }
 
         if (!res.ok || payload.success === false) {
-            // The PHP API returns { success: false, message: "..." }
             throw new Error(payload.message || payload.error || 'Something went wrong.');
         }
         return payload;
     }
 
     // ---------- ADD DISTRIBUTION ----------
+    // Nasa labas ito ng table na pinapalitan ng polling, kaya okay ang direct binding.
     const addBtn = document.getElementById('add-distribution-btn');
     if (addBtn) {
         addBtn.addEventListener('click', () => openModal('add-distribution-modal-wrap'));
@@ -236,29 +243,49 @@
         });
     }
 
-    // ---------- CONFIRM (released) ----------
-    document.querySelectorAll('.rd-confirm-btn').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            if (!confirm('Confirm this distribution as released?')) return;
-            try {
-                await apiRequest('POST', API_URL, { action: 'confirm', id: Number(btn.dataset.id) });
-                window.location.reload();
-            } catch (err) {
-                alert(err.message);
-            }
-        });
-    });
+    // ---------- CONFIRM / DECLINE (event delegation) ----------
+    // ISANG listener sa document. Hindi ito nawawala kapag pinalitan ng
+    // auto-update ang laman ng table.
+    let actionBusy = false;
 
-    // ---------- DECLINE (not released) ----------
-    document.querySelectorAll('.rd-decline-btn').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            if (!confirm('Decline this distribution? It will stay marked as not released.')) return;
+    document.addEventListener('click', async function (e) {
+        const target = e.target;
+        if (!target || !target.closest) return;
+
+        // CONFIRM (released)
+        const confirmBtn = target.closest('.rd-confirm-btn');
+        if (confirmBtn) {
+            if (actionBusy) return;
+            if (!confirm('Confirm this distribution as released?')) return;
+            actionBusy = true;
+            confirmBtn.disabled = true;
             try {
-                await apiRequest('POST', API_URL, { action: 'decline', id: Number(btn.dataset.id) });
+                await apiRequest('POST', API_URL, { action: 'confirm', id: Number(confirmBtn.dataset.id) });
                 window.location.reload();
             } catch (err) {
                 alert(err.message);
+                confirmBtn.disabled = false;
+                actionBusy = false;
             }
-        });
+            return;
+        }
+
+        // DECLINE (not released)
+        const declineBtn = target.closest('.rd-decline-btn');
+        if (declineBtn) {
+            if (actionBusy) return;
+            if (!confirm('Decline this distribution? It will stay marked as not released.')) return;
+            actionBusy = true;
+            declineBtn.disabled = true;
+            try {
+                await apiRequest('POST', API_URL, { action: 'decline', id: Number(declineBtn.dataset.id) });
+                window.location.reload();
+            } catch (err) {
+                alert(err.message);
+                declineBtn.disabled = false;
+                actionBusy = false;
+            }
+            return;
+        }
     });
 })();

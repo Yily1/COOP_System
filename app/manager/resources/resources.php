@@ -75,15 +75,7 @@ renderHeader('Resource Distribution');
 .rd-header h1 { font-size: 26px; }
 .rd-header > div:first-child { flex: 1; min-width: 0; }
 
-/* BUTTONS
-   !important overrides used here because the site-wide style.css
-   applies `width: 100%` and `text-transform: uppercase` to all
-   <button> elements, which otherwise wins over these unqualified
-   rules and stretches/uppercases them (see equipment.php's
-   .eq-btn-link comment for the same issue). flex is locked to
-   `0 0 auto` so the button can never be squeezed or stretched by
-   the header's flex layout.
-   Bright green + soft shadow, same as the "Add product" button. */
+/* BUTTONS */
 .rd-btn {
     box-sizing: border-box;
     width: auto !important;
@@ -143,6 +135,13 @@ renderHeader('Resource Distribution');
 .rd-page thead th.rd-text-right { text-align: right; }
 .rd-page tbody td { padding: 12px 8px; border-bottom: 1px solid var(--rd-line); }
 .rd-page tbody tr:last-child td { border-bottom: none; }
+
+/* LIVE UPDATE FLASH (new or changed row) */
+@keyframes rdFlashRow {
+    from { background: #e3f4e1; }
+    to   { background: transparent; }
+}
+.rd-page tr.rd-flash td { animation: rdFlashRow 2.2s ease-out; }
 
 /* MEMBER CELL */
 .rd-member-cell { display: flex; align-items: center; gap: 10px; }
@@ -399,7 +398,7 @@ renderHeader('Resource Distribution');
             <h2>Distribution history</h2>
         </div>
 
-        <div class="rd-table-wrap">
+        <div class="rd-table-wrap" id="rdTableLive">
             <table>
                 <thead>
                     <tr>
@@ -422,7 +421,7 @@ renderHeader('Resource Distribution');
                             $initials = strtoupper(mb_substr($d['last_name'], 0, 1) . mb_substr($d['first_name'], 0, 1));
                             $isReleased = $d['status'] === 'released';
                         ?>
-                        <tr>
+                        <tr data-dist-id="<?php echo (int) $d['id']; ?>">
                             <td>
                                 <div class="rd-member-cell">
                                     <div class="rd-avatar"><?php echo htmlspecialchars($initials); ?></div>
@@ -523,5 +522,91 @@ renderHeader('Resource Distribution');
 </script>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/resources/resources.js?v=<?php echo filemtime(__DIR__ . '/resources.js'); ?>"></script>
+
+<!-- ============================================================
+     AUTO-UPDATE (AJAX POLLING)
+     Paused while a modal is open or the tab is hidden.
+     ============================================================ -->
+<script>
+(function () {
+    const LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+
+    // resources.js now uses event delegation, so the table can be polled safely.
+    const POLL_TABLE = true;
+
+    function itemMap(root, sel, attr) {
+        const m = new Map();
+        if (!sel) return m;
+        root.querySelectorAll(sel).forEach(el => m.set(el.getAttribute(attr), el.outerHTML));
+        return m;
+    }
+
+    const liveParts = [
+        { id: 'rdTableLive', sel: 'tr[data-dist-id]', attr: 'data-dist-id', table: true }
+    ].filter(function (p) {
+        if (p.table && !POLL_TABLE) return false;
+        p.el = document.getElementById(p.id);
+        if (!p.el) return false;
+        p.html = p.el.innerHTML;
+        p.items = itemMap(p.el, p.sel, p.attr);
+        return true;
+    });
+
+    if (liveParts.length === 0) return;
+
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    function anyModalOpen() {
+        return !!document.querySelector('.rd-modal.rd-open');
+    }
+
+    async function liveCheck() {
+        if (document.hidden || busy || anyModalOpen()) return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const fresh = liveParts.map(p => doc.getElementById(p.id));
+
+            // If an expected element is missing (e.g. login page), leave the page alone
+            if (fresh.every(Boolean)) {
+                let changed = false;
+                liveParts.forEach(function (p, i) {
+                    const f = fresh[i];
+                    if (f.innerHTML === p.html) return;
+                    changed = true;
+                    p.html = f.innerHTML;
+                    const newItems = itemMap(f, p.sel, p.attr);
+                    p.el.innerHTML = p.html;
+                    if (p.sel) {
+                        p.el.querySelectorAll(p.sel).forEach(function (el) {
+                            const id = el.getAttribute(p.attr);
+                            if (p.items.get(id) !== newItems.get(id)) el.classList.add('rd-flash');
+                        });
+                    }
+                    p.items = newItems;
+                });
+                if (changed) document.dispatchEvent(new CustomEvent('rd:refreshed'));
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function () { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) liveCheck(); });
+    schedule();
+})();
+</script>
 
 <?php renderFooter(); ?>
