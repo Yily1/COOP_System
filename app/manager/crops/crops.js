@@ -4,10 +4,12 @@
     const AJAX_BASE = window.CROPS_AJAX_BASE;
 
     function openModal(id) {
-        document.getElementById(id).classList.add('cm-open');
+        const el = document.getElementById(id);
+        if (el) el.classList.add('cm-open');
     }
     function closeModal(id) {
-        document.getElementById(id).classList.remove('cm-open');
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('cm-open');
     }
     function showError(boxId, message) {
         const box = document.getElementById(boxId);
@@ -25,14 +27,17 @@
     async function postJSON(url, data) {
         const res = await fetch(url, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
+        const rawText = await res.text();
         let payload;
         try {
-            payload = await res.json();
+            payload = JSON.parse(rawText);
         } catch (e) {
-            throw new Error('Unexpected server response.');
+            console.error('Non-JSON response:', rawText);
+            throw new Error('Unexpected server response. Check the console (F12).');
         }
         if (!res.ok || payload.success === false) {
             throw new Error(payload.message || 'Something went wrong.');
@@ -40,7 +45,9 @@
         return payload;
     }
 
-    // ---------- ADD PLANTING ----------
+    console.log('crops.js loaded (delegation version)');
+
+    // ---------- ADD PLANTING (user) ----------
     const addBtn = document.getElementById('add-planting-btn');
     if (addBtn) {
         addBtn.addEventListener('click', () => openModal('add-planting-modal-wrap'));
@@ -74,54 +81,84 @@
         });
     }
 
-    // ---------- APPROVE / REJECT (manager) ----------
-    document.querySelectorAll('.cm-approve-btn').forEach((btn) => {
-        btn.addEventListener('click', async () => {
+    // ---------- TABLE ACTIONS (event delegation) ----------
+    // ISANG listener sa document. Hindi ito nawawala kapag pinalitan ng
+    // auto-update ang laman ng table.
+    let actionBusy = false;
+
+    document.addEventListener('click', async function (e) {
+        const target = e.target;
+        if (!target || !target.closest) return;
+
+        // APPROVE (manager)
+        const approveBtn = target.closest('.cm-approve-btn');
+        if (approveBtn) {
+            console.log('Approve clicked, id =', approveBtn.dataset.id);
+            if (actionBusy) return;
             if (!confirm('Approve this planting?')) return;
+            actionBusy = true;
+            approveBtn.disabled = true;
             try {
                 await postJSON(AJAX_BASE + 'planting-action.php', {
                     action: 'approve',
-                    id: btn.dataset.id,
+                    id: approveBtn.dataset.id,
                 });
                 window.location.reload();
             } catch (err) {
                 alert(err.message);
+                approveBtn.disabled = false;
+                actionBusy = false;
             }
-        });
-    });
+            return;
+        }
 
-    document.querySelectorAll('.cm-reject-btn').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            const reason = prompt('Reason for rejecting this planting (optional):') || null;
+        // REJECT (manager)
+        const rejectBtn = target.closest('.cm-reject-btn');
+        if (rejectBtn) {
+            console.log('Reject clicked, id =', rejectBtn.dataset.id);
+            if (actionBusy) return;
+            const reason = prompt('Reason for rejecting this planting (optional):');
+            if (reason === null) return; // Cancel = huwag i-reject
+            actionBusy = true;
+            rejectBtn.disabled = true;
             try {
                 await postJSON(AJAX_BASE + 'planting-action.php', {
                     action: 'reject',
-                    id: btn.dataset.id,
-                    reason: reason,
+                    id: rejectBtn.dataset.id,
+                    reason: reason || null,
                 });
                 window.location.reload();
             } catch (err) {
                 alert(err.message);
+                rejectBtn.disabled = false;
+                actionBusy = false;
             }
-        });
-    });
+            return;
+        }
 
-    // ---------- ADVANCE STATUS (owner: growing -> ready -> harvested) ----------
-    document.querySelectorAll('.cm-advance-btn').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            const next = btn.dataset.next;
+        // ADVANCE STATUS (owner: growing -> ready -> harvested)
+        const advanceBtn = target.closest('.cm-advance-btn');
+        if (advanceBtn) {
+            console.log('Advance clicked, id =', advanceBtn.dataset.id);
+            if (actionBusy) return;
+            const next = advanceBtn.dataset.next;
             const label = next === 'harvested' ? 'harvested' : 'ready to harvest';
             if (!confirm('Mark this planting as ' + label + '?')) return;
+            actionBusy = true;
+            advanceBtn.disabled = true;
             try {
                 await postJSON(AJAX_BASE + 'planting-action.php', {
                     action: 'advance',
-                    id: btn.dataset.id,
+                    id: advanceBtn.dataset.id,
                     status: next,
                 });
                 window.location.reload();
             } catch (err) {
                 alert(err.message);
+                advanceBtn.disabled = false;
+                actionBusy = false;
             }
-        });
+            return;
+        }
     });
 })();

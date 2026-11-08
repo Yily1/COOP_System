@@ -174,6 +174,13 @@ renderHeader('My Crops');
     margin-bottom: 10px;
 }
 
+/* Green flash for a new or changed planting (auto-update) */
+@keyframes cropFlashCard {
+    from { background: #e3f4e1; border-color: #2e7d32; }
+    to   { background: #ffffff; border-color: #eceae4; }
+}
+.crop-card.crop-flash { animation: cropFlashCard 2.2s ease-out; }
+
 .crop-card-top {
     display: flex;
     justify-content: space-between;
@@ -477,9 +484,11 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         </a>
     </div>
 
-    <div class="stat-card">
-        <p class="stat-label">Total plantings</p>
-        <p class="stat-number"><?php echo (int) $stats['total']; ?></p>
+    <div id="cropStatLive">
+        <div class="stat-card">
+            <p class="stat-label">Total plantings</p>
+            <p class="stat-number"><?php echo (int) $stats['total']; ?></p>
+        </div>
     </div>
 
     <div class="section-intro">
@@ -487,11 +496,12 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         <button id="openCropModalBtn" class="btn-primary" type="button">+ Add planting</button>
     </div>
 
+    <div id="cropListLive">
     <?php if (empty($crops)): ?>
         <p class="empty-note">No crop plantings yet. Tap "+ Add planting" to get started.</p>
     <?php else: ?>
         <?php foreach ($crops as $c): ?>
-            <div class="crop-card">
+            <div class="crop-card" data-crop-id="<?php echo (int) $c['id']; ?>">
                 <div class="crop-card-top">
                     <div>
                         <p class="crop-name"><?php echo htmlspecialchars($c['crop_name']); ?></p>
@@ -525,6 +535,7 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
             </div>
         <?php endforeach; ?>
     <?php endif; ?>
+    </div>
 
 </div>
 
@@ -715,41 +726,125 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         if (ccOnConfirm) ccOnConfirm();
     });
 
-    document.querySelectorAll('.crop-advance-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const next = btn.dataset.next;
-            const crop = btn.dataset.crop || 'this planting';
-            const isHarvest = (next === 'harvested');
+    // Event delegation: the Mark ready / Mark harvested buttons keep working
+    // after the auto-update replaces the cards.
+    document.getElementById('cropListLive').addEventListener('click', function(e) {
+        const btn = e.target.closest('.crop-advance-btn');
+        if (!btn) return;
 
-            const title = isHarvest ? 'Mark as harvested?' : 'Mark as ready?';
-            const text = isHarvest
-                ? 'Confirm that your ' + crop + ' has been harvested.'
-                : 'Confirm that your ' + crop + ' is ready to harvest.';
+        const next = btn.dataset.next;
+        const crop = btn.dataset.crop || 'this planting';
+        const isHarvest = (next === 'harvested');
 
-            ccConfirm(title, text, isHarvest ? 'Mark harvested' : 'Mark ready', async function() {
-                ccOk.disabled = true;
-                ccCancel.disabled = true;
-                ccOk.textContent = 'Saving...';
-                try {
-                    const response = await fetch('<?php echo BASE_URL; ?>/app/user/api/planting-action.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'advance', id: btn.dataset.id, status: next })
-                    });
-                    const payload = await response.json();
-                    if (response.ok && payload.success !== false) {
-                        window.location.reload();
-                    } else {
-                        ccClose();
-                        ccError(payload.message || 'Something went wrong.');
-                    }
-                } catch (err) {
+        const title = isHarvest ? 'Mark as harvested?' : 'Mark as ready?';
+        const text = isHarvest
+            ? 'Confirm that your ' + crop + ' has been harvested.'
+            : 'Confirm that your ' + crop + ' is ready to harvest.';
+
+        ccConfirm(title, text, isHarvest ? 'Mark harvested' : 'Mark ready', async function() {
+            ccOk.disabled = true;
+            ccCancel.disabled = true;
+            ccOk.textContent = 'Saving...';
+            try {
+                const response = await fetch('<?php echo BASE_URL; ?>/app/user/api/planting-action.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'advance', id: btn.dataset.id, status: next })
+                });
+                const payload = await response.json();
+                if (response.ok && payload.success !== false) {
+                    window.location.reload();
+                } else {
                     ccClose();
-                    ccError('Could not reach the server: ' + err.message);
+                    ccError(payload.message || 'Something went wrong.');
                 }
-            });
+            } catch (err) {
+                ccClose();
+                ccError('Could not reach the server: ' + err.message);
+            }
         });
     });
+})();
+</script>
+
+<!-- ============================================================
+     AUTO-UPDATE (AJAX POLLING)
+     Fetches this same page, then swaps only the parts that changed.
+     Paused while a modal is open or the tab is hidden.
+     ============================================================ -->
+<script>
+(function () {
+    const LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+
+    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
+    function itemMap(root, sel, attr) {
+        const m = new Map();
+        if (!sel) return m;
+        root.querySelectorAll(sel).forEach(el => m.set(el.getAttribute(attr), el.outerHTML));
+        return m;
+    }
+
+    const liveParts = [
+        { id: 'cropStatLive' },
+        { id: 'cropListLive', sel: '.crop-card', attr: 'data-crop-id' }
+    ].filter(function (p) {
+        p.el = document.getElementById(p.id);
+        if (!p.el) return false;
+        p.html = p.el.innerHTML;
+        p.items = itemMap(p.el, p.sel, p.attr);
+        return true;
+    });
+
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    function anyModalOpen() {
+        return !!document.querySelector('.crop-modal.crop-open, .cc-backdrop.cc-open');
+    }
+
+    async function liveCheck() {
+        // Skip while the tab is hidden, a modal is open, or a check is running
+        if (document.hidden || busy || anyModalOpen()) return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const fresh = liveParts.map(p => doc.getElementById(p.id));
+
+            // If an expected element is missing (e.g. login page), leave the page alone
+            if (fresh.every(Boolean)) {
+                liveParts.forEach(function (p, i) {
+                    const f = fresh[i];
+                    if (f.innerHTML === p.html) return;
+                    p.html = f.innerHTML;
+                    const newItems = itemMap(f, p.sel, p.attr);
+                    p.el.innerHTML = p.html;
+                    if (p.sel) {
+                        p.el.querySelectorAll(p.sel).forEach(function (el) {
+                            const id = el.getAttribute(p.attr);
+                            if (p.items.get(id) !== newItems.get(id)) el.classList.add('crop-flash');
+                        });
+                    }
+                    p.items = newItems;
+                });
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff on error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function () { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) liveCheck(); });
+    schedule();
 })();
 </script>
 

@@ -104,7 +104,7 @@ renderHeader('Crops Management');
     gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 20px;
-    border-bottom:;
+    border-bottom: none;
 }
 .cm-header h1 { font-size: 26px; }
 .cm-header > div:first-child { flex: 1; min-width: 0; }
@@ -282,6 +282,13 @@ renderHeader('Crops Management');
 .cm-status-badge.cm-growing  { background: var(--cm-info-soft); color: var(--cm-info); }
 .cm-status-badge.cm-ready    { background: var(--cm-gold-soft); color: var(--cm-gold); }
 .cm-status-badge.cm-harvested{ background: var(--cm-success-soft); color: var(--cm-success); }
+
+/* LIVE UPDATE FLASH (new or changed row) */
+@keyframes cmFlashRow {
+    from { background: #e3f4e1; }
+    to   { background: transparent; }
+}
+.cm-page tr.cm-flash td { animation: cmFlashRow 2.2s ease-out; }
 
 /* MODALS */
 .cm-modal {
@@ -551,7 +558,7 @@ renderHeader('Crops Management');
     </div>
 
     <!-- SUMMARY -->
-    <div class="cm-summary-grid">
+    <div class="cm-summary-grid" id="cmSummaryLive">
         <div class="cm-metric-card cm-tone-forest">
             <p class="cm-metric-label">Total plantings</p>
             <p class="cm-metric-value"><?php echo $stats['total']; ?></p>
@@ -576,7 +583,7 @@ renderHeader('Crops Management');
             <h2><?php echo $role === 'manager' ? 'All plantings' : 'My plantings'; ?></h2>
         </div>
 
-        <div class="cm-table-wrap">
+        <div class="cm-table-wrap" id="cmTableLive">
             <table>
                 <thead>
                     <tr>
@@ -597,7 +604,7 @@ renderHeader('Crops Management');
                     <?php endif; ?>
                     <?php foreach ($crops as $c): ?>
                         <?php $memberName = trim($c['last_name'] . ', ' . $c['first_name']); ?>
-                        <tr>
+                        <tr data-crop-id="<?php echo (int) $c['id']; ?>">
                             <?php if ($role === 'manager'): ?>
                                 <td>
                                     <div class="cm-member-cell">
@@ -954,5 +961,96 @@ renderHeader('Crops Management');
 <?php endif; ?>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/crops/crops.js"></script>
+
+<!-- ============================================================
+     AUTO-UPDATE (AJAX POLLING)
+     Fetches this same page, then swaps only the parts that changed.
+     Paused while a modal is open or the tab is hidden.
+     ============================================================ -->
+<script>
+(function () {
+    const LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+
+    // The Approve / Reject / Mark buttons in the table are wired up in crops.js.
+    // Keep this false until crops.js uses event delegation (one click listener on
+    // the document), otherwise those buttons stop working after the table is replaced.
+    const POLL_TABLE = true;
+
+    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
+    function itemMap(root, sel, attr) {
+        const m = new Map();
+        if (!sel) return m;
+        root.querySelectorAll(sel).forEach(el => m.set(el.getAttribute(attr), el.outerHTML));
+        return m;
+    }
+
+    const liveParts = [
+        { id: 'cmSummaryLive' },
+        { id: 'cmPrintReport' },
+        { id: 'cmTableLive', sel: 'tr[data-crop-id]', attr: 'data-crop-id', table: true }
+    ].filter(function (p) {
+        if (p.table && !POLL_TABLE) return false;
+        p.el = document.getElementById(p.id);
+        if (!p.el) return false;
+        p.html = p.el.innerHTML;
+        p.items = itemMap(p.el, p.sel, p.attr);
+        return true;
+    });
+
+    let busy = false;
+    let fails = 0;
+    let timer = null;
+
+    function anyModalOpen() {
+        return !!document.querySelector('.cm-modal.cm-open');
+    }
+
+    async function liveCheck() {
+        // Skip while the tab is hidden, a modal is open, or a check is running
+        if (document.hidden || busy || anyModalOpen()) return;
+        busy = true;
+        try {
+            const r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+            const fresh = liveParts.map(p => doc.getElementById(p.id));
+
+            // If an expected element is missing (e.g. login page), leave the page alone
+            if (fresh.every(Boolean)) {
+                let changed = false;
+                liveParts.forEach(function (p, i) {
+                    const f = fresh[i];
+                    if (f.innerHTML === p.html) return;
+                    changed = true;
+                    p.html = f.innerHTML;
+                    const newItems = itemMap(f, p.sel, p.attr);
+                    p.el.innerHTML = p.html;
+                    if (p.sel) {
+                        p.el.querySelectorAll(p.sel).forEach(function (el) {
+                            const id = el.getAttribute(p.attr);
+                            if (p.items.get(id) !== newItems.get(id)) el.classList.add('cm-flash');
+                        });
+                    }
+                    p.items = newItems;
+                });
+                if (changed) document.dispatchEvent(new CustomEvent('cm:refreshed'));
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff on error
+        } finally {
+            busy = false;
+        }
+    }
+
+    function schedule() {
+        clearTimeout(timer);
+        const delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function () { await liveCheck(); schedule(); }, delay);
+    }
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) liveCheck(); });
+    schedule();
+})();
+</script>
 
 <?php renderFooter(); ?>
