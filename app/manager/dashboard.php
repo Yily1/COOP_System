@@ -1,7 +1,6 @@
 <?php
 require_once '../../config/config.php';
 require_once '../../config/functions.php';
-require_once '../../config/rental-split.php';
 require_once '../../includes/activity-logger.php';
 requireRole('manager');
 
@@ -21,305 +20,93 @@ function dash_query(PDO $pdo, string $sql) {
         return false;
     }
 }
-function dash_scalar(PDO $pdo, string $sql, $default = 0) {
-    $stmt = dash_query($pdo, $sql);
-    if (!$stmt) return $default;
-    $v = $stmt->fetchColumn();
-    return ($v === false || $v === null) ? $default : $v;
-}
 function dash_rows(PDO $pdo, string $sql): array {
     $stmt = dash_query($pdo, $sql);
     return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 }
 function dash_e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
-function dash_peso($v) { return '₱' . number_format((float)$v, 2); }
 function dash_peso0($v) { return '₱' . number_format((float)$v, 0); }
 function dash_peso0_signed($v) {
     $v = (float) $v;
     return ($v < 0 ? '-' : '') . '₱' . number_format(abs($v), 0);
 }
 
-$months = [];
+/* ============================================================
+   DISPLAY ONLY
+   Ang mga numero sa ibaba ay NAKAPIRMI at hindi galing sa database.
+   Pwede mo silang palitan dito mismo. Ang tanging totoong data
+   sa dashboard na ito ay ang "Recent activity" sa pinakababa.
+   ============================================================ */
+
+// Mga label ng huling 6 na buwan at huling 5 taon (para sa mga chart lang)
+$monthLabels = [];
 for ($i = 5; $i >= 0; $i--) {
     $d = new DateTime('first day of this month');
     $d->modify("-$i months");
-    $months[] = ['key' => $d->format('Y-m'), 'label' => $d->format('M')];
+    $monthLabels[] = $d->format('M');
 }
-$windowStart = $months[0]['key'] . '-01';
-
-/* ============================================================
-   RESET PAGKATAPOS NG "NET INCOME" WITHDRAWAL
-   Ang huling withdrawal ang simula ng bagong cycle.
-   - Operational expenses: nagre-reset sa zero.
-   - Total income / Net income: nagsisimula sa CARRY-OVER (ang natira
-     sa huling withdrawal), tapos dinadagdagan ng kita pagkatapos ng cutoff.
-   Hindi nire-reset: Reserve fund (Registration) at Repair and maintenance.
-
-   Ang withdrawal ay $withdrawRate (40%) ng net income noon, kaya ang
-   natira (carry-over) = amount x (1 - rate) / rate.
-   ============================================================ */
-$withdrawRate = 0.40; // dapat kapareho ng NET_INCOME_WITHDRAW_RATE sa add-expense.php
-
-$expensesReady = !empty(dash_rows($pdo, "SHOW TABLES LIKE 'expenses'"));
-
-$cutoffId = 0;
-$cutoffAt = null;
-$carryOver = 0.0;
-if ($expensesReady) {
-    $cut = dash_rows($pdo, "SELECT id, created_at, expense_date, amount FROM expenses WHERE category = 'Net Income' ORDER BY id DESC LIMIT 1");
-    if ($cut) {
-        $cutoffId = (int) $cut[0]['id'];
-        $cutoffAt = $cut[0]['created_at'] ?: ($cut[0]['expense_date'] . ' 23:59:59');
-        // Ang natira (60%) sa huling withdrawal ay dadalhin sa bagong cycle
-        $carryOver = (float) $cut[0]['amount'] * (1 - $withdrawRate) / $withdrawRate;
-    }
-}
-$cutQ = $cutoffAt ? $pdo->quote($cutoffAt) : null;
-
-$opCut    = $cutoffId ? "AND id > {$cutoffId}" : '';
-$payCut   = $cutQ ? "AND created_at > {$cutQ}" : '';
-$loanCut  = $cutQ ? "AND COALESCE(released_at, created_at) > {$cutQ}" : '';
-
-$stockHasCreated = !empty(dash_rows($pdo, "SHOW COLUMNS FROM stock_purchases LIKE 'created_at'"));
-$stockCut = $cutQ ? ($stockHasCreated ? "AND created_at > {$cutQ}" : "AND purchase_date > DATE({$cutQ})") : '';
-
-/* #1 TOTAL INCOME (cycle na ito: carry-over + galing pagkatapos ng huling withdrawal) */
-$coop = coopIncomeSql();
-$incomeWhere = "status = 'confirmed' AND LOWER(payment_type) <> 'registration' $payCut";
-
-$loanMonthSql = "DATE_FORMAT(COALESCE(released_at, created_at), '%Y-%m')";
-$loanReleasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM loans WHERE status = 'released' $loanCut");
-$loanReleasedThisMonth = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM(amount),0) FROM loans
-    WHERE status = 'released' $loanCut AND $loanMonthSql = DATE_FORMAT(CURDATE(), '%Y-%m')");
-$loanReleasedLastMonth = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM(amount),0) FROM loans
-    WHERE status = 'released' $loanCut AND $loanMonthSql = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')");
-$loanReleasedByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
-foreach (dash_rows($pdo, "
-    SELECT $loanMonthSql AS ym, SUM(amount) AS total
-    FROM loans
-    WHERE status = 'released' $loanCut AND COALESCE(released_at, created_at) >= '{$windowStart}'
-    GROUP BY ym") as $r) {
-    if (isset($loanReleasedByMonth[$r['ym']])) $loanReleasedByMonth[$r['ym']] = (float) $r['total'];
-}
-
-$stockMonthSql = "DATE_FORMAT(purchase_date, '%Y-%m')";
-$stockPurchasedTotal = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases WHERE 1=1 $stockCut");
-$stockPurchasedThisMonth = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases
-    WHERE $stockMonthSql = DATE_FORMAT(CURDATE(), '%Y-%m') $stockCut");
-$stockPurchasedLastMonth = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM(total_cost),0) FROM stock_purchases
-    WHERE $stockMonthSql = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m') $stockCut");
-$stockPurchasedByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
-foreach (dash_rows($pdo, "
-    SELECT $stockMonthSql AS ym, SUM(total_cost) AS total
-    FROM stock_purchases
-    WHERE purchase_date >= '{$windowStart}' $stockCut
-    GROUP BY ym") as $r) {
-    if (isset($stockPurchasedByMonth[$r['ym']])) $stockPurchasedByMonth[$r['ym']] = (float) $r['total'];
-}
-
-// Kasama ang carry-over (natira sa huling withdrawal)
-$totalIncome = (float) dash_scalar($pdo, "SELECT COALESCE(SUM($coop),0) FROM payments WHERE $incomeWhere") - $loanReleasedTotal - $stockPurchasedTotal + $carryOver;
-
-$thisMonthIncome = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM($coop),0) FROM payments
-    WHERE $incomeWhere
-      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')") - $loanReleasedThisMonth - $stockPurchasedThisMonth;
-$lastMonthIncome = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM($coop),0) FROM payments
-    WHERE $incomeWhere
-      AND DATE_FORMAT(payment_date, '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')") - $loanReleasedLastMonth - $stockPurchasedLastMonth;
-
-$incomeByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
-foreach (dash_rows($pdo, "
-    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM($coop) AS total
-    FROM payments
-    WHERE $incomeWhere AND payment_date >= '{$windowStart}'
-    GROUP BY ym") as $r) {
-    if (isset($incomeByMonth[$r['ym']])) $incomeByMonth[$r['ym']] = (float) $r['total'];
-}
-foreach ($loanReleasedByMonth as $ym => $released) {
-    if (isset($incomeByMonth[$ym])) $incomeByMonth[$ym] -= $released;
-}
-foreach ($stockPurchasedByMonth as $ym => $spent) {
-    if (isset($incomeByMonth[$ym])) $incomeByMonth[$ym] -= $spent;
-}
-
-$incomeByType = ['investment' => 0.0, 'loan_repayment' => 0.0, 'rental' => 0.0, 'product' => 0.0];
-foreach (dash_rows($pdo, "
-    SELECT LOWER(payment_type) AS t, SUM($coop) AS total
-    FROM payments WHERE $incomeWhere GROUP BY LOWER(payment_type)") as $r) {
-    $k = str_replace(' ', '_', $r['t']);
-    if (isset($incomeByType[$k])) $incomeByType[$k] = (float) $r['total'];
-}
-
-$typeMeta = [
-    'investment'     => ['Investment',          '#2a78d6'],
-    'loan_repayment' => ['Loan repayment',      '#1baf7a'],
-    'rental'         => ['Rental',              '#eda100'],
-    'product'        => ['Product',             '#7f77dd'],
-];
-
-if ($lastMonthIncome > 0) {
-    $diff = $thisMonthIncome - $lastMonthIncome;
-    $deltaUp = $diff >= 0;
-    $deltaText = dash_peso0(abs($diff)) . ($deltaUp ? ' more' : ' less') . ' than last month';
-} elseif ($thisMonthIncome > 0) {
-    $deltaUp = true;
-    $deltaText = dash_peso0($thisMonthIncome) . ' collected this month';
-} elseif ($thisMonthIncome < 0) {
-    $deltaUp = false;
-    $deltaText = dash_peso0(abs($thisMonthIncome)) . ' net outflow this month (loans and stock)';
-} else {
-    $deltaUp = null;
-    $deltaText = 'No confirmed payments this month';
-}
-
-/* #2 EXPENSES & FUNDS */
-$totalOperational = 0.0;
-$expenseRepair = 0.0;
-$totalRegExpenses = 0.0;
-
-$expenseByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
-$repairByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
-
-if ($expensesReady) {
-    // Operational: galing lang pagkatapos ng huling withdrawal
-    $totalOperational = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Operational' $opCut");
-    // Repair at Registration: hindi nire-reset
-    $expenseRepair = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Repair'");
-    $totalRegExpenses = (float) dash_scalar($pdo, "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE category = 'Registration'");
-
-    foreach (dash_rows($pdo, "
-        SELECT DATE_FORMAT(expense_date, '%Y-%m') AS ym, SUM(amount) AS total
-        FROM expenses WHERE category = 'Operational' $opCut AND expense_date >= '{$windowStart}' GROUP BY ym") as $r) {
-        if (isset($expenseByMonth[$r['ym']])) $expenseByMonth[$r['ym']] = (float) $r['total'];
-    }
-    foreach (dash_rows($pdo, "
-        SELECT DATE_FORMAT(expense_date, '%Y-%m') AS ym, SUM(amount) AS total
-        FROM expenses WHERE category = 'Repair' AND expense_date >= '{$windowStart}' GROUP BY ym") as $r) {
-        if (isset($repairByMonth[$r['ym']])) $repairByMonth[$r['ym']] = (float) $r['total'];
-    }
-}
-
-/* NET INCOME (cycle) = Total income (kasama ang carry-over at Investment) - Operational expenses */
-$netIncome = $totalIncome - $totalOperational;
-
-/* NET INCOME GRAPH: BY YEAR (huling 5 taon, kasama ang kasalukuyan)
-   Kita ng taon (coop share) - loans released - stock purchases - Operational expenses.
-   Hindi ito nare-reset ng withdrawal, kaya nakikita pa rin ang history kada taon. */
 $years = [];
 for ($i = 4; $i >= 0; $i--) {
     $years[] = (string) ((int) date('Y') - $i);
 }
-$yearStart = $years[0] . '-01-01';
-$netByYear = array_fill_keys($years, 0.0);
 
-foreach (dash_rows($pdo, "
-    SELECT YEAR(payment_date) AS y, SUM($coop) AS total
-    FROM payments
-    WHERE status = 'confirmed' AND LOWER(payment_type) <> 'registration' AND payment_date >= '{$yearStart}'
-    GROUP BY y") as $r) {
-    if (isset($netByYear[$r['y']])) $netByYear[$r['y']] += (float) $r['total'];
-}
-foreach (dash_rows($pdo, "
-    SELECT YEAR(COALESCE(released_at, created_at)) AS y, SUM(amount) AS total
-    FROM loans
-    WHERE status = 'released' AND COALESCE(released_at, created_at) >= '{$yearStart}'
-    GROUP BY y") as $r) {
-    if (isset($netByYear[$r['y']])) $netByYear[$r['y']] -= (float) $r['total'];
-}
-foreach (dash_rows($pdo, "
-    SELECT YEAR(purchase_date) AS y, SUM(total_cost) AS total
-    FROM stock_purchases
-    WHERE purchase_date >= '{$yearStart}'
-    GROUP BY y") as $r) {
-    if (isset($netByYear[$r['y']])) $netByYear[$r['y']] -= (float) $r['total'];
-}
-if ($expensesReady) {
-    foreach (dash_rows($pdo, "
-        SELECT YEAR(expense_date) AS y, SUM(amount) AS total
-        FROM expenses
-        WHERE category = 'Operational' AND expense_date >= '{$yearStart}'
-        GROUP BY y") as $r) {
-        if (isset($netByYear[$r['y']])) $netByYear[$r['y']] -= (float) $r['total'];
-    }
-}
+// Total income
+$totalIncome  = 125000;
+$deltaUp      = true;
+$deltaText    = '₱8,500 more than last month';
+$incomeByMonth = [12000, 15500, 14000, 18000, 21500, 30000];
+$incomeByType = [
+    'investment'     => 62000,
+    'loan_repayment' => 28000,
+    'rental'         => 21000,
+    'product'        => 14000,
+];
 
-$netThisYear = $netByYear[$years[4]] ?? 0.0;
-$netLastYear = $netByYear[$years[3]] ?? 0.0;
-if ($netLastYear > 0) {
-    $netDiff = $netThisYear - $netLastYear;
-    $netDeltaUp = $netDiff >= 0;
-    $netDeltaText = dash_peso0(abs($netDiff)) . ($netDeltaUp ? ' more' : ' less') . ' than last year';
-} elseif ($netThisYear > 0) {
-    $netDeltaUp = true;
-    $netDeltaText = dash_peso0($netThisYear) . ' net this year';
-} elseif ($netThisYear < 0) {
-    $netDeltaUp = false;
-    $netDeltaText = dash_peso0(abs($netThisYear)) . ' net loss this year';
-} else {
-    $netDeltaUp = null;
-    $netDeltaText = 'No income this year';
-}
+// Net income
+$netIncome    = 98000;
+$netDeltaUp   = true;
+$netDeltaText = '₱12,000 more than last year';
+$netByYear    = [42000, 55000, 71000, 86000, 98000];
 
-/* RESERVE FUND (Registration) - hindi nire-reset */
-$reserveIncome = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM(amount),0) FROM payments
-    WHERE status = 'confirmed' AND LOWER(payment_type) = 'registration'");
-$reserveTotal = $reserveIncome - $totalRegExpenses;
-$reserveCount = (int) dash_scalar($pdo, "
-    SELECT COUNT(*) FROM payments
-    WHERE status = 'confirmed' AND LOWER(payment_type) = 'registration'");
+// Reserve fund (Registration fees)
+$reserveTotal   = 15000;
+$reserveCount   = 30;
+$reserveByMonth = [1500, 2000, 2500, 3000, 3000, 3000];
 
-$reserveByMonth = array_fill_keys(array_column($months, 'key'), 0.0);
-foreach (dash_rows($pdo, "
-    SELECT DATE_FORMAT(payment_date, '%Y-%m') AS ym, SUM(amount) AS total
-    FROM payments
-    WHERE status = 'confirmed' AND LOWER(payment_type) = 'registration'
-      AND payment_date >= '{$windowStart}'
-    GROUP BY ym") as $r) {
-    if (isset($reserveByMonth[$r['ym']])) $reserveByMonth[$r['ym']] = (float) $r['total'];
-}
+// Operational expenses
+$totalOperational = 27000;
+$expenseByMonth   = [3000, 4500, 4000, 5500, 5000, 5000];
 
-/* #5 REPAIR AND MAINTENANCE: Repair expenses ang babawas dito lang (hindi nire-reset) */
-$repairShareFromRentals = (float) dash_scalar($pdo, "
-    SELECT COALESCE(SUM(repair_share),0) FROM payments WHERE status = 'confirmed'");
-$totalRepair = $repairShareFromRentals - $expenseRepair;
+// Repair and maintenance
+$totalRepair   = 12000;
+$repairByMonth = [1500, 2000, 1800, 2200, 2300, 2200];
 
-/* #3 SERVICES UTILIZED */
+// Services utilized
 $services = [
-    'Products'  => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM product_requests WHERE status <> 'rejected'"),
-    'Equipment' => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM equipment_bookings WHERE status NOT IN ('rejected','cancelled')"),
-    'Resources' => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM resource_distributions"),
-    'Loans'     => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM loans WHERE status <> 'rejected'"),
-    'Crops'     => (int) dash_scalar($pdo, "SELECT COUNT(*) FROM crops WHERE status <> 'rejected'"),
+    'Products'  => 24,
+    'Equipment' => 18,
+    'Resources' => 12,
+    'Loans'     => 15,
+    'Crops'     => 9,
 ];
 $serviceColors = ['Products' => '#2a78d6', 'Equipment' => '#eb6834', 'Resources' => '#1baf7a', 'Loans' => '#eda100', 'Crops' => '#6250d6'];
 $servicesTotal = array_sum($services);
 
-/* #4 ACTIVE MEMBERS */
-$totalMembers  = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM members");
-$activeMembers = (int) dash_scalar($pdo, "
-    SELECT COUNT(DISTINCT m.id) FROM members m
-    INNER JOIN users u ON u.member_id = m.id
-    WHERE u.account_status = 'Active'");
+// Active members
+$totalMembers  = 52;
+$activeMembers = 48;
+$memberGrowth  = [38, 41, 44, 47, 50, 52];
 
-$membersBefore = (int) dash_scalar($pdo, "SELECT COUNT(*) FROM members WHERE created_at < '{$windowStart}'");
-$newByMonth = array_fill_keys(array_column($months, 'key'), 0);
-foreach (dash_rows($pdo, "
-    SELECT DATE_FORMAT(created_at, '%Y-%m') AS ym, COUNT(*) AS c
-    FROM members WHERE created_at >= '{$windowStart}' GROUP BY ym") as $r) {
-    if (isset($newByMonth[$r['ym']])) $newByMonth[$r['ym']] = (int) $r['c'];
-}
-$memberGrowth = [];
-$running = $membersBefore;
-foreach ($newByMonth as $c) { $running += $c; $memberGrowth[] = $running; }
+$typeMeta = [
+    'investment'     => ['Investment',     '#2a78d6'],
+    'loan_repayment' => ['Loan repayment', '#1baf7a'],
+    'rental'         => ['Rental',         '#eda100'],
+    'product'        => ['Product',        '#7f77dd'],
+];
 
-/* RECENT ACTIVITY */
+/* ============================================================
+   TOTOONG DATA: RECENT ACTIVITY
+   ============================================================ */
 $recentActivity = dash_rows($pdo, "
     SELECT al.created_at, al.action, u.email, u.role,
            TRIM(CONCAT(COALESCE(m.last_name,''), ', ', COALESCE(m.first_name,''))) AS full_name
@@ -431,13 +218,9 @@ renderHeader($title);
                     <p class="db-small-num"><?php echo dash_peso0($reserveTotal); ?></p>
                     <span class="db-sub"><?php echo $reserveCount; ?> registration<?php echo $reserveCount === 1 ? '' : 's'; ?></span>
                 </div>
-                <?php if ($reserveTotal > 0): ?>
-                    <div class="db-chart-sm">
-                        <canvas id="reserveChart" role="img" aria-label="Bar chart of registration fees per month for the last six months"></canvas>
-                    </div>
-                <?php else: ?>
-                    <div class="db-empty-note">No registration fund balance yet.</div>
-                <?php endif; ?>
+                <div class="db-chart-sm">
+                    <canvas id="reserveChart" role="img" aria-label="Bar chart of registration fees per month for the last six months"></canvas>
+                </div>
             </div>
 
         </div>
@@ -450,19 +233,9 @@ renderHeader($title);
                     <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Manage</a>
                 </div>
                 <p class="db-small-num"><?php echo dash_peso0($totalOperational); ?></p>
-                <?php if (!$expensesReady): ?>
-                    <div class="db-empty-note">
-                        The expenses table isn&rsquo;t set up yet.
-                    </div>
-                <?php elseif ($totalOperational <= 0): ?>
-                    <div class="db-empty-note">
-                        No operational expenses yet.
-                    </div>
-                <?php else: ?>
-                    <div class="db-chart-sm">
-                        <canvas id="expenseChart" role="img" aria-label="Bar chart of expenses per month for the last six months"></canvas>
-                    </div>
-                <?php endif; ?>
+                <div class="db-chart-sm">
+                    <canvas id="expenseChart" role="img" aria-label="Bar chart of expenses per month for the last six months"></canvas>
+                </div>
             </div>
 
             <div class="db-card">
@@ -471,38 +244,29 @@ renderHeader($title);
                     <a href="<?php echo BASE_URL; ?>/app/manager/payments/payments.php?payment_type=rental">View</a>
                 </div>
                 <p class="db-small-num"><?php echo dash_peso0($totalRepair); ?></p>
-                <?php if ($totalRepair > 0): ?>
-                    <div class="db-chart-sm">
-                        <canvas id="repairChart" role="img" aria-label="Bar chart of repair and maintenance share per month for the last six months"></canvas>
-                    </div>
-                <?php else: ?>
-                    <div class="db-empty-note">No repair fund balance yet.</div>
-                <?php endif; ?>
+                <div class="db-chart-sm">
+                    <canvas id="repairChart" role="img" aria-label="Bar chart of repair and maintenance per month for the last six months"></canvas>
+                </div>
             </div>
 
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">build</span>Services utilized
                 </div>
-                <?php if ($servicesTotal > 0): ?>
-                    <div class="db-donut-row">
-                        <div class="db-donut">
-                            <canvas id="servicesChart" role="img" aria-label="Donut chart of services used"></canvas>
-                            <div class="db-donut-center"><?php echo $servicesTotal; ?></div>
-                        </div>
-                        <div class="db-donut-legend">
-                            <?php foreach ($services as $name => $count): ?>
-                                <div class="db-lg">
-                                    <b style="background:<?php echo $serviceColors[$name]; ?>;"></b><?php echo dash_e($name); ?>
-                                    <span class="v"><?php echo $count; ?></span>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
+                <div class="db-donut-row">
+                    <div class="db-donut">
+                        <canvas id="servicesChart" role="img" aria-label="Donut chart of services used"></canvas>
+                        <div class="db-donut-center"><?php echo $servicesTotal; ?></div>
                     </div>
-                <?php else: ?>
-                    <p class="db-small-num">0</p>
-                    <div class="db-empty-note">No services have been used yet.</div>
-                <?php endif; ?>
+                    <div class="db-donut-legend">
+                        <?php foreach ($services as $name => $count): ?>
+                            <div class="db-lg">
+                                <b style="background:<?php echo $serviceColors[$name]; ?>;"></b><?php echo dash_e($name); ?>
+                                <span class="v"><?php echo $count; ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
 
             <div class="db-card">
@@ -582,7 +346,7 @@ renderHeader($title);
     const peso = v => (v < 0 ? '-' : '') + '₱' + (Math.abs(v) >= 1000 ? (Math.round(Math.abs(v) / 100) / 10) + 'k' : Math.abs(v));
     const tip  = { callbacks: { label: c => (c.raw < 0 ? '-' : '') + '₱' + Math.abs(Number(c.raw)).toLocaleString('en-PH') } };
     const base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
-    const monthLabels = <?php echo json_encode(array_column($months, 'label')); ?>;
+    const monthLabels = <?php echo json_encode($monthLabels); ?>;
 
     const income = document.getElementById('incomeChart');
     if (income) {

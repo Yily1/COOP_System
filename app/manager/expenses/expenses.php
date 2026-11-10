@@ -10,35 +10,18 @@ $expenses = [];
 $total = 0.0;
 $thisMonth = 0.0;
 
-$categoryLabels = [
-    'Operational'  => 'Operational',
-    'Repair'       => 'Repair and maintenance',
-    'Net Income'   => 'Net income withdrawal',
-    'Registration' => 'Registration',
-];
-
 try {
     $stmt = $pdo->query("
         SELECT e.*, u.email AS recorded_by_email
         FROM expenses e
         LEFT JOIN users u ON u.id = e.recorded_by
+        WHERE e.category = 'Operational'
         ORDER BY e.expense_date DESC, e.id DESC
     ");
     $expenses = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Pareho ng Dashboard: nagre-reset ang Operational pagkatapos ng huling withdrawal
-    $cutoffId = 0;
-    foreach ($expenses as $e) {
-        if (($e['category'] ?? '') === 'Net Income') {
-            $cutoffId = max($cutoffId, (int) $e['id']);
-        }
-    }
-
     $currentMonth = date('Y-m');
     foreach ($expenses as $e) {
-        $cat = $e['category'] ?? 'Operational';
-        if ($cat !== 'Operational') continue;
-        if ($cutoffId && (int) $e['id'] <= $cutoffId) continue;
         $total += (float) $e['amount'];
         if (substr($e['expense_date'], 0, 7) === $currentMonth) {
             $thisMonth += (float) $e['amount'];
@@ -99,11 +82,6 @@ renderHeader('Expenses');
 .ex-amount { font-weight: 600; white-space: nowrap; }
 .ex-empty { padding: 28px; text-align: center; color: #6b7280; font-size: 13px; }
 
-.ex-cat { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 7px; white-space: nowrap; background: #F1EFE8; color: #444441; }
-.ex-cat.operational { background: #EAF3DE; color: #27500A; }
-.ex-cat.repair { background: #E1F5EE; color: #085041; }
-.ex-cat.net-income { background: #FAEEDA; color: #633806; }
-
 .ex-setup { background: #FAEEDA; border-left: 3px solid #EF9F27; color: #854F0B; border-radius: 6px; padding: 14px 16px; font-size: 13.5px; line-height: 1.6; }
 .ex-setup pre { background: #fff; border-radius: 6px; padding: 10px; margin: 10px 0 0; font-size: 12px; white-space: pre-wrap; color: #333; }
 
@@ -132,12 +110,9 @@ renderHeader('Expenses');
 .ex-form { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 10px; }
 .ex-form .form-group { margin: 0 !important; min-width: 0; }
 .ex-form .form-group label { display: block; font-size: 13px; margin-bottom: 3px !important; }
-.ex-form .form-group input,
-.ex-form .form-group select {
+.ex-form .form-group input {
     width: 100%; box-sizing: border-box; padding: 7px 9px !important; font-size: 13px !important;
 }
-.ex-form .form-group input:disabled { background: #f3f4f0; color: #9aa39a; cursor: not-allowed; }
-.ex-hint { margin: 4px 0 0; font-size: 12px; color: #6b7280; line-height: 1.4; }
 .ex-form button[type="submit"] {
     position: sticky; bottom: 0; z-index: 2; width: 100% !important; box-sizing: border-box;
     margin: 4px 0 0 !important; padding: 10px !important; background: #639a20 !important; color: #fff !important; border: none !important;
@@ -211,21 +186,15 @@ renderHeader('Expenses');
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Category</th>
                         <th>Description</th>
                         <th>Amount</th>
                         <th>Recorded by</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($expenses as $e):
-                        $cat = $e['category'] ?? 'Operational';
-                        $catClass = strtolower(str_replace(' ', '-', $cat));
-                        $catLabel = $categoryLabels[$cat] ?? $cat;
-                    ?>
+                    <?php foreach ($expenses as $e): ?>
                         <tr>
                             <td data-label="Date" style="white-space:nowrap;"><?php echo date('M j, Y', strtotime($e['expense_date'])); ?></td>
-                            <td data-label="Category"><span class="ex-cat <?php echo htmlspecialchars($catClass); ?>"><?php echo htmlspecialchars($catLabel); ?></span></td>
                             <td data-label="Description"><?php echo htmlspecialchars($e['description']); ?></td>
                             <td data-label="Amount" class="ex-amount">₱<?php echo number_format($e['amount'], 2); ?></td>
                             <td data-label="Recorded by" style="color:#6b7280;"><?php echo htmlspecialchars($e['recorded_by_email'] ?? '-'); ?></td>
@@ -246,16 +215,6 @@ renderHeader('Expenses');
                 <div class="form-group">
                     <label for="exDate">Date</label>
                     <input type="date" name="expense_date" id="exDate" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="exCategory">Category</label>
-                    <select name="category" id="exCategory" required>
-                        <option value="Operational">Operational</option>
-                        <option value="Repair">Repair and maintenance</option>
-                        <option value="Net Income">Net income withdrawal</option>
-                    </select>
-                    <p class="ex-hint" id="exHint"></p>
                 </div>
 
                 <div class="form-group">
@@ -282,32 +241,6 @@ renderHeader('Expenses');
         const form = document.getElementById('exForm');
         const errors = document.getElementById('exErrors');
         const submitBtn = document.getElementById('exSubmit');
-        const catSel = document.getElementById('exCategory');
-        const hint = document.getElementById('exHint');
-        const amountInput = document.getElementById('exAmount');
-        const descInput = document.getElementById('exDesc');
-
-        const hints = {
-            'Operational': 'Deducts from net income.',
-            'Repair': 'Deducts from Repair and maintenance only.',
-            'Net Income': 'Automatically withdraws 40% of the available net income. The other 60% stays in Total income and Net income, and the Operational expenses card resets to zero.'
-        };
-
-        function updateHint() {
-            hint.textContent = hints[catSel.value] || '';
-            const isNet = catSel.value === 'Net Income';
-
-            // Net income withdrawal: amount is computed by the server
-            amountInput.disabled = isNet;
-            amountInput.required = !isNet;
-            amountInput.placeholder = isNet ? 'Computed automatically' : '';
-            if (isNet) amountInput.value = '';
-
-            // Description is optional for a withdrawal (server fills it in)
-            descInput.required = !isNet;
-            descInput.placeholder = isNet ? 'Optional' : 'e.g. Fuel for delivery truck';
-        }
-        catSel.addEventListener('change', updateHint);
 
         function openModal() { backdrop.style.display = 'flex'; }
         function closeModal() { backdrop.style.display = 'none'; errors.style.display = 'none'; }
@@ -315,7 +248,6 @@ renderHeader('Expenses');
         document.getElementById('exOpenAdd').addEventListener('click', function() {
             form.reset();
             document.getElementById('exDate').value = today;
-            updateHint();
             errors.style.display = 'none';
             openModal();
         });
