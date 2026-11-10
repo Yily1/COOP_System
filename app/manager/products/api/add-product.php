@@ -26,10 +26,10 @@ $category = trim($_POST['category'] ?? '');
 $price    = $_POST['price'] ?? '';
 $unit     = trim($_POST['unit'] ?? '');
 $stock    = $_POST['stock_quantity'] ?? '';
-$status   = $_POST['status'] ?? 'available';
+$status   = $_POST['status'] ?? 'auto';
 
 $allowedCategories = ['Grains', 'Vegetables', 'Meat & Poultry', 'Farm Inputs', 'Others'];
-$allowedStatuses   = ['available', 'out_of_stock', 'discontinued'];
+$allowedStatuses   = ['auto', 'discontinued', 'available', 'out_of_stock'];
 
 if ($name === '' || mb_strlen($name) > 150) {
     apRespond(false, 'Please enter a product name (up to 150 characters).');
@@ -48,6 +48,11 @@ if (!is_numeric($stock) || (float)$stock < 0) {
 }
 if (!in_array($status, $allowedStatuses, true)) {
     apRespond(false, 'Invalid status.');
+}
+
+// Status follows the stock, unless the manager marked the product Discontinued
+if ($status !== 'discontinued') {
+    $status = ((float)$stock > 0) ? 'available' : 'out_of_stock';
 }
 
 // Optional photo

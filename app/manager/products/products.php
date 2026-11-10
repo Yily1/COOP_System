@@ -49,15 +49,6 @@ function svcRequestUnitPrice($r, $unitPriceByRequest, $priceById, $priceByName) 
     return null;
 }
 
-// Products that can be restocked (not discontinued)
-$buyableProducts = array_values(array_filter($products, fn($p) => $p['status'] !== 'discontinued'));
-
-// Common things the coop buys. Edit this list to add more choices.
-// (An item that already exists in Products is shown under "Your products" instead.)
-$presetItems = ['Rice', 'Corn', 'Agri fertilizer', 'Pesticide', 'Seeds', 'Animal feeds'];
-$existingNames = array_map(fn($p) => mb_strtolower($p['name']), $products);
-$commonItems = array_values(array_filter($presetItems, fn($n) => !in_array(mb_strtolower($n), $existingNames, true)));
-
 // Member avatar (same colors and initials logic as the Payments page)
 if (!function_exists('svcSimpleHash')) {
     function svcSimpleHash($str) {
@@ -113,7 +104,7 @@ renderHeader('Products');
 }
 .svc-page-head h1 { margin: 0; flex: 1 1 auto; min-width: 0; position: static !important; }
 
-/* Buttons on the right: Buy stock + Add product */
+/* Button on the right: Add product */
 .svc-head-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; flex: 0 0 auto; }
 
 /* Add product button: same size as "+ Add payment" */
@@ -129,19 +120,6 @@ renderHeader('Products');
     text-transform: none !important; letter-spacing: normal !important;
 }
 .svc-add-btn:hover { background: #2e5a0d !important; }
-
-/* Buy stock button: outlined green, so "+ Add product" stays the main action */
-.svc-buy-btn {
-    background: #fff !important; color: #3B6D11 !important; border: 1.5px solid #3B6D11 !important;
-    font-weight: 600 !important; padding: 10px 20px !important; border-radius: 10px !important; cursor: pointer;
-    font-size: 14px !important; font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
-    display: inline-flex !important; align-items: center; gap: 6px;
-    width: auto !important; max-width: 220px !important; flex: 0 0 auto !important; white-space: nowrap !important;
-    position: static !important; float: none !important; margin: 0 !important; box-shadow: none !important;
-    text-transform: none !important; letter-spacing: normal !important;
-}
-.svc-buy-btn .material-icons { font-size: 18px; }
-.svc-buy-btn:hover { background: #f1f6ea !important; }
 
 /* Summary cards: same style and size as the Payments page */
 .svc-stat-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
@@ -249,27 +227,20 @@ renderHeader('Products');
 .svc-product-card.svc-flash { animation: svcFlashCard 2.2s ease-out; }
 .svc-table tr.svc-flash td { animation: svcFlashRow 2.2s ease-out; }
 
-#svcModalBackdrop, #svcRequestModalBackdrop, #svcBuyModalBackdrop, #svcApproveModalBackdrop, #svcRejectModalBackdrop {
+#svcModalBackdrop, #svcRequestModalBackdrop, #svcApproveModalBackdrop, #svcRejectModalBackdrop {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5);
     z-index: 100; align-items: center; justify-content: center; padding: 16px;
 }
 .svc-modal-box { background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 420px; box-sizing: border-box; position: relative; max-height: 90vh; overflow-y: auto; }
 .svc-form-label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
 .svc-form-input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px; font-size: 14px; font-family: inherit; }
-#svcModalErrors, #svcRequestModalErrors, #svcBuyErrors, #svcApproveErrors, #svcRejectErrors { display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
+#svcModalErrors, #svcRequestModalErrors, #svcApproveErrors, #svcRejectErrors { display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
 .svc-close-btn {
     position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important;
     font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important;
     color: #333 !important; line-height: 1 !important;
 }
 .svc-modal-summary { font-size: 13px; color: #667066; text-align: center; margin: -8px 0 16px; }
-
-/* Quantity field with the unit (Kg, Sack, Pc) inside, on the right */
-.svc-qty-wrap { position: relative; }
-.svc-qty-wrap .svc-form-input { padding-right: 52px; }
-.svc-qty-unit {
-    position: absolute; right: 10px; top: 8px; font-size: 13px; color: #6b7280; pointer-events: none;
-}
 
 /* Photo upload (Add / Edit product) */
 .svc-photo-preview { display: none; width: 100%; height: 120px; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
@@ -312,9 +283,6 @@ renderHeader('Products');
 <div class="svc-page-head">
     <h1>Products</h1>
     <div class="svc-head-actions">
-        <button type="button" class="svc-buy-btn" id="openBuyStockBtn">
-            <span class="material-icons">add_shopping_cart</span> Buy stock
-        </button>
         <button type="button" class="svc-add-btn" id="openAddProductBtn">+ Add product</button>
     </div>
 </div>
@@ -548,86 +516,11 @@ renderHeader('Products');
 
             <label class="svc-form-label">Status</label>
             <select name="status" id="svcProductStatus" class="svc-form-input">
-                <option value="available">Available</option>
-                <option value="out_of_stock">Out of Stock</option>
+                <option value="auto">Automatic (based on stock)</option>
                 <option value="discontinued">Discontinued</option>
             </select>
 
             <button type="submit" class="svc-btn svc-btn-primary" style="width:100%; justify-content:center; margin-top:6px;">Save product</button>
-        </form>
-    </div>
-</div>
-
-<!-- ============================================================
-     MODAL - Buy stock
-     The total cost is subtracted from Total income, and the quantity
-     is added to the product's stock.
-     Choosing "Others" turns the dropdown into a typing field in the
-     same place (Esc, or Backspace on an empty field, goes back).
-     ============================================================ -->
-<div id="svcBuyModalBackdrop">
-    <div class="svc-modal-box">
-        <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center; color: #3B6D11;">Buy stock</h2>
-        <button type="button" id="closeSvcBuyModalBtn" class="svc-close-btn">&times;</button>
-        <div id="svcBuyErrors"></div>
-        <form id="svcBuyForm">
-            <label class="svc-form-label" for="svcBuyItem">Product</label>
-            <select id="svcBuyItem" class="svc-form-input" required>
-                <?php if (!empty($buyableProducts)): ?>
-                    <optgroup label="Your products">
-                        <?php foreach ($buyableProducts as $bp): ?>
-                            <option value="p:<?php echo (int) $bp['id']; ?>"
-                                    data-name="<?php echo htmlspecialchars($bp['name']); ?>"
-                                    data-unit="<?php echo htmlspecialchars($bp['unit']); ?>">
-                                <?php echo htmlspecialchars($bp['name']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </optgroup>
-                <?php endif; ?>
-                <?php if (!empty($commonItems)): ?>
-                    <optgroup label="Common items">
-                        <?php foreach ($commonItems as $ci): ?>
-                            <option value="n:<?php echo htmlspecialchars($ci); ?>"><?php echo htmlspecialchars($ci); ?></option>
-                        <?php endforeach; ?>
-                    </optgroup>
-                <?php endif; ?>
-                <option value="other">Others (type the name)</option>
-            </select>
-            <input type="text" id="svcBuyOtherName" class="svc-form-input" maxlength="150"
-                   placeholder="Type the item name (Esc to go back)" style="display:none;">
-
-            <input type="hidden" name="product_id" id="svcBuyProductId">
-            <input type="hidden" name="item_name" id="svcBuyItemName">
-            <input type="hidden" name="unit" id="svcBuyUnitValue">
-
-            <div style="display:flex; gap:12px;">
-                <div style="flex:1; min-width:0;">
-                    <label class="svc-form-label" for="svcBuyQty">Quantity bought</label>
-                    <div class="svc-qty-wrap">
-                        <input type="number" name="quantity" id="svcBuyQty" class="svc-form-input" step="0.01" min="0.01" required>
-                        <span class="svc-qty-unit" id="svcBuyUnit"></span>
-                    </div>
-                </div>
-                <div style="flex:1; min-width:0;">
-                    <label class="svc-form-label" for="svcBuyCost">Total cost (₱)</label>
-                    <input type="number" name="total_cost" id="svcBuyCost" class="svc-form-input" step="0.01" min="0.01" required>
-                </div>
-            </div>
-
-            <label class="svc-form-label" for="svcBuyUnitSel">Unit</label>
-            <select id="svcBuyUnitSel" class="svc-form-input">
-                <option value="Kg">Kg</option>
-                <option value="Sack">Sack</option>
-                <option value="__other">Others (type the unit)</option>
-            </select>
-            <input type="text" id="svcBuyUnitOther" class="svc-form-input" maxlength="50"
-                   placeholder="Type the unit (Esc to go back)" style="display:none;">
-
-            <label class="svc-form-label" for="svcBuyDate">Date</label>
-            <input type="date" name="purchase_date" id="svcBuyDate" class="svc-form-input" required
-                   max="<?php echo date('Y-m-d'); ?>" value="<?php echo date('Y-m-d'); ?>">
-
-            <button type="submit" id="svcBuySubmit" class="svc-btn svc-btn-primary" style="width:100%; justify-content:center; margin-top:6px;">Save purchase</button>
         </form>
     </div>
 </div>
@@ -783,7 +676,7 @@ renderHeader('Products');
         document.getElementById('svcProductPrice').value = p.price;
         document.getElementById('svcProductUnit').value = p.unit;
         document.getElementById('svcProductStock').value = p.stock_quantity;
-        document.getElementById('svcProductStatus').value = p.status;
+        document.getElementById('svcProductStatus').value = (p.status === 'discontinued') ? 'discontinued' : 'auto';
         resetPhotoUI(p.photo_path || '');
         productModalTitle.textContent = 'Edit product';
         productErrors.style.display = 'none';
@@ -842,148 +735,6 @@ renderHeader('Products');
         } catch (err) {
             productErrors.textContent = 'Could not connect to server.';
             productErrors.style.display = 'block';
-        }
-    });
-
-    /* ---------- Buy stock modal ---------- */
-    const buyBackdrop = document.getElementById('svcBuyModalBackdrop');
-    const buyForm = document.getElementById('svcBuyForm');
-    const buyErrors = document.getElementById('svcBuyErrors');
-    const buySubmit = document.getElementById('svcBuySubmit');
-    const openBuyBtn = document.getElementById('openBuyStockBtn');
-
-    const itemSel = document.getElementById('svcBuyItem');
-    const otherName = document.getElementById('svcBuyOtherName');
-    const unitSel = document.getElementById('svcBuyUnitSel');
-    const unitOther = document.getElementById('svcBuyUnitOther');
-    const qtyUnit = document.getElementById('svcBuyUnit');
-    const hidProduct = document.getElementById('svcBuyProductId');
-    const hidName = document.getElementById('svcBuyItemName');
-    const hidUnit = document.getElementById('svcBuyUnitValue');
-
-    // Put a product's own unit into the Unit fields
-    function setUnitFrom(u) {
-        if (/^kg$/i.test(u)) { unitSel.value = 'Kg'; }
-        else if (/^sack$/i.test(u)) { unitSel.value = 'Sack'; }
-        else { unitSel.value = '__other'; unitOther.value = u; }
-    }
-
-    // Keeps the hidden fields and the unit field in line with the choices
-    function syncBuy() {
-        const val = itemSel.value;
-        const itemTyping = (val === 'other');
-        let locked = false, name = '', pid = '';
-
-        if (val.indexOf('p:') === 0) {
-            const opt = itemSel.options[itemSel.selectedIndex];
-            pid = val.slice(2);
-            name = opt.dataset.name || '';
-            setUnitFrom(opt.dataset.unit || '');
-            locked = true;                       // a product keeps its own unit
-        } else if (itemTyping) {
-            name = otherName.value.trim();
-        } else {
-            name = val.slice(2);
-        }
-
-        // Product: the dropdown turns into the typing field, same place
-        itemSel.style.display   = itemTyping ? 'none' : '';
-        otherName.style.display = itemTyping ? 'block' : 'none';
-
-        // Unit: same behavior
-        unitSel.disabled = locked;
-        unitOther.disabled = locked;
-        const unitTyping = (unitSel.value === '__other');
-        unitSel.style.display   = unitTyping ? 'none' : '';
-        unitOther.style.display = unitTyping ? 'block' : 'none';
-
-        const unit = unitTyping ? unitOther.value.trim() : unitSel.value;
-        hidProduct.value = pid;
-        hidName.value = name;
-        hidUnit.value = unit;
-        qtyUnit.textContent = unit;
-    }
-
-    [itemSel, otherName, unitSel, unitOther].forEach(function(el) {
-        el.addEventListener('input', syncBuy);
-        el.addEventListener('change', syncBuy);
-    });
-
-    // Focus the typing field right after choosing "Others"
-    itemSel.addEventListener('change', function() {
-        if (itemSel.value === 'other') otherName.focus();
-    });
-    unitSel.addEventListener('change', function() {
-        if (unitSel.value === '__other' && !unitOther.disabled) unitOther.focus();
-    });
-
-    // Go back to the list: Esc, or Backspace on an empty field
-    function backToItemList() { otherName.value = ''; itemSel.selectedIndex = 0; syncBuy(); }
-    function backToUnitList() { unitOther.value = ''; unitSel.selectedIndex = 0; syncBuy(); }
-
-    otherName.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' || (e.key === 'Backspace' && !e.repeat && otherName.value === '')) {
-            e.preventDefault();
-            backToItemList();
-            itemSel.focus();
-        }
-    });
-    unitOther.addEventListener('keydown', function(e) {
-        if (unitOther.disabled) return;
-        if (e.key === 'Escape' || (e.key === 'Backspace' && !e.repeat && unitOther.value === '')) {
-            e.preventDefault();
-            backToUnitList();
-            unitSel.focus();
-        }
-    });
-
-    function openBuy() {
-        buyForm.reset();
-        otherName.value = '';
-        unitOther.value = '';
-        buyErrors.style.display = 'none';
-        syncBuy();
-        buyBackdrop.style.display = 'flex';
-    }
-    function closeBuy() { buyBackdrop.style.display = 'none'; }
-
-    if (openBuyBtn) openBuyBtn.addEventListener('click', openBuy);
-    document.getElementById('closeSvcBuyModalBtn').addEventListener('click', closeBuy);
-    buyBackdrop.addEventListener('click', function(e) { if (e.target === buyBackdrop) closeBuy(); });
-
-    buyForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        buyErrors.style.display = 'none';
-        syncBuy();
-
-        if (!hidName.value) {
-            buyErrors.textContent = 'Type the item name.';
-            buyErrors.style.display = 'block';
-            return;
-        }
-        if (!hidUnit.value) {
-            buyErrors.textContent = 'Type the unit.';
-            buyErrors.style.display = 'block';
-            return;
-        }
-
-        buySubmit.disabled = true;
-        buySubmit.textContent = 'Saving...';
-        try {
-            const res = await fetch(AJAX_BASE + 'buy-stock.php', { method: 'POST', body: new FormData(buyForm) });
-            const data = await res.json();
-            if (data.success) {
-                window.location.reload();
-            } else {
-                buyErrors.textContent = data.message || 'Could not save the purchase.';
-                buyErrors.style.display = 'block';
-            }
-        } catch (err) {
-            buyErrors.textContent = 'Could not connect to server.';
-            buyErrors.style.display = 'block';
-        } finally {
-            buySubmit.disabled = false;
-            buySubmit.textContent = 'Save purchase';
         }
     });
 
@@ -1106,7 +857,7 @@ renderHeader('Products');
     // AUTO-UPDATE (AJAX POLLING)
     // ============================================================
     const LIVE_CHECK_MS = 3000;   // gawing 5000 o 10000 para mas kaunti ang requests
-    const MODAL_IDS = ['svcModalBackdrop', 'svcRequestModalBackdrop', 'svcBuyModalBackdrop', 'svcApproveModalBackdrop', 'svcRejectModalBackdrop'];
+    const MODAL_IDS = ['svcModalBackdrop', 'svcRequestModalBackdrop', 'svcApproveModalBackdrop', 'svcRejectModalBackdrop'];
 
     // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
     function itemMap(root, sel, attr) {

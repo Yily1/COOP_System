@@ -27,10 +27,10 @@ $category = trim($_POST['category'] ?? '');
 $price    = $_POST['price'] ?? '';
 $unit     = trim($_POST['unit'] ?? '');
 $stock    = $_POST['stock_quantity'] ?? '';
-$status   = $_POST['status'] ?? 'available';
+$status   = $_POST['status'] ?? 'auto';
 
 $allowedCategories = ['Grains', 'Vegetables', 'Meat & Poultry', 'Farm Inputs', 'Others'];
-$allowedStatuses   = ['available', 'out_of_stock', 'discontinued'];
+$allowedStatuses   = ['auto', 'discontinued', 'available', 'out_of_stock'];
 
 if ($id <= 0) {
     upRespond(false, 'Invalid product.');
@@ -52,6 +52,11 @@ if (!is_numeric($stock) || (float)$stock < 0) {
 }
 if (!in_array($status, $allowedStatuses, true)) {
     upRespond(false, 'Invalid status.');
+}
+
+// Status follows the stock, unless the manager marked the product Discontinued
+if ($status !== 'discontinued') {
+    $status = ((float)$stock > 0) ? 'available' : 'out_of_stock';
 }
 
 // Make sure the product exists, and remember its current photo
