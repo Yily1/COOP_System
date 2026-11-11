@@ -3,13 +3,6 @@ require_once 'config/config.php';
 require_once 'config/functions.php';
 require_once 'includes/activity-logger.php'; 
 
-// uncomment on deployment
-/*
-require_once $_SERVER['DOCUMENT_ROOT'] . '/test/config/config.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/test/config/functions.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/test/includes/activity-logger.php';
-*/
-
 if (isLoggedIn()) {
     switch($_SESSION['role']) {
         case 'admin':
@@ -209,9 +202,13 @@ body { background: #f5f3ec; }
     stroke-linecap: round;
     stroke-linejoin: round;
 }
-.pw-toggle .eye-off { display: none; }
-.pw-toggle.is-visible .eye { display: none; }
-.pw-toggle.is-visible .eye-off { display: block; }
+/* Icon shows the CURRENT state:
+   slashed eye = password hidden (dots)
+   open eye    = password visible (plain text) */
+.pw-toggle .eye { display: none; }
+.pw-toggle .eye-off { display: block; }
+.pw-toggle.is-visible .eye { display: block; }
+.pw-toggle.is-visible .eye-off { display: none; }
 
 /* Only the Login (submit) button gets the big green style */
 .login-card button[type="submit"] {
