@@ -314,8 +314,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-$query   = trim($_GET['q'] ?? '');
-$showAll = isset($_GET['all']);
+$query       = trim($_GET['q'] ?? '');
+$showAll     = isset($_GET['all']);
+$searchError = '';
 
 // Sort by MEETING DATE:
 //  1) upcoming (today onwards) first, nearest date on top
@@ -327,26 +328,37 @@ $orderBy = "ORDER BY (meeting_date < CURDATE()) ASC,
                      CASE WHEN meeting_date <  CURDATE() THEN meeting_date END DESC,
                      `time` ASC";
 
-if ($query !== '') {
-    // Search by title OR date (e.g. "kani", "2026-09-29", "Sep 29", "September 29, 2026")
-    $stmt = $pdo->prepare(
-        "SELECT * FROM meetings
-         WHERE title LIKE :q1
-            OR meeting_date LIKE :q2
-            OR DATE_FORMAT(meeting_date, '%b %e, %Y') LIKE :q3
-            OR DATE_FORMAT(meeting_date, '%M %e, %Y') LIKE :q4
-         $orderBy"
-    );
-    $like = '%' . $query . '%';
-    $stmt->execute([':q1' => $like, ':q2' => $like, ':q3' => $like, ':q4' => $like]);
-} elseif ($showAll) {
-    // View All: every meeting, same date-based order
-    $stmt = $pdo->query("SELECT * FROM meetings $orderBy");
-} else {
-    // Default: only the first 5
-    $stmt = $pdo->query("SELECT * FROM meetings $orderBy LIMIT 5");
+$meetings = [];
+try {
+    if ($query !== '') {
+        // Title, or part of the ISO date (e.g. "2026-09")
+        $like   = '%' . $query . '%';
+        $where  = 'title LIKE :q1 OR CAST(meeting_date AS CHAR) LIKE :q2';
+        $params = [':q1' => $like, ':q2' => $like];
+
+        // A typed date ("Sep 29", "September 29, 2026", "09/29/2026") is converted in PHP.
+        // Needs a digit, and a bare number like "2026" is skipped.
+        if (preg_match('/\d/', $query) && !preg_match('/^\d{1,4}$/', $query)) {
+            $ts = strtotime($query);
+            if ($ts !== false) {
+                $where .= ' OR meeting_date = :q3';
+                $params[':q3'] = date('Y-m-d', $ts);
+            }
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM meetings WHERE $where $orderBy");
+        $stmt->execute($params);
+    } elseif ($showAll) {
+        // View All: every meeting, same date-based order
+        $stmt = $pdo->query("SELECT * FROM meetings $orderBy");
+    } else {
+        // Default: only the first 5
+        $stmt = $pdo->query("SELECT * FROM meetings $orderBy LIMIT 5");
+    }
+    $meetings = $stmt->fetchAll();
+} catch (PDOException $e) {
+    $searchError = $e->getMessage();
 }
-$meetings = $stmt->fetchAll();
 
 $year  = isset($_GET['y']) ? (int)$_GET['y'] : (int)date('Y');
 $month = isset($_GET['m']) ? (int)$_GET['m'] : (int)date('n');
@@ -586,7 +598,9 @@ renderHeader('Meetings');
         </div>
 
         <div id="mtgListLive">
-        <?php if (empty($meetings)): ?>
+        <?php if ($searchError): ?>
+            <p style="font-size:13px; color:#c62828;">Search error: <?= htmlspecialchars($searchError) ?></p>
+        <?php elseif (empty($meetings)): ?>
             <p style="font-size:13px; color:#6b7280;">No meetings found.</p>
         <?php else: ?>
             <?php foreach ($meetings as $m): ?>

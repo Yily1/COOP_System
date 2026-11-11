@@ -401,6 +401,11 @@ renderHeader('Products');
                         $initials = svcInitials($r['first_name'], $r['last_name']);
                         $reqQtyText = rtrim(rtrim(number_format((float) $r['quantity'], 2, '.', ''), '0'), '.');
                         $reqSummary = ($r['product_name'] ?? $r['requested_product_name']) . ' · ' . trim($reqQtyText . ' ' . $reqUnit) . ' · ' . $r['last_name'] . ', ' . $r['first_name'];
+
+                        // Pickup date: empty / 0000-00-00 means the manager has not set it yet
+                        $hasPickup = !empty($r['pickup_date']) && $r['pickup_date'] !== '0000-00-00';
+                        $pickupTs = $hasPickup ? strtotime($r['pickup_date']) : false;
+                        $pickupValue = $pickupTs ? date('Y-m-d', $pickupTs) : '';
                     ?>
                     <tr data-request-id="<?php echo (int) $r['id']; ?>">
                         <td data-label="Member">
@@ -425,7 +430,13 @@ renderHeader('Products');
                                 ₱<?php echo number_format($amount, 2); ?>
                             <?php endif; ?>
                         </td>
-                        <td data-label="Pickup"><?php echo date('M d, Y', strtotime($r['pickup_date'])); ?></td>
+                        <td data-label="Pickup">
+                            <?php if ($pickupTs): ?>
+                                <?php echo date('M d, Y', $pickupTs); ?>
+                            <?php else: ?>
+                                <span class="svc-muted">-</span>
+                            <?php endif; ?>
+                        </td>
                         <td data-label="Notes" class="svc-muted"><?php echo htmlspecialchars($r['notes'] ?: '-'); ?></td>
                         <td data-label="Manager Note" class="svc-muted"><?php echo htmlspecialchars($r['manager_note'] ?: '-'); ?></td>
                         <td data-label="Status"><?php echo productRequestStatusBadge($r['status']); ?></td>
@@ -451,6 +462,7 @@ renderHeader('Products');
                                         data-id="<?php echo (int) $r['id']; ?>"
                                         data-summary="<?php echo htmlspecialchars($reqSummary); ?>"
                                         data-status="<?php echo htmlspecialchars($r['status']); ?>"
+                                        data-pickup="<?php echo htmlspecialchars($pickupValue); ?>"
                                         data-note="<?php echo htmlspecialchars($r['manager_note'] ?? ''); ?>">
                                     Update
                                 </button>
@@ -526,7 +538,7 @@ renderHeader('Products');
 </div>
 
 <!-- ============================================================
-     MODAL - Approve request (sets the price per unit)
+     MODAL - Approve request (sets the price per unit and pickup date)
      ============================================================ -->
 <div id="svcApproveModalBackdrop">
     <div class="svc-modal-box">
@@ -544,6 +556,9 @@ renderHeader('Products');
                 Amount to pay: <strong id="svcApproveTotalValue">₱0.00</strong>
             </div>
             <div style="height:6px;"></div>
+
+            <label class="svc-form-label" for="svcApprovePickup">Pickup date (optional)</label>
+            <input type="date" name="pickup_date" id="svcApprovePickup" class="svc-form-input">
 
             <label class="svc-form-label">Manager note (optional)</label>
             <textarea name="manager_note" id="svcApproveNote" rows="3" class="svc-form-input" placeholder="e.g. Ready Friday"></textarea>
@@ -591,6 +606,9 @@ renderHeader('Products');
                 <option value="ready_for_pickup">Ready for Pickup</option>
                 <option value="claimed">Claimed</option>
             </select>
+
+            <label class="svc-form-label" for="svcRequestPickup">Pickup date</label>
+            <input type="date" name="pickup_date" id="svcRequestPickup" class="svc-form-input">
 
             <label class="svc-form-label">Manager note (optional)</label>
             <textarea name="manager_note" id="svcRequestNote" rows="3" class="svc-form-input" placeholder="e.g. Ready Friday"></textarea>
@@ -769,7 +787,7 @@ renderHeader('Products');
         return backdrop;
     }
 
-    /* Approve: price per unit, amount to pay, optional note */
+    /* Approve: price per unit, amount to pay, pickup date, optional note */
     const approveBackdrop = wireClose('svcApproveModalBackdrop', 'closeSvcApproveModalBtn');
     const approveForm = document.getElementById('svcApproveForm');
     const approveErrors = document.getElementById('svcApproveErrors');
@@ -793,6 +811,7 @@ renderHeader('Products');
         document.getElementById('svcApproveId').value = btn.dataset.id;
         document.getElementById('svcApproveSummary').textContent = btn.dataset.summary || '';
         document.getElementById('svcApproveNote').value = '';
+        document.getElementById('svcApprovePickup').value = '';
         approveQty = parseFloat(btn.dataset.qty) || 0;
         approvePrice.value = btn.dataset.price || '';
         document.getElementById('svcApprovePriceLabel').textContent =
@@ -823,7 +842,7 @@ renderHeader('Products');
         submitRequestForm(rejectForm, rejectErrors, document.getElementById('svcRejectSubmit'));
     });
 
-    /* Update: Ready for Pickup or Claimed */
+    /* Update: Ready for Pickup or Claimed, plus pickup date */
     const requestBackdrop = wireClose('svcRequestModalBackdrop', 'closeSvcRequestModalBtn');
     const requestForm = document.getElementById('svcRequestForm');
     const requestErrors = document.getElementById('svcRequestModalErrors');
@@ -833,6 +852,8 @@ renderHeader('Products');
         document.getElementById('svcRequestSummary').textContent = btn.dataset.summary || '';
         // Approved (or the older Processing) starts at Ready for Pickup; Ready for Pickup moves to Claimed
         document.getElementById('svcRequestStatus').value = (btn.dataset.status === 'ready_for_pickup') ? 'claimed' : 'ready_for_pickup';
+        const pk = btn.dataset.pickup || '';
+        document.getElementById('svcRequestPickup').value = (pk && pk !== '0000-00-00') ? pk : '';
         document.getElementById('svcRequestNote').value = btn.dataset.note || '';
         requestErrors.style.display = 'none';
         requestBackdrop.style.display = 'flex';

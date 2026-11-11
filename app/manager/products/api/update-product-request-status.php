@@ -9,6 +9,7 @@ $requestId    = $_POST['request_id'] ?? '';
 $status       = trim($_POST['status'] ?? '');
 $managerNote  = trim($_POST['manager_note'] ?? '');
 $unitPriceRaw = trim((string) ($_POST['unit_price'] ?? ''));
+$pickupRaw    = trim((string) ($_POST['pickup_date'] ?? ''));
 
 $validStatuses = ['pending', 'under_review', 'approved', 'processing', 'ready_for_pickup', 'claimed', 'rejected'];
 
@@ -47,6 +48,17 @@ if ($unitPriceRaw !== '') {
         echo json_encode(['success' => false, 'message' => 'That price is too large.']);
         exit;
     }
+}
+
+// Pickup date is optional. If it is left empty, the saved pickup date stays as it is.
+$pickupDate = null;
+if ($pickupRaw !== '') {
+    $d = DateTime::createFromFormat('Y-m-d', $pickupRaw);
+    if (!$d || $d->format('Y-m-d') !== $pickupRaw) {
+        echo json_encode(['success' => false, 'message' => 'Enter a valid pickup date.']);
+        exit;
+    }
+    $pickupDate = $pickupRaw;
 }
 
 // Rolls back the open transaction and sends an error to the page
@@ -123,22 +135,22 @@ try {
         }
     }
 
-    // ---- Save the new status ----
+    // ---- Save the new status (price and pickup date only when given) ----
+    $sets   = ['status = ?', 'manager_note = ?'];
+    $values = [$status, $managerNote !== '' ? $managerNote : null];
+
     if ($unitPrice !== null) {
-        $stmt = $pdo->prepare("
-            UPDATE product_requests
-            SET status = ?, manager_note = ?, unit_price = ?
-            WHERE id = ?
-        ");
-        $stmt->execute([$status, $managerNote !== '' ? $managerNote : null, $unitPrice, $requestId]);
-    } else {
-        $stmt = $pdo->prepare("
-            UPDATE product_requests
-            SET status = ?, manager_note = ?
-            WHERE id = ?
-        ");
-        $stmt->execute([$status, $managerNote !== '' ? $managerNote : null, $requestId]);
+        $sets[]   = 'unit_price = ?';
+        $values[] = $unitPrice;
     }
+    if ($pickupDate !== null) {
+        $sets[]   = 'pickup_date = ?';
+        $values[] = $pickupDate;
+    }
+    $values[] = $requestId;
+
+    $stmt = $pdo->prepare("UPDATE product_requests SET " . implode(', ', $sets) . " WHERE id = ?");
+    $stmt->execute($values);
 
     $pdo->commit();
     echo json_encode(['success' => true]);
@@ -146,5 +158,5 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    echo json_encode(['success' => false, 'message' => 'Database error. Did you add the unit_price column?']);
+    echo json_encode(['success' => false, 'message' => 'Database error. Did you add the unit_price and pickup_date columns?']);
 }
