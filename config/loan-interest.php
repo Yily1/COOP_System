@@ -1,38 +1,23 @@
 <?php
-/**
- * Loan interest helpers  (put this file in: config/loan-interest.php)
- *
- * How the interest works
- *  - Simple interest: LOAN_INTEREST_RATE_MONTHLY percent of the loan amount, per month.
- *  - Counted from the release date until the loan is fully paid.
- *  - Months are counted by the calendar and a part of a month counts as a full
- *    month, with a minimum of 1 month (Oct 26 -> Nov 26 = 1 month, Nov 27 = 2).
- *  - Once a loan is fully paid, its interest stops growing.
- *  - Old loans that already have a fixed total_due (released with a term) keep
- *    that fixed amount, so nothing changes for them.
- *
- * Payments for loans are the rows in `payments` with payment_type = 'loan_repayment'
- * and status = 'confirmed' (matched to the member by member_id). When a member has
- * more than one released loan, payments are applied to the oldest loan first.
- */
+
 
 if (!defined('LOAN_INTEREST_RATE_MONTHLY')) {
     define('LOAN_INTEREST_RATE_MONTHLY', 10);
 }
 
-/** Whole months from $fromDate to $toDate (Y-m-d). Part of a month counts as 1. Minimum 1. */
+/**
+ * COMPLETED months from $fromDate to $toDate (Y-m-d).
+ * 0 on the release day, 1 once a full month has passed, and so on.
+ * (Oct 26 -> Nov 25 = 0, Nov 26 = 1, Dec 26 = 2)
+ */
 function loanMonthsBetween(string $fromDate, string $toDate): int {
     $a = new DateTime(substr($fromDate, 0, 10));
     $b = new DateTime(substr($toDate, 0, 10));
     if ($b <= $a) {
-        return 1;
+        return 0;
     }
     $diff = $a->diff($b);
-    $months = $diff->y * 12 + $diff->m;
-    if ($diff->d > 0) {
-        $months++;
-    }
-    return max(1, $months);
+    return max(0, $diff->y * 12 + $diff->m);
 }
 
 /** The date a loan was released (older rows without released_at fall back to created_at). */
@@ -139,12 +124,13 @@ function memberLoanBalanceLive(PDO $pdo, int $memberId): float {
     return round($sum, 2);
 }
 
-/** Numbers for the summary cards on the Loans page. */
+/**
+ * Numbers for the summary cards on the Loans page.
+ * "Total repaid" now counts only what the ledger actually applied to loans,
+ * so it always matches the balances shown per loan.
+ */
 function loanPortfolioStatsLive(PDO $pdo): array {
     $pending = (int) $pdo->query("SELECT COUNT(*) FROM loans WHERE status = 'pending'")->fetchColumn();
-    $repaid  = (float) $pdo->query("
-        SELECT COALESCE(SUM(amount),0) FROM payments
-        WHERE payment_type = 'loan_repayment' AND status = 'confirmed'")->fetchColumn();
 
     // Everything ever lent out (amount only, no interest) = loans that were released
     $loaned = (float) $pdo->query("
@@ -154,11 +140,14 @@ function loanPortfolioStatsLive(PDO $pdo): array {
         WHERE status = 'released'
           AND DATE_FORMAT(COALESCE(released_at, created_at), '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')")->fetchColumn();
 
+    $repaid = 0.0;
     $active = 0;
     $outstanding = 0.0;
     $ids = $pdo->query("SELECT DISTINCT member_id FROM loans WHERE status = 'released'")->fetchAll(PDO::FETCH_COLUMN);
     foreach ($ids as $memberId) {
-        $balance = memberLoanBalanceLive($pdo, (int) $memberId);
+        $ledger  = memberLoanLedger($pdo, (int) $memberId);
+        $balance = array_sum(array_column($ledger, 'balance'));
+        $repaid += array_sum(array_column($ledger, 'paid'));
         if ($balance > 0.004) {
             $active++;
             $outstanding += $balance;

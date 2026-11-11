@@ -794,7 +794,8 @@ renderHeader('Payments');
         ['registration', 'Registration fee (₱150)'],
         ['investment', 'Investment'],
         ['rental', 'Rental'],
-        ['product', 'Product']
+        ['product', 'Product'],
+        ['loan_repayment', 'Loan repayment']
     ];
     const NON_MEMBER_TYPES = [
         ['rental', 'Rental']

@@ -1,5 +1,8 @@
 <?php
 
+// Loan ledger / interest helpers (single source for loan balances)
+require_once __DIR__ . '/loan-interest.php';
+
 function redirect($path) {
     header("Location: " . BASE_URL . $path);
     exit;
@@ -215,10 +218,10 @@ function getBookingsForMonth($pdo, $year, $month) {
 // before they're allowed to request a loan at all.
 define('LOAN_ELIGIBILITY_THRESHOLD', 1500.00);
 
-// Simple interest, fixed rate for all loans, set by the manager at
-// release time via the term (months). E.g. 2% per month x 3 months = 6%.
-// NOTE: confirm whether this should be 10.00 or 2.00 per month.
-define('LOAN_INTEREST_RATE_MONTHLY', 10.00);
+// Simple interest per month. Guarded because loan-interest.php also defines it.
+if (!defined('LOAN_INTEREST_RATE_MONTHLY')) {
+    define('LOAN_INTEREST_RATE_MONTHLY', 10.00);
+}
 
 /**
  * Total confirmed 'investment'-type payments a member has made.
@@ -248,34 +251,41 @@ function getLoanableAmount($pdo, $memberId) {
 }
 
 /**
- * Outstanding loan balance = sum of released loans' TOTAL DUE (principal
- * + interest; falls back to the bare principal for loans released before
- * interest tracking existed) minus confirmed loan_repayment payments,
- * floored at 0.
+ * Outstanding loan balance, from the loan ledger (loan-interest.php):
+ * principal + monthly interest of every released loan, minus the confirmed
+ * loan_repayment payments applied to each loan (oldest first).
+ * Same source the manager's Loans page uses.
  */
 function getMemberLoanBalance($pdo, $memberId) {
-    $stmt = $pdo->prepare("
-        SELECT COALESCE(SUM(COALESCE(total_due, amount)), 0) FROM loans
-        WHERE member_id = :member_id AND status = 'released'
-    ");
-    $stmt->execute([':member_id' => $memberId]);
-    $released = (float) $stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("
-        SELECT COALESCE(SUM(amount), 0) FROM payments
-        WHERE member_id = :member_id AND payment_type = 'loan_repayment' AND status = 'confirmed'
-    ");
-    $stmt->execute([':member_id' => $memberId]);
-    $repaid = (float) $stmt->fetchColumn();
-
-    return max(0.0, $released - $repaid);
+    return memberLoanBalanceLive($pdo, (int) $memberId);
 }
 
 /**
- * How much more a member can still borrow right now.
+ * Amount already reserved by loans that are not released yet
+ * (pending or approved), so it counts against the member's credit.
+ * Without this, a member could request several loans one after the
+ * other before the manager releases the first one.
+ * Rejected loans are not counted, so their credit is given back.
+ */
+function getReservedLoanAmount($pdo, $memberId) {
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(SUM(amount), 0) FROM loans
+        WHERE member_id = :member_id AND status IN ('pending', 'approved')
+    ");
+    $stmt->execute([':member_id' => $memberId]);
+    return (float) $stmt->fetchColumn();
+}
+
+/**
+ * How much more a member can still borrow right now:
+ * loanable amount - balance of released loans - pending/approved loans.
  */
 function getAvailableCredit($pdo, $memberId) {
-    return max(0.0, getLoanableAmount($pdo, $memberId) - getMemberLoanBalance($pdo, $memberId));
+    return max(0.0,
+        getLoanableAmount($pdo, $memberId)
+        - getMemberLoanBalance($pdo, $memberId)
+        - getReservedLoanAmount($pdo, $memberId)
+    );
 }
 
 /**
@@ -303,57 +313,17 @@ function getAllLoans($pdo) {
 }
 
 /**
- * Coop-wide loan portfolio numbers for the manager's summary cards:
- * how many members still owe money, how many requests are pending,
- * and how much is out vs. repaid.
+ * Coop-wide loan portfolio numbers. Now delegates to the ledger-based
+ * version so every page shows the same figures.
  */
 function getLoanPortfolioStats($pdo) {
-    $stmt = $pdo->query("SELECT COUNT(*) FROM loans WHERE status = 'pending'");
-    $pending = (int) $stmt->fetchColumn();
-
-    // Distinct members whose released loans, minus their confirmed
-    // repayments, still add up to more than zero (i.e. still owing).
-    $stmt = $pdo->query("
-        SELECT COUNT(*) FROM (
-            SELECT l.member_id,
-                   SUM(COALESCE(l.total_due, l.amount)) AS released,
-                   COALESCE(r.repaid, 0) AS repaid
-            FROM loans l
-            LEFT JOIN (
-                SELECT member_id, SUM(amount) AS repaid
-                FROM payments
-                WHERE payment_type = 'loan_repayment' AND status = 'confirmed'
-                GROUP BY member_id
-            ) r ON r.member_id = l.member_id
-            WHERE l.status = 'released'
-            GROUP BY l.member_id
-            HAVING released - repaid > 0
-        ) AS active_members
-    ");
-    $activeMembers = (int) $stmt->fetchColumn();
-
-    $stmt = $pdo->query("SELECT COALESCE(SUM(COALESCE(total_due, amount)), 0) FROM loans WHERE status = 'released'");
-    $totalReleased = (float) $stmt->fetchColumn();
-
-    $stmt = $pdo->query("
-        SELECT COALESCE(SUM(amount), 0) FROM payments
-        WHERE payment_type = 'loan_repayment' AND status = 'confirmed'
-    ");
-    $totalRepaid = (float) $stmt->fetchColumn();
-
-    return [
-        'pending'           => $pending,
-        'active_members'    => $activeMembers,
-        'total_outstanding' => max(0.0, $totalReleased - $totalRepaid),
-        'total_repaid'      => $totalRepaid,
-    ];
+    return loanPortfolioStatsLive($pdo);
 }
 
 /**
- * A released loan is overdue once its due_date has passed and the
- * member still has an outstanding balance. (Balance is tracked per
- * member, not per individual loan, so this uses the member's overall
- * balance as the best available signal for "still unpaid".)
+ * A released loan is overdue once its due_date has passed and it still
+ * has an outstanding balance. Pass the balance of THAT loan (from
+ * memberLoanLedger()) for the most accurate result.
  */
 function isLoanOverdue($loan, $memberBalance) {
     return $loan['status'] === 'released'

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/functions.php';
+require_once __DIR__ . '/../../config/loan-interest.php';
 
 requireRole('user');
 
@@ -17,7 +18,10 @@ if (!$memberId) {
 
 $totalInvestment = getMemberInvestment($pdo, $memberId);
 $loanableAmount  = getLoanableAmount($pdo, $memberId);
-$loanBalance     = getMemberLoanBalance($pdo, $memberId);
+
+// Same source as the manager page: one ledger per member (interest + per-loan payments)
+$ledger          = memberLoanLedger($pdo, (int) $memberId);
+$loanBalance     = round(array_sum(array_column($ledger, 'balance')), 2);
 $availableCredit = getAvailableCredit($pdo, $memberId);
 $isLoanEligible  = $totalInvestment >= LOAN_ELIGIBILITY_THRESHOLD;
 
@@ -71,8 +75,6 @@ renderHeader('Loans');
     font-size: 13.5px;
 }
 
-/* Back to dashboard (round arrow, right side of the header row).
-   An <a> link, not a <button>, so the site-wide button rules can't touch it. */
 .page-back {
     margin-left: auto;
     flex: none;
@@ -129,8 +131,8 @@ renderHeader('Loans');
 .svc-table td { padding: 12px 14px; border-bottom: 1px solid #f0efe9; color: #1b3a24; vertical-align: top; }
 .svc-table tbody tr:last-child td { border-bottom: none; }
 .svc-empty { padding: 20px; text-align: center; color: #667066; font-size: 13px; }
+.svc-sub { display: block; font-size: 11px; color: #98a498; margin-top: 2px; white-space: nowrap; }
 
-/* Green flash for a new or changed loan (auto-update) */
 @keyframes svcFlashRow {
     from { background: #e3f4e1; }
     to   { background: transparent; }
@@ -178,15 +180,11 @@ renderHeader('Loans');
         content: attr(data-label); display: block; font-size: 10px; font-weight: 700;
         color: #a9a79f; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2px;
     }
-    /* Amount + Total Due side by side */
     .svc-table td:nth-of-type(1) { grid-column: 1; }
     .svc-table td:nth-of-type(2) { grid-column: 2; }
-    /* Purpose spans full width */
     .svc-table td:nth-of-type(3) { grid-column: 1 / -1; }
-    /* Requested + Due Date side by side */
     .svc-table td:nth-of-type(4) { grid-column: 1; }
     .svc-table td:nth-of-type(5) { grid-column: 2; }
-    /* Status + Manager Note become a compact footer row, no big label */
     .svc-table td:nth-of-type(6) {
         grid-column: 1 / -1;
         padding-top: 8px;
@@ -213,7 +211,6 @@ renderHeader('Loans');
             <p class="page-sub">Eligibility and loan requests</p>
         </div>
 
-        <!-- Back to dashboard: adjust the href if your user dashboard file is named differently -->
         <a href="<?php echo BASE_URL; ?>/app/user/dashboard.php" class="page-back" aria-label="Back to dashboard" title="Back to dashboard">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </a>
@@ -265,17 +262,28 @@ renderHeader('Loans');
                 </thead>
                 <tbody>
                     <?php foreach ($myLoans as $loan): ?>
-                        <?php $totalDue = $loan['total_due'] ?? $loan['amount']; ?>
+                        <?php
+                            $row     = $ledger[(int) $loan['id']] ?? null;
+                            $paidOff = ($loan['status'] === 'released' && $row && ($row['closed'] || $row['balance'] <= 0.004));
+                            $totalDue = $row ? $row['due'] : ($loan['total_due'] ?? $loan['amount']);
+                        ?>
                         <tr data-loan-id="<?php echo htmlspecialchars((string) ($loan['id'] ?? $loan['created_at'])); ?>">
                             <td data-label="Amount" style="font-weight:600;">₱<?php echo number_format($loan['amount'], 2); ?></td>
-                            <td data-label="Total Due">₱<?php echo number_format($totalDue, 2); ?></td>
+                            <td data-label="Total Due">
+                                ₱<?php echo number_format($totalDue, 2); ?>
+                                <?php if ($row && !$paidOff): ?>
+                                    <span class="svc-sub">Balance ₱<?php echo number_format($row['balance'], 2); ?></span>
+                                <?php elseif ($paidOff): ?>
+                                    <span class="svc-sub">Fully paid</span>
+                                <?php endif; ?>
+                            </td>
                             <td data-label="Purpose"><?php echo htmlspecialchars($loan['purpose'] ?: '—'); ?></td>
                             <td data-label="Requested"><?php echo date('M j, Y', strtotime($loan['created_at'])); ?></td>
                             <td data-label="Due Date"><?php echo !empty($loan['due_date']) ? date('M j, Y', strtotime($loan['due_date'])) : '—'; ?></td>
                             <td data-label="Status">
-                                <?php if ($loan['status'] === 'released' && $loanBalance <= 0): ?>
+                                <?php if ($paidOff): ?>
                                     <span style="padding:2px 10px;border-radius:20px;font-size:12px;background:#e8f5e9;color:#2e7d32;white-space:nowrap;">Paid Off</span>
-                                <?php elseif (isLoanOverdue($loan, $loanBalance)): ?>
+                                <?php elseif ($row && $row['legacy'] && isLoanOverdue($loan, $row['balance'])): ?>
                                     <span style="padding:2px 10px;border-radius:20px;font-size:12px;background:#fbe6e6;color:#a6322f;white-space:nowrap;">Overdue</span>
                                 <?php else: ?>
                                     <?php echo loanStatusBadge($loan['status']); ?>
@@ -292,9 +300,7 @@ renderHeader('Loans');
 
 </div>
 
-<!-- ============================================================
-     MODAL - Request a Loan
-     ============================================================ -->
+<!-- MODAL - Request a Loan -->
 <div id="svcLoanModalBackdrop">
     <div class="svc-modal-box">
         <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center; color: #1b3a24;">Request a Loan</h2>
@@ -360,16 +366,11 @@ renderHeader('Loans');
 })();
 </script>
 
-<!-- ============================================================
-     AUTO-UPDATE (AJAX POLLING)
-     Fetches this same page, then swaps only the parts that changed.
-     Paused while the request modal is open or the tab is hidden.
-     ============================================================ -->
+<!-- AUTO-UPDATE (AJAX POLLING) -->
 <script>
 (function () {
-    const LIVE_CHECK_MS = 5000;   // set to 3000 for faster updates, 10000 for fewer requests
+    const LIVE_CHECK_MS = 5000;
 
-    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
     function itemMap(root, sel, attr) {
         const m = new Map();
         if (!sel) return m;
@@ -389,7 +390,6 @@ renderHeader('Loans');
         return true;
     });
 
-    // Stat cards have no id, so compare them by position
     function statMap(root) {
         const m = new Map();
         root.querySelectorAll('.svc-stat-card').forEach((el, i) => m.set(String(i), el.outerHTML));
@@ -409,7 +409,6 @@ renderHeader('Loans');
     }
 
     async function liveCheck() {
-        // Skip while the tab is hidden, the modal is open, or a check is running
         if (document.hidden || busy || modalOpen()) return;
         busy = true;
         try {
@@ -418,7 +417,6 @@ renderHeader('Loans');
             const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
             const fresh = liveParts.map(p => doc.getElementById(p.id));
 
-            // If an expected element is missing (e.g. login page), leave the page alone
             if (fresh.every(Boolean)) {
                 liveParts.forEach(function (p, i) {
                     const f = fresh[i];
@@ -435,7 +433,6 @@ renderHeader('Loans');
                     p.items = newItems;
                 });
 
-                // Keep the "Request a Loan" button and the modal's credit info in step
                 const freshBtn = doc.getElementById('openLoanBtn');
                 if (openBtn && freshBtn) openBtn.disabled = freshBtn.disabled;
 
@@ -449,13 +446,12 @@ renderHeader('Loans');
             }
             fails = 0;
         } catch (e) {
-            fails++;   // backoff on error
+            fails++;
         } finally {
             busy = false;
         }
     }
 
-    // Seed the stat cards by position (they have no id)
     liveParts.forEach(function (p) {
         if (p.index) p.items = statMap(p.el);
     });
