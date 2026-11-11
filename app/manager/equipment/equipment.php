@@ -1221,12 +1221,14 @@ renderHeader('Equipment Rental');
      AUTO-UPDATE (AJAX POLLING)
      Fetches this same page, then swaps only the parts that changed.
      Fires the "eq:refreshed" event after a swap.
+     equipment.js can call window.eqLiveRefresh() after approve / reject /
+     use / mark returned instead of reloading the whole page.
      ============================================================ -->
 <script>
 (function () {
     var LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
 
-    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
+    // Map of each item (id -> HTML) to detect which ones are new or changed
     function itemMap(root, sel, attr) {
         var m = new Map();
         if (!sel) return m;
@@ -1253,9 +1255,11 @@ renderHeader('Equipment Rental');
         return !!document.querySelector('.eq-modal.eq-open');
     }
 
-    async function liveCheck() {
-        // Skip while the tab is hidden, a modal is open, or a check is running
-        if (document.hidden || busy || anyModalOpen()) return;
+    async function liveCheck(force) {
+        // Skip while a modal is open or a check is running.
+        // A hidden tab is skipped too, unless the refresh was forced.
+        if (busy || anyModalOpen()) return;
+        if (document.hidden && !force) return;
         busy = true;
         try {
             var r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
@@ -1292,6 +1296,9 @@ renderHeader('Equipment Rental');
             busy = false;
         }
     }
+
+    // Called by equipment.js after approve / reject / use / mark returned
+    window.eqLiveRefresh = function () { return liveCheck(true); };
 
     function schedule() {
         clearTimeout(timer);
