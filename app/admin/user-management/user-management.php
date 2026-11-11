@@ -139,6 +139,13 @@ renderHeader($pageTitle);
         border-top: 1px solid #eee;
     }
 
+    /* ===== Live update flash (new or changed row) ===== */
+    @keyframes umFlashRow {
+        from { background: #e3f4e1; }
+        to   { background: transparent; }
+    }
+    #umTable tbody tr.um-flash td { animation: umFlashRow 2.2s ease-out; }
+
     /* ===== Modal (shared styles for Create Account + Edit User + Delete User) ===== */
     .um-modal-overlay {
         display: none;
@@ -304,7 +311,7 @@ renderHeader($pageTitle);
             <th>Actions</th>
         </tr>
     </thead>
-    <tbody>
+    <tbody id="umTbody">
         <?php foreach ($users as $user): ?>
         <?php
             $rowName = $user['last_name'] ? ($user['last_name'] . ', ' . $user['first_name']) : '-';
@@ -314,7 +321,7 @@ renderHeader($pageTitle);
             $canChangeThisUserRole = canChangeRole($currentRole, $currentUserId, $user['id']);
             $canDeleteThisUser = canDeleteUser($currentRole, $currentUserId, $user['role'], $user['id']);
         ?>
-        <tr data-search="<?php echo htmlspecialchars($rowSearchText); ?>">
+        <tr data-user-id="<?php echo (int) $user['id']; ?>" data-search="<?php echo htmlspecialchars($rowSearchText); ?>">
             <td><?php echo $user['membership_id'] ? htmlspecialchars($user['membership_id']) : '<span style="color:#999;">Staff</span>'; ?></td>
             <td>
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -536,29 +543,38 @@ renderHeader($pageTitle);
 
 <script>
 (function() {
+    // After a create / update / delete, refresh the table in place instead of reloading the page
+    function refreshTable() {
+        if (window.umLiveRefresh) window.umLiveRefresh();
+        else window.location.reload();
+    }
+
     // ============================================================
     // SEARCH FILTER (client-side, filters by name / membership ID / username / email)
+    // Rows are looked up on every run, so it still works after the table is auto-updated.
     // ============================================================
     const searchInput = document.getElementById('umSearchInput');
-    const tableRows = Array.from(document.querySelectorAll('#umTable tbody tr'));
     const visibleCount = document.getElementById('umVisibleCount');
     const noResults = document.getElementById('umNoResults');
     const table = document.getElementById('umTable');
 
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            const q = searchInput.value.trim().toLowerCase();
-            let shown = 0;
-            tableRows.forEach(function(row) {
-                const match = row.dataset.search.indexOf(q) !== -1;
-                row.style.display = match ? '' : 'none';
-                if (match) shown++;
-            });
-            if (visibleCount) visibleCount.textContent = shown;
-            if (table) table.style.display = shown === 0 ? 'none' : '';
-            if (noResults) noResults.style.display = shown === 0 ? 'block' : 'none';
+    function applyFilter() {
+        const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const rows = document.querySelectorAll('#umTbody tr');
+        let shown = 0;
+        rows.forEach(function(row) {
+            const match = (row.dataset.search || '').indexOf(q) !== -1;
+            row.style.display = match ? '' : 'none';
+            if (match) shown++;
         });
+        const nothing = rows.length > 0 && shown === 0;
+        if (visibleCount) visibleCount.textContent = shown;
+        if (table) table.style.display = nothing ? 'none' : '';
+        if (noResults) noResults.style.display = nothing ? 'block' : 'none';
     }
+
+    if (searchInput) searchInput.addEventListener('input', applyFilter);
+    document.addEventListener('um:refreshed', applyFilter);
 
     // ============================================================
     // CREATE ACCOUNT MODAL
@@ -607,7 +623,7 @@ renderHeader($pageTitle);
                     createForm.reset();
                     setTimeout(function() {
                         closeCreateModal();
-                        window.location.reload();
+                        refreshTable();
                     }, 1200);
                 }
             })
@@ -691,7 +707,7 @@ renderHeader($pageTitle);
             if (data.success) {
                 setTimeout(function() {
                     closeEditUserModal();
-                    window.location.reload();
+                    refreshTable();
                 }, 1000);
             }
         })
@@ -751,7 +767,7 @@ renderHeader($pageTitle);
             if (data.success) {
                 setTimeout(function() {
                     closeDeleteUserModal();
-                    window.location.reload();
+                    refreshTable();
                 }, 1000);
             }
         })
@@ -765,6 +781,81 @@ renderHeader($pageTitle);
             submitBtn.disabled = false;
         });
     });
+})();
+</script>
+
+<!-- ============================================================
+     AUTO-UPDATE (AJAX POLLING)
+     Fetches this same page, then swaps only the users table body.
+     Changed or new rows flash green. The search filter is re-applied
+     after every swap via the "um:refreshed" event.
+     ============================================================ -->
+<script>
+(function () {
+    var LIVE_CHECK_MS = 5000;   // set to 10000 for fewer requests
+
+    var tbody = document.getElementById('umTbody');
+    if (!tbody) return;
+
+    function rowMap(root) {
+        var m = new Map();
+        root.querySelectorAll('tr[data-user-id]').forEach(function (el) {
+            m.set(el.getAttribute('data-user-id'), el.outerHTML);
+        });
+        return m;
+    }
+
+    var lastHtml = tbody.innerHTML;
+    var lastRows = rowMap(tbody);
+    var busy = false, fails = 0, timer = null;
+
+    function anyModalOpen() {
+        return !!document.querySelector('.um-modal-overlay.open');
+    }
+
+    async function liveCheck(force) {
+        // Skip while a modal is open or a check is running.
+        // A hidden tab is skipped too, unless the refresh was forced.
+        if (busy || anyModalOpen()) return;
+        if (document.hidden && !force) return;
+        busy = true;
+        try {
+            var r = await fetch(location.href, { cache: 'no-store', credentials: 'same-origin' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+
+            var fresh = doc.getElementById('umTbody');
+            // If the table is missing (e.g. login page), leave the page alone
+            if (fresh && fresh.innerHTML !== lastHtml) {
+                var newRows = rowMap(fresh);
+                lastHtml = fresh.innerHTML;
+                tbody.innerHTML = lastHtml;
+                tbody.querySelectorAll('tr[data-user-id]').forEach(function (el) {
+                    var id = el.getAttribute('data-user-id');
+                    if (lastRows.get(id) !== newRows.get(id)) el.classList.add('um-flash');
+                });
+                lastRows = newRows;
+                document.dispatchEvent(new CustomEvent('um:refreshed'));
+            }
+            fails = 0;
+        } catch (e) {
+            fails++;   // backoff on error
+        } finally {
+            busy = false;
+        }
+    }
+
+    // Called after create / update / delete
+    window.umLiveRefresh = function () { return liveCheck(true); };
+
+    function schedule() {
+        clearTimeout(timer);
+        var delay = Math.min(LIVE_CHECK_MS * Math.pow(2, fails), 60000);
+        timer = setTimeout(async function () { await liveCheck(); schedule(); }, delay);
+    }
+
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) liveCheck(); });
+    schedule();
 })();
 </script>
 
