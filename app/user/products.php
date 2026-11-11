@@ -231,6 +231,9 @@ renderHeader('Products');
     .svc-request-grid { grid-template-columns: 1fr; }
 }
 
+/* ============================================================
+   MOBILE (560px pababa) - HINDI GINALAW, ito ang dating layout
+   ============================================================ */
 @media (max-width: 560px) {
     .svc-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .svc-product-photo { height: 80px; }
@@ -242,6 +245,34 @@ renderHeader('Products');
     .svc-product-stock { font-size: 11px; }
     .svc-product-footer { padding: 0 10px 8px; }
     .svc-request-btn.svc-request-btn-full { padding: 7px 10px !important; font-size: 12px !important; }
+}
+
+/* ============================================================
+   TABLET (600px pataas)
+   Ang product grid ay auto-fill na (3 columns sa 720px).
+   ============================================================ */
+@media (min-width: 600px) {
+    .page-shell { max-width: 720px; }
+    .svc-modal-box { max-width: 460px; }
+}
+
+/* ============================================================
+   DESKTOP (992px pataas)
+   4 columns ang products, 2 columns ang requests, mas malalaki
+   ang photos at text.
+   ============================================================ */
+@media (min-width: 992px) {
+    .page-shell { max-width: 1040px; }
+    .page-title { font-size: 22px; }
+    .page-sub { font-size: 14.5px; }
+    .svc-section-head h2 { font-size: 18px; }
+    .svc-product-grid { gap: 16px; }
+    .svc-product-photo { height: 130px; }
+    .svc-request-grid { gap: 16px; }
+    .svc-request-card { padding: 16px 20px; }
+    .svc-request-card-name { font-size: 15px; }
+    .svc-request-card-meta div p:last-child { font-size: 14px; }
+    .svc-modal-box { max-width: 480px; }
 }
 </style>
 
@@ -554,6 +585,14 @@ renderHeader('Products');
     });
     document.getElementById('closeNewProductModalBtn').addEventListener('click', function() { newProductBackdrop.style.display = 'none'; });
     newProductBackdrop.addEventListener('click', function(e) { if (e.target === newProductBackdrop) newProductBackdrop.style.display = 'none'; });
+
+    // Esc closes whichever modal is open (useful on desktop).
+    // Ang Esc sa "Type the unit" field ay humihinto sa sarili nitong handler, kaya hindi nito isasara ang modal.
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        productReqBackdrop.style.display = 'none';
+        newProductBackdrop.style.display = 'none';
+    });
 
     newProductForm.addEventListener('submit', async function(e) {
         e.preventDefault();

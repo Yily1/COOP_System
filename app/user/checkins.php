@@ -403,6 +403,36 @@ renderHeader($pageTitle);
         white-space: pre-line;
         word-break: break-word;
     }
+
+    /* ============================================================
+       TABLET (600px pataas)
+       Mas malapad ang page, 2 columns ang check-in cards,
+       mas malalaki ang 3 stat cards.
+       ============================================================ */
+    @media (min-width: 600px) {
+        .page-shell { max-width: 720px; }
+        .checkins-stat-grid { gap: 12px; }
+        .checkins-stat-card { padding: 14px 10px; }
+        .checkins-stat-count { font-size: 24px; }
+        .checkins-stat-label { font-size: 12px; }
+        .meeting-preview-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .md-modal { max-width: 380px; }
+    }
+
+    /* ============================================================
+       DESKTOP (992px pataas)
+       ============================================================ */
+    @media (min-width: 992px) {
+        .page-shell { max-width: 1040px; }
+        .page-title { font-size: 22px; }
+        .page-sub { font-size: 14.5px; }
+        .checkins-stat-grid { gap: 16px; margin-bottom: 22px; }
+        .checkins-stat-card { padding: 18px 12px; border-radius: 14px; }
+        .checkins-stat-count { font-size: 30px; }
+        .checkins-stat-label { font-size: 13px; }
+        .meeting-preview-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .md-modal { max-width: 420px; }
+    }
 </style>
 
 <div class="page-shell">
@@ -538,6 +568,7 @@ renderHeader($pageTitle);
     function closeModal() { backdrop.style.display = 'none'; }
     closeBtn.addEventListener('click', closeModal);
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
 
     // Event delegation: gumagana pa rin kahit napalitan ang mga card ng auto-update
     historyBox.addEventListener('click', function(e) {
@@ -625,4 +656,4 @@ renderHeader($pageTitle);
 })();
 </script>
 
-<?php renderFooter(); ?>
+<?php renderFooter(); ?> 

@@ -156,6 +156,9 @@ renderHeader('Payments');
 .proof-done-ok { font-size: 12px; color: #155724; }
 .proof-remove { font-size: 12px; color: #c62828; cursor: pointer; flex-shrink: 0; }
 
+/* ============================================================
+   MOBILE (480px pababa) - HINDI GINALAW, ito ang dating layout
+   ============================================================ */
 @media (max-width: 480px) {
     .history-card { padding: 12px 10px; }
     .history-card h3 { font-size: 15px; margin-left: 4px; }
@@ -345,6 +348,36 @@ renderHeader('Payments');
     .proof-drop { padding: 10px; }
     .proof-drop-hint { display: none; }
     #payModalErrors, #payModalSuccess { margin-bottom: 8px !important; font-size: 12.5px !important; }
+}
+
+/* ============================================================
+   TABLET (600px pataas)
+   Mas malalaki ang stat cards at mas maluwag ang table.
+   ============================================================ */
+@media (min-width: 600px) {
+    .payment-card { max-width: 720px; }
+    .stat-card { min-height: 104px; padding: 18px 20px; }
+    .stat-number { font-size: 26px; }
+    .payment-table th, .payment-table td { padding: 12px 14px; }
+}
+
+/* ============================================================
+   DESKTOP (992px pataas)
+   ============================================================ */
+@media (min-width: 992px) {
+    .payment-card { max-width: 1040px; }
+    .payment-card-header h1 { font-size: 28px; }
+    .stat-grid { gap: 18px; margin-bottom: 24px; }
+    .stat-card { min-height: 120px; padding: 22px 26px; border-radius: 14px; }
+    .stat-label { font-size: 14px; }
+    .stat-number { font-size: 32px; }
+    .stat-sub { font-size: 13px; }
+    .history-card { padding: 22px 26px; }
+    .history-card h3 { font-size: 20px; }
+    .payment-table { font-size: 14.5px; }
+    .type-badge { font-size: 12px; }
+    .status-badge { font-size: 12px; }
+    .pay-modal-box { max-width: 560px; }
 }
 </style>
 
@@ -678,6 +711,10 @@ renderHeader('Payments');
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeModal(); }
     });
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
+    // Esc closes the modal (useful on desktop)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && backdrop.style.display === 'flex') closeModal();
+    });
 
     typeSelect.addEventListener('change', function() {
         toggleProductField();

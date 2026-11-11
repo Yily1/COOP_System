@@ -438,6 +438,9 @@ renderHeader($pageTitle);
         box-shadow: 0 -8px 8px -4px #fff;
     }
 
+    /* ============================================================
+       MOBILE (560px pababa) - HINDI GINALAW, ito ang dating layout
+       ============================================================ */
     @media (max-width: 560px) {
         /* Wider side margins = narrower modal (same look as the Book equipment modal) */
         .modal-overlay { padding: 10px 34px; }
@@ -466,6 +469,33 @@ renderHeader($pageTitle);
         }
         .modal-box form button[type="submit"] { padding: 10px !important; font-size: 13px !important; }
         #modalMessage { margin-bottom: 8px; font-size: 12.5px; }
+    }
+
+    /* ============================================================
+       TABLET (600px - 899px)
+       Isang column pa rin ang mga card, pero hindi sobrang lapad.
+       ============================================================ */
+    @media (min-width: 600px) and (max-width: 899px) {
+        .page-shell { max-width: 720px; }
+    }
+
+    /* ============================================================
+       DESKTOP (992px pataas)
+       Mas malapad ang page, mas maluwag ang cards at mas malaki
+       ng kaunti ang text.
+       ============================================================ */
+    @media (min-width: 992px) {
+        .page-shell { max-width: 1040px; }
+        .page-title { font-size: 22px; }
+        .page-sub { font-size: 14.5px; }
+        .card-columns { gap: 28px; }
+        .card-box { padding: 24px; }
+        .info-row { padding: 12px 0; }
+        .info-row .info-label { font-size: 14px; }
+        .info-row .info-value { font-size: 14.5px; }
+        .profile-crop-card { width: 84px; }
+        .profile-crop-card img { width: 76px; height: 76px; }
+        .profile-crop-card span { font-size: 12.5px; }
     }
 </style>
 
@@ -710,6 +740,11 @@ renderHeader($pageTitle);
                 e.preventDefault();
                 closeEditModal();
             }
+        });
+
+        // Esc closes the modal (useful on desktop)
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeEditModal();
         });
 
         document.getElementById('editAccountForm').addEventListener('submit', function (e) {

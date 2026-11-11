@@ -245,6 +245,9 @@ renderHeader('My Crops');
 
 .empty-note { color: #667066; font-size: 13px; text-align: center; padding: 20px 0; }
 
+/* ============================================================
+   MOBILE (480px pababa) - HINDI GINALAW, ito ang dating layout
+   ============================================================ */
 @media (max-width: 480px) {
     .page-title { font-size: 17px; }
     .btn-primary { padding: 8px 14px !important; font-size: 13px !important; }
@@ -464,6 +467,46 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
     #cropModalErrors, #cropModalSuccess { margin-bottom: 8px !important; font-size: 12.5px !important; }
 
     .cc-backdrop { padding: 10px 34px; }
+}
+
+/* ============================================================
+   TABLET (600px pataas)
+   Mas malapad ang page, 2 columns ang planting cards.
+   ============================================================ */
+@media (min-width: 600px) {
+    .page-shell { max-width: 720px; }
+    #cropListLive {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+    #cropListLive .crop-card { margin-bottom: 0; }
+    #cropListLive .empty-note { grid-column: 1 / -1; }
+}
+
+/* ============================================================
+   DESKTOP (992px pataas)
+   ============================================================ */
+@media (min-width: 992px) {
+    .page-shell { max-width: 1040px; }
+    .page-title { font-size: 22px; }
+    .page-sub { font-size: 14.5px; }
+    .section-intro h2 { font-size: 18px; }
+
+    .stat-card { min-width: 170px; padding: 18px 28px; }
+    .stat-label { font-size: 13.5px; }
+    .stat-number { font-size: 28px; }
+
+    #cropListLive { gap: 16px; }
+    .crop-card { padding: 18px 22px; }
+    .crop-name { font-size: 16px; }
+    .crop-location { font-size: 13px; }
+    .crop-detail-grid { font-size: 13px; gap: 5px 14px; }
+    .status-badge { font-size: 11.5px; }
+    .crop-action-btn { font-size: 12.5px !important; padding: 6px 14px !important; }
+
+    .crop-modal-card { max-width: 560px; }
+    .cc-card { max-width: 360px; }
 }
 </style>
 
@@ -720,7 +763,10 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
     ccCancel.addEventListener('click', ccClose);
     ccBackdrop.addEventListener('click', function(e) { if (e.target === ccBackdrop) ccClose(); });
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && ccBackdrop.classList.contains('cc-open')) ccClose();
+        if (e.key !== 'Escape') return;
+        // Esc closes the top-most dialog first: the confirm modal, then the Add planting modal
+        if (ccBackdrop.classList.contains('cc-open')) ccClose();
+        else if (backdrop.classList.contains('crop-open')) closeModal();
     });
     ccOk.addEventListener('click', function() {
         if (ccOnConfirm) ccOnConfirm();

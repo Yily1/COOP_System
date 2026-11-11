@@ -194,8 +194,56 @@ renderHeader('My Resources');
 
 .empty-note { color: #667066; font-size: 13px; text-align: center; padding: 20px 0; }
 
+/* Long names and text wrap inside the card */
+.page-header > div:nth-child(2) { min-width: 0; }
+.page-sub { overflow-wrap: anywhere; }
+.res-card-top { gap: 10px; }
+.res-name { min-width: 0; overflow-wrap: anywhere; }
+.res-detail-grid span { min-width: 0; overflow-wrap: anywhere; }
+.res-notes { overflow-wrap: anywhere; }
+
+/* ============================================================
+   MOBILE (480px and below)
+   ============================================================ */
 @media (max-width: 480px) {
+    .page-header { gap: 10px; }
     .page-title { font-size: 17px; }
+    .page-back { width: 40px; height: 40px; }
+}
+
+/* ============================================================
+   TABLET (600px and up): wider page, 2 columns of cards
+   ============================================================ */
+@media (min-width: 600px) {
+    .page-shell { max-width: 720px; }
+    #resListLive {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+    #resListLive .res-card { margin-bottom: 0; }
+    #resListLive .empty-note { grid-column: 1 / -1; }
+}
+
+/* ============================================================
+   DESKTOP (992px and up)
+   ============================================================ */
+@media (min-width: 992px) {
+    .page-shell { max-width: 1040px; }
+    .page-title { font-size: 22px; }
+    .page-sub { font-size: 14.5px; }
+    .section-intro h2 { font-size: 18px; }
+
+    .stat-card { min-width: 170px; padding: 18px 28px; }
+    .stat-label { font-size: 13.5px; }
+    .stat-number { font-size: 28px; }
+
+    #resListLive { gap: 16px; }
+    .res-card { padding: 18px 22px; }
+    .res-name { font-size: 16px; }
+    .res-detail-grid { font-size: 13px; gap: 5px 14px; }
+    .res-notes { font-size: 13px; }
+    .status-badge { font-size: 11.5px; }
 }
 </style>
 
@@ -330,4 +378,4 @@ renderHeader('My Resources');
 })();
 </script>
 
-<?php renderFooter(); ?>
+<?php renderFooter(); ?> 

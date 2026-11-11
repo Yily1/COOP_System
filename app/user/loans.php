@@ -160,6 +160,9 @@ renderHeader('Loans');
     color: #667066 !important; line-height: 1 !important;
 }
 
+/* ============================================================
+   MOBILE (700px pababa) - HINDI GINALAW, ito ang dating layout
+   ============================================================ */
 @media (max-width: 700px) {
     .svc-table-wrap { border: none; border-radius: 0; }
     .svc-table thead { display: none; }
@@ -197,6 +200,37 @@ renderHeader('Loans');
         color: #98a498;
     }
     .svc-table td:nth-of-type(7)::before { content: none; }
+}
+
+/* ============================================================
+   TABLET (600px pataas)
+   ============================================================ */
+@media (min-width: 600px) {
+    .page-shell { max-width: 720px; }
+    .svc-modal-box { max-width: 460px; }
+}
+
+/* ============================================================
+   DESKTOP (992px pataas)
+   4 stat cards sa isang hilera, mas maluwag ang table.
+   ============================================================ */
+@media (min-width: 992px) {
+    .page-shell { max-width: 1040px; }
+    .page-title { font-size: 22px; }
+    .page-sub { font-size: 14.5px; }
+    .svc-section-head h2 { font-size: 18px; }
+
+    .svc-stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 26px; }
+    .svc-stat-card { padding: 20px 22px; }
+    .svc-stat-card p.svc-stat-label { font-size: 13px; margin-bottom: 8px; }
+    .svc-stat-card p.svc-stat-value { font-size: 24px; }
+
+    .svc-notice { font-size: 14px; padding: 12px 16px; }
+    .svc-table { font-size: 14px; }
+    .svc-table th { padding: 14px 18px; }
+    .svc-table td { padding: 14px 18px; }
+    .svc-sub { font-size: 12px; }
+    .svc-modal-box { max-width: 480px; }
 }
 </style>
 
@@ -343,6 +377,8 @@ renderHeader('Loans');
     }
     document.getElementById('closeLoanModalBtn').addEventListener('click', function() { backdrop.style.display = 'none'; });
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) backdrop.style.display = 'none'; });
+    // Esc closes the modal (useful on desktop)
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') backdrop.style.display = 'none'; });
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();

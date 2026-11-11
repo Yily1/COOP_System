@@ -1,7 +1,6 @@
 <?php
 require_once '../../config/config.php';
 require_once '../../config/functions.php';
-require_once '../../config/funds.php';
 
 requireRole('user');
 
@@ -27,7 +26,7 @@ $stmt->execute([$userId]);
 $myProfile = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // ============================================================
-// UPCOMING MEETINGS - NEXT 2
+// UPCOMING MEETINGS
 // ============================================================
 $stmt = $pdo->prepare("
     SELECT id, title, location, description, meeting_date, `time`
@@ -39,9 +38,17 @@ $stmt->execute();
 $upcomingMeetings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // ============================================================
-// COOP NET INCOME (Same as Manager)
+// COOP NET INCOME (DISPLAY ONLY, kapareho ng manager dashboard)
+// Hindi ito galing sa database. Kapag binago mo ang numero sa
+// manager dashboard, palitan din dito.
 // ============================================================
-$net = getNetIncomeSummary($pdo);
+$netIncomeDisplay = 98000;
+$netDeltaText     = '₱12,000 more than last year';
+$netByYear        = [42000, 55000, 71000, 86000, 98000];
+$netYears = [];
+for ($i = 4; $i >= 0; $i--) {
+    $netYears[] = (string) ((int) date('Y') - $i);
+}
 
 function udPeso0($v) {
     $v = (float) $v;
@@ -59,7 +66,7 @@ function udShort($v) {
     return ($v < 0 ? '-' : '') . $s;
 }
 
-$netTotal = (float) $net['total'];
+$netTotal = (float) $netIncomeDisplay;
 
 // Line chart with dots and values (Option 6)
 $chartW = 300; $chartH = 84;
@@ -67,8 +74,8 @@ $chartLeft = 14; $chartRight = 284;
 $plotTop = 26; $plotBot = 58;
 $chartBase = 62; $chartMonthY = 79;
 
-$chartVals = array_column($net['months'], 'net');
-$chartLabels = array_column($net['months'], 'label');
+$chartVals = $netByYear;
+$chartLabels = $netYears;
 $chartLo = min($chartVals);
 $chartHi = max($chartVals);
 $chartRange = $chartHi - $chartLo;
@@ -112,6 +119,9 @@ renderHeader($title);
 <style>
 /* ============================================================
    USER DASHBOARD STYLES
+   Mobile-first: ang base styles at ang (max-width: 500px) block
+   ay ang eksaktong mobile layout. Ang tablet at desktop ay
+   dagdag lang sa dulo (min-width media queries).
 ============================================================ */
 .user-dashboard { width: 100%; max-width: 420px; margin: 0 auto; }
 
@@ -130,6 +140,7 @@ renderHeader($title);
 .net-card-num.neg { color: #a6322f; }
 .net-card-delta { margin: 2px 0 0 0; font-size: 11px; }
 .net-card-delta.flat { color: #667066; }
+.net-card-delta.up { color: #2e7d32; }
 .net-card-chart { display: block; width: 100%; height: auto; margin-top: 6px; }
 
 /* AGENDA */
@@ -194,7 +205,9 @@ button.md-close { position: absolute !important; top: 8px !important; right: 8px
 .md-value { margin: 0; font-size: 12px; font-weight: 600; color: #1b1b1b; line-height: 1.4; word-break: break-word; }
 .md-desc-text { margin: 0; font-size: 12px; color: #1b1b1b; line-height: 1.5; white-space: pre-line; word-break: break-word; }
 
-/* RESPONSIVE */
+/* ============================================================
+   MOBILE (500px pababa) - HINDI GINALAW, ito ang dating layout
+============================================================ */
 @media (max-width: 500px) {
     .nav-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .nav-card { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 8px; min-height: 0; padding: 12px; }
@@ -205,6 +218,44 @@ button.md-close { position: absolute !important; top: 8px !important; right: 8px
     .nav-card-sub { font-size: 10.5px; }
     .dash-greeting-name { font-size: 17px; }
     .net-card-num { font-size: 20px; }
+}
+
+/* ============================================================
+   TABLET (600px pataas)
+   3 columns ang nav cards (9 cards = 3x3), 2 columns ang meetings
+============================================================ */
+@media (min-width: 600px) {
+    .user-dashboard { max-width: 720px; }
+    .nav-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .meeting-preview-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .md-modal { max-width: 380px; }
+}
+
+/* ============================================================
+   DESKTOP (992px pataas)
+   Net income: text sa kaliwa, chart sa kanan
+============================================================ */
+@media (min-width: 992px) {
+    .user-dashboard { max-width: 1040px; }
+
+    .net-card {
+        display: grid;
+        grid-template-columns: 1fr minmax(0, 520px);
+        grid-template-rows: auto auto auto 1fr;
+        column-gap: 32px;
+        padding: 18px 24px;
+    }
+    .net-card-label, .net-card-num, .net-card-delta { grid-column: 1; }
+    .net-card-chart { grid-column: 2; grid-row: 1 / span 4; align-self: center; margin-top: 0; }
+    .net-card-label { font-size: 14px; }
+    .net-card-num { font-size: 34px; }
+    .net-card-delta { font-size: 13px; }
+
+    .nav-card { min-height: 84px; }
+    .nav-card-title { font-size: 15px; }
+    .nav-card-sub { font-size: 13px; }
+    .meeting-preview-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .md-modal { max-width: 420px; }
 }
 </style>
 
@@ -224,16 +275,16 @@ button.md-close { position: absolute !important; top: 8px !important; right: 8px
         </div>
     </div>
 
-    <!-- COOP NET INCOME -->
+    <!-- COOP NET INCOME (display only) -->
     <div class="net-card" id="netLive">
         <p class="net-card-label">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>
             Coop net income
         </p>
         <p class="net-card-num<?php echo $netTotal < 0 ? ' neg' : ''; ?>"><?php echo udPeso0($netTotal); ?></p>
-        <p class="net-card-delta flat">Total cooperative earnings</p>
+        <p class="net-card-delta up"><?php echo htmlspecialchars($netDeltaText); ?></p>
 
-        <svg class="net-card-chart" viewBox="0 0 <?php echo $chartW; ?> <?php echo $chartH; ?>" role="img" aria-label="Net income per month for the last six months">
+        <svg class="net-card-chart" viewBox="0 0 <?php echo $chartW; ?> <?php echo $chartH; ?>" role="img" aria-label="Net income per year for the last five years">
             <line x1="0" y1="<?php echo $chartBase; ?>" x2="<?php echo $chartW; ?>" y2="<?php echo $chartBase; ?>" stroke="#eceae4" stroke-width="1"/>
             <polyline points="<?php echo $chartLine; ?>" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
             <?php foreach ($chartPoints as $i => $p):
@@ -375,6 +426,7 @@ button.md-close { position: absolute !important; top: 8px !important; right: 8px
     function closeModal() { backdrop.style.display = 'none'; }
     closeBtn.addEventListener('click', closeModal);
     backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
 
     // Event delegation: gumagana pa rin kahit napalitan ang mga card ng auto-update
     meetBox.addEventListener('click', function(e) {

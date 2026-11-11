@@ -289,6 +289,9 @@ renderHeader('Equipment Rental');
 .eq-cal-booking-equipment { font-size: 9.5px; color: #667066; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eq-cal-empty-msg { text-align: center; color: #667066; font-size: 13px; padding: 24px 0; }
 
+/* ============================================================
+   MOBILE - HINDI GINALAW, ito ang dating layout
+   ============================================================ */
 @media (max-width: 700px) {
     .eq-page table thead { display: none; }
     .eq-page table, .eq-page table tbody { display: block; width: 100%; }
@@ -356,6 +359,50 @@ renderHeader('Equipment Rental');
     .eq-cost-row { font-size: 12.5px; padding: 2px 0; }
     .eq-cost-row.eq-cost-total { font-size: 13.5px; }
     #submit-btn { padding: 9px; font-size: 13px; margin-top: 2px; }
+}
+
+/* ============================================================
+   TABLET (600px pataas)
+   May max-width at nasa gitna ang page (dati ay buong lapad).
+   ============================================================ */
+@media (min-width: 600px) {
+    .eq-page { max-width: 720px; margin: 0 auto; }
+    .eq-modal-card { max-width: 460px; }
+    .eq-modal-card-wide { max-width: 720px; }
+}
+
+/* ============================================================
+   DESKTOP (992px pataas)
+   ============================================================ */
+@media (min-width: 992px) {
+    .eq-page { max-width: 1040px; }
+    .eq-header h1 { font-size: 22px; }
+    .eq-header .eq-muted { font-size: 14.5px; }
+
+    .eq-summary-grid { gap: 14px; }
+    .eq-metric-card { padding: 18px 28px; }
+    .eq-metric-label { font-size: 12.5px; }
+    .eq-metric-value { font-size: 26px; }
+
+    .eq-equipment-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .eq-photo { height: 170px; }
+    .eq-name { font-size: 15.5px; }
+    .eq-price { font-size: 13.5px; }
+    .eq-status-readonly { font-size: 12px; }
+
+    .eq-section { padding: 24px 26px 12px; }
+    .eq-section-header h2 { font-size: 18px; }
+    .eq-page table { font-size: 14px; }
+    .eq-page thead th { font-size: 12.5px; padding: 12px 10px; }
+    .eq-page tbody td { padding: 14px 10px; }
+    .eq-status-badge { font-size: 12px; }
+
+    .eq-modal-card { max-width: 480px; }
+    .eq-modal-card-wide { max-width: 860px; }
+    .eq-cal-grid .eq-cal-day { min-height: 84px; font-size: 12.5px; }
+    .eq-cal-day-num { font-size: 12.5px; }
+    .eq-cal-booking-name { font-size: 11px; }
+    .eq-cal-booking-equipment { font-size: 10.5px; }
 }
 </style>
 
@@ -576,6 +623,14 @@ renderHeader('Equipment Rental');
 </script>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js"></script>
+
+<!-- Esc closes whichever modal is open (useful on desktop) -->
+<script>
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.eq-modal.eq-open').forEach(function (m) { m.classList.remove('eq-open'); });
+});
+</script>
 
 <!-- ============================================================
      AUTO-UPDATE (AJAX POLLING)
