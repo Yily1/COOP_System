@@ -225,14 +225,18 @@ function getAllEquipment($pdo) {
 }
 
 /**
- * All bookings whose date range overlaps the given month, for the
- * manager's Booking Schedule calendar (get-month-booking.php).
- * Uses an overlap check (start <= last day of month AND end >= first
- * day of month) rather than matching start_date alone, so multi-day
- * bookings that started in an earlier month but run into this one
- * still show up on the calendar. Rejected/cancelled bookings are left out.
+ * All ACTIVE bookings whose date range overlaps the given month, for the
+ * Booking Schedule calendar (get-month-booking.php).
+ * Overlap check: start <= last day of month AND end >= first day of month,
+ * so multi-day bookings that started in an earlier month but run into this
+ * one still show up on the calendar.
+ * Returned / rejected / cancelled bookings are left out, since they no
+ * longer occupy the equipment.
  */
 function getBookingsForMonth($pdo, $year, $month) {
+    // Make sure ongoing bookings that already passed their end date show as overdue
+    markOverdueBookings($pdo);
+
     $monthStart = sprintf('%04d-%02d-01', $year, $month);
     $stmt = $pdo->prepare("
         SELECT b.*, e.name AS equipment_name
@@ -240,7 +244,7 @@ function getBookingsForMonth($pdo, $year, $month) {
         INNER JOIN equipment e ON e.id = b.equipment_id
         WHERE b.start_date <= LAST_DAY(:month_start_a)
           AND b.end_date >= :month_start_b
-          AND b.status IN ('pending', 'approved', 'ongoing', 'overdue', 'returned')
+          AND b.status IN ('pending', 'approved', 'ongoing', 'overdue')
         ORDER BY b.start_date ASC
     ");
     // Named placeholders must be unique when PDO emulated prepares are off,

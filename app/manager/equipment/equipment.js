@@ -23,6 +23,11 @@ document.addEventListener('DOMContentLoaded', function () {
         returned: 'Returned'
     };
 
+    // Bookings with these statuses no longer occupy the equipment,
+    // so they are NOT shown on the schedule calendar (no dot, no detail).
+    // Change this list if you want some of them to appear again.
+    var HIDDEN_STATUSES = ['returned', 'rejected', 'cancelled'];
+
     /* ---------- Modal open/close helpers ---------- */
     function openModal(modalEl) {
         if (!modalEl) return;
@@ -243,6 +248,10 @@ document.addEventListener('DOMContentLoaded', function () {
         panel.innerHTML = '<strong style="color:#2B3A2A;">' + escapeHtml(dateLabel) + '</strong>' + rows;
     }
 
+    // Guards against a slow older response overwriting a newer month
+    // when the user clicks next/prev quickly.
+    var calRequestId = 0;
+
     function renderCalendar() {
         var grid = document.getElementById('cal-grid');
         var monthLabel = document.getElementById('cal-month-label');
@@ -262,11 +271,23 @@ document.addEventListener('DOMContentLoaded', function () {
         if (panel) panel.textContent = 'Tap a day to see its bookings.';
 
         var ajaxBase = typeof EQUIPMENT_AJAX_BASE !== 'undefined' ? EQUIPMENT_AJAX_BASE : '';
+        var myRequest = ++calRequestId;
 
-        fetch(ajaxBase + 'get-month-booking.php?year=' + year + '&month=' + (month + 1))
+        fetch(ajaxBase + 'get-month-booking.php?year=' + year + '&month=' + (month + 1), {
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
             .then(function (res) { return res.json(); })
             .then(function (data) {
+                if (myRequest !== calRequestId) return; // a newer render took over
+
                 var bookings = (data.success && data.bookings) ? data.bookings : [];
+
+                // Returned / rejected / cancelled bookings no longer block the
+                // equipment, so they must not mark days as booked.
+                bookings = bookings.filter(function (b) {
+                    return HIDDEN_STATUSES.indexOf(String(b.status || '').toLowerCase()) === -1;
+                });
 
                 // Build a map of date -> list of bookings covering that date,
                 // so each day cell only has to look up its own key.
@@ -274,10 +295,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 bookings.forEach(function (b) {
                     var start = new Date(b.start_date + 'T00:00:00');
                     var end = new Date(b.end_date + 'T00:00:00');
+                    if (isNaN(start) || isNaN(end)) return;
                     for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                        var key = formatDateKey(d.getFullYear(), d.getMonth(), d.getDate());
-                        if (!byDate[key]) byDate[key] = [];
-                        byDate[key].push(b);
+                        var k = formatDateKey(d.getFullYear(), d.getMonth(), d.getDate());
+                        if (!byDate[k]) byDate[k] = [];
+                        byDate[k].push(b);
                     }
                 });
 
@@ -332,6 +354,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 getDayDetailPanel();
             })
             .catch(function () {
+                if (myRequest !== calRequestId) return;
                 grid.innerHTML = '<div class="eq-cal-empty-msg">Could not load schedule.</div>';
             });
     }
