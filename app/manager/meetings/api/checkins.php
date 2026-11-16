@@ -48,6 +48,18 @@ if ($method === 'POST') {
     }
 
     try {
+        // Check-in is only allowed until the end of the meeting's date.
+        $stmt = $pdo->prepare('SELECT meeting_date FROM meetings WHERE id = :id');
+        $stmt->execute([':id' => $meetingId]);
+        $meeting = $stmt->fetch();
+
+        if (!$meeting) {
+            respond(404, ['error' => 'Meeting not found.']);
+        }
+        if (!isMeetingCheckInOpen($meeting['meeting_date'])) {
+            respond(403, ['error' => 'This meeting has already ended. Check-in is closed.']);
+        }
+
         $inserted = markAttendance($pdo, $meetingId, $memberId, $recordedBy);
 
         if ($inserted && $pdo->lastInsertId() !== '0') {

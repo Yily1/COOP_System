@@ -19,6 +19,8 @@ if ($viewingId) {
         die('Meeting not found.');
     }
 
+    $checkInOpen = isMeetingCheckInOpen($meeting['meeting_date']);
+
     renderHeader('Meeting — ' . $meeting['title']);
     ?>
     <style>
@@ -114,7 +116,16 @@ if ($viewingId) {
         <?php endif; ?>
     </div>
 
-    <div class="mtg-checkin-wrap">
+    <?php if (!$checkInOpen): ?>
+        <div class="mtg-checkin-wrap">
+            <div class="mtg-card">
+                <p style="font-size:14px; font-weight:600; margin:0 0 6px; color:#2c2c2a;">Check-in closed</p>
+                <p style="font-size:13px; color:#6b7280; margin:0;">This meeting is done.</p>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <div class="mtg-checkin-wrap" <?= $checkInOpen ? '' : 'style="display:none;"' ?>>
         <div class="mtg-card mtg-checkin-card">
             <p class="mtg-checkin-label">Check in a member</p>
 
@@ -462,6 +473,13 @@ renderHeader('Meetings');
         letter-spacing:normal !important; box-shadow:none !important; flex-shrink:0; line-height:normal;
     }
     button.mtg-btn-view:hover { background:#f3f6f1 !important; }
+
+    /* Shown in place of the Check-in button once a meeting date has passed */
+    .mtg-ended-label {
+        display:inline-flex; align-items:center; gap:4px; padding:7px 14px; font-size:12px; font-weight:600;
+        color:#6b7280; background:#f1f0ea; border-radius:6px; flex-shrink:0; cursor:default;
+    }
+
     #il-suggestions {
         display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff;
         border:1px solid #d8d2c4; border-radius:8px; overflow:hidden; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.06);
@@ -622,7 +640,11 @@ renderHeader('Meetings');
                     </div>
                     <div style="display:flex; gap:8px; flex-shrink:0;">
                         <button type="button" class="mtg-btn-view" onclick="mtgViewAttendance(<?= (int)$m['id'] ?>)">View</button>
-                        <button type="button" class="mtg-btn-open" onclick="mtgToggleCheckin(<?= (int)$m['id'] ?>)">&#10003; Check-in</button>
+                        <?php if (isMeetingCheckInOpen($m['meeting_date'])): ?>
+                            <button type="button" class="mtg-btn-open" onclick="mtgToggleCheckin(<?= (int)$m['id'] ?>)">&#10003; Check-in</button>
+                        <?php else: ?>
+                            <span class="mtg-ended-label">&#10003; Done</span>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endforeach; ?>

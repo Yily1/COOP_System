@@ -256,6 +256,15 @@ function getBookingsForMonth($pdo, $year, $month) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+/**
+ * A meeting is open for check-in until the END of its date (Philippine time).
+ * Once the date has passed, check-in is closed.
+ */
+function isMeetingCheckInOpen($meetingDate) {
+    $today = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d');
+    return $meetingDate >= $today;
+}
+
 /* ============================================================
    COOPERATIVE SERVICES: LOANS
    ============================================================ */
