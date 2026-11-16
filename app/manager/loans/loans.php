@@ -6,6 +6,8 @@ require_once __DIR__ . '/../../../config/loan-interest.php';
 requireRole('manager');
 
 $loans = getAllLoans($pdo);
+// Pending sa taas, Approved sunod, Released/Paid off/Rejected sa baba. PHP sort, hindi SQL.
+$loans = sortLoansForManager($loans);
 $pendingLoanCount = count(array_filter($loans, fn($l) => $l['status'] === 'pending'));
 
 // Cards at the top: computed with the live interest (amount + 10% per month until paid)

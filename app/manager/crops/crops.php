@@ -15,6 +15,35 @@ $members = [];
 
 if ($role === 'manager') {
     $crops = getAllCrops($pdo);
+
+    // Pending > Growing > Ready to harvest > Harvested > Rejected. PHP sort, hindi SQL.
+    // Pending/Growing/Ready: pinakaluma muna. Harvested/Rejected: pinakabago muna.
+    $stageRank = [
+        'pending'          => 0,
+        'growing'          => 1,
+        'ready_to_harvest' => 2,
+        'harvested'        => 3,
+        'rejected'         => 4,
+    ];
+    usort($crops, function ($a, $b) use ($stageRank) {
+        $ra = $stageRank[$a['status']] ?? 4;
+        $rb = $stageRank[$b['status']] ?? 4;
+
+        if ($ra !== $rb) {
+            return $ra <=> $rb;
+        }
+
+        $dateCmp = strcmp($a['created_at'], $b['created_at']);
+
+        if ($ra < 3) {
+            if ($dateCmp !== 0) return $dateCmp;
+            return ((int) $a['id']) <=> ((int) $b['id']);
+        }
+
+        if ($dateCmp !== 0) return -$dateCmp;
+        return ((int) $b['id']) <=> ((int) $a['id']);
+    });
+
     $stats = getCropStats($pdo);
 
     $memberStmt = $pdo->query("

@@ -318,15 +318,16 @@ $query       = trim($_GET['q'] ?? '');
 $showAll     = isset($_GET['all']);
 $searchError = '';
 
-// Sort by MEETING DATE:
-//  1) upcoming (today onwards) first, nearest date on top
-//  2) then past meetings, most recent first
-//  3) same date -> earlier time first
+// Sort by MEETING DATE (descending, two groups):
+//  1) UPCOMING (today onwards) on top: farthest date first, nearest at the bottom
+//     of the group (e.g. Nov 27, 20, 19, 18); same date -> later time first, then higher id.
+//  2) PAST meetings below: most recent first, oldest at the very bottom
+//     (e.g. Nov 15, 11); same date -> later time first, then higher id.
 // Used by the default view, View All, and Search.
 $orderBy = "ORDER BY (meeting_date < CURDATE()) ASC,
-                     CASE WHEN meeting_date >= CURDATE() THEN meeting_date END ASC,
-                     CASE WHEN meeting_date <  CURDATE() THEN meeting_date END DESC,
-                     `time` ASC";
+                     meeting_date DESC,
+                     `time` DESC,
+                     id DESC";
 
 $meetings = [];
 try {

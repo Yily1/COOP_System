@@ -5,6 +5,8 @@ require_once __DIR__ . '/../../../config/functions.php';
 requireRole('manager');
 
 $distributions   = getAllDistributions($pdo);
+// Not released (may Confirm/Decline) sa taas, Released (claimed) sa baba. PHP sort, hindi SQL.
+$distributions   = sortDistributionsForManager($distributions);
 $eligibleMembers = getEligibleMembersForDistribution($pdo);
 
 $memberOptions = array_map(function ($m) {

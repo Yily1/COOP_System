@@ -16,9 +16,17 @@ try {
         FROM expenses e
         LEFT JOIN users u ON u.id = e.recorded_by
         WHERE e.category = 'Operational'
-        ORDER BY e.expense_date DESC, e.id DESC
     ");
     $expenses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Sort sa PHP (hindi SQL): pinakamataas na date sa taas, pinakamababa sa baba
+    // (hal. Nov 15 -> Nov 14), kapareho ng Released group sa resources.
+    // Kapag pareho ang date, mas mataas na id (mas bagong naitala) ang nasa taas.
+    usort($expenses, function ($a, $b) {
+        $dateCmp = strcmp($b['expense_date'], $a['expense_date']);
+        if ($dateCmp !== 0) return $dateCmp;
+        return ((int) $b['id']) <=> ((int) $a['id']);
+    });
 
     $currentMonth = date('Y-m');
     foreach ($expenses as $e) {

@@ -6,6 +6,8 @@ requireRole('manager');
 
 $products = getAllProducts($pdo);
 $productRequests = getAllProductRequests($pdo);
+// Pending sa taas, Approved/Ready sunod, Claimed/Rejected sa baba. PHP sort, hindi SQL.
+$productRequests = sortProductRequestsForManager($productRequests);
 $pendingRequestCount = count(array_filter($productRequests, fn($r) => in_array($r['status'], ['pending', 'under_review'], true)));
 $stats = getProductPortfolioStats($pdo);
 

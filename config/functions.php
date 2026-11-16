@@ -155,6 +155,48 @@ function getCurrentEquipmentBookings($pdo) {
 }
 
 /**
+ * Inaayos ang equipment bookings para sa "Currently rented" table (PHP sort, hindi SQL):
+ *   1) PENDING (Approve/Reject) sa pinakataas
+ *   2) APPROVED (Use) sunod
+ *   3) ONGOING / OVERDUE (Mark returned) sunod
+ *   4) RETURNED sa pinakababa
+ * Pending/Approved/Ongoing/Overdue: pataas ang start date (pinakaluma muna).
+ * Returned: pababa ang start date (pinakabago muna).
+ * Kapag pareho ang date, sinusunod ang id.
+ */
+function sortEquipmentBookingsForManager(array $bookings) {
+    $rank = function ($status) {
+        if ($status === 'pending')  return 0;
+        if ($status === 'approved') return 1;
+        if (in_array($status, ['ongoing', 'overdue'], true)) return 2;
+        return 3; // returned
+    };
+
+    usort($bookings, function ($a, $b) use ($rank) {
+        $ra = $rank($a['status']);
+        $rb = $rank($b['status']);
+
+        if ($ra !== $rb) {
+            return $ra <=> $rb;
+        }
+
+        $dateCmp = strcmp($a['start_date'], $b['start_date']);
+
+        if ($ra < 3) {
+            // Hindi pa returned: pataas ang date (pinakaluma muna).
+            if ($dateCmp !== 0) return $dateCmp;
+            return ((int) $a['id']) <=> ((int) $b['id']);
+        }
+
+        // Returned: pababa ang date (pinakabago muna).
+        if ($dateCmp !== 0) return -$dateCmp;
+        return ((int) $b['id']) <=> ((int) $a['id']);
+    });
+
+    return $bookings;
+}
+
+/**
  * Bookings-this-month count per equipment, e.g. [3 => 5, 7 => 2],
  * for the per-equipment summary cards ($monthlyRentCounts[$eq['id']]).
  */
@@ -313,6 +355,43 @@ function getAllLoans($pdo) {
 }
 
 /**
+ * Inaayos ang loan rows para sa manager's table (PHP sort, hindi SQL):
+ *   1) PENDING sa taas, pataas ang date (pinakaluma muna).
+ *   2) APPROVED (hinihintay ang Release) sa ilalim noon, pataas din ang date.
+ *   3) RELEASED / PAID OFF / REJECTED sa baba, pababa ang date (pinakabago muna).
+ * Petsa ng request (created_at) ang ginagamit. Kapag pareho, sinusunod ang id.
+ */
+function sortLoansForManager(array $loans) {
+    $rank = function ($status) {
+        if ($status === 'pending')  return 0;
+        if ($status === 'approved') return 1;
+        return 2;
+    };
+
+    usort($loans, function ($a, $b) use ($rank) {
+        $ra = $rank($a['status']);
+        $rb = $rank($b['status']);
+        if ($ra !== $rb) {
+            return $ra <=> $rb;
+        }
+
+        $dateCmp = strcmp($a['created_at'], $b['created_at']);
+
+        if ($ra < 2) {
+            // Pending / Approved: pataas ang date (pinakaluma muna).
+            if ($dateCmp !== 0) return $dateCmp;
+            return ((int) $a['id']) <=> ((int) $b['id']);
+        }
+
+        // Released / Paid off / Rejected: pababa ang date (pinakabago muna).
+        if ($dateCmp !== 0) return -$dateCmp;
+        return ((int) $b['id']) <=> ((int) $a['id']);
+    });
+
+    return $loans;
+}
+
+/**
  * Coop-wide loan portfolio numbers. Now delegates to the ledger-based
  * version so every page shows the same figures.
  */
@@ -409,6 +488,43 @@ function getAllProductRequests($pdo) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+/**
+ * Inaayos ang product requests para sa manager's table (PHP sort, hindi SQL):
+ *   1) PENDING / UNDER REVIEW (Approve/Reject) sa TAAS, pataas ang date (pinakaluma muna).
+ *   2) APPROVED / PROCESSING / READY FOR PICKUP (may Update) sunod, pataas din ang date.
+ *   3) CLAIMED / REJECTED sa BABA, pababa ang date (pinakabago muna).
+ * Petsa ng request (created_at) ang ginagamit. Kapag pareho, sinusunod ang id.
+ */
+function sortProductRequestsForManager(array $requests) {
+    $rank = function ($status) {
+        if (in_array($status, ['pending', 'under_review'], true)) return 0;
+        if (in_array($status, ['approved', 'processing', 'ready_for_pickup'], true)) return 1;
+        return 2;
+    };
+
+    usort($requests, function ($a, $b) use ($rank) {
+        $ra = $rank($a['status']);
+        $rb = $rank($b['status']);
+        if ($ra !== $rb) {
+            return $ra <=> $rb;
+        }
+
+        $dateCmp = strcmp($a['created_at'], $b['created_at']);
+
+        if ($ra < 2) {
+            // Pending / Approved group: pataas ang date (pinakaluma muna).
+            if ($dateCmp !== 0) return $dateCmp;
+            return ((int) $a['id']) <=> ((int) $b['id']);
+        }
+
+        // Claimed / Rejected: pababa ang date (pinakabago muna).
+        if ($dateCmp !== 0) return -$dateCmp;
+        return ((int) $b['id']) <=> ((int) $a['id']);
+    });
+
+    return $requests;
+}
+
 function productRequestStatusBadge($status) {
     $map = [
         'pending'          => ['label' => 'Pending',          'bg' => '#fff3cd', 'text' => '#856404'],
@@ -461,6 +577,50 @@ function getAllCrops($pdo) {
         ORDER BY (c.status = 'pending') DESC, c.created_at DESC
     ");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Inaayos ang crop rows para sa manager's table (PHP sort, hindi SQL):
+ *   1) PENDING (Approve/Reject) sa pinakataas
+ *   2) GROWING sunod
+ *   3) READY TO HARVEST sunod
+ *   4) HARVESTED sa baba
+ *   5) REJECTED sa pinakababa
+ * Pending/Growing/Ready: pataas ang date (pinakaluma muna).
+ * Harvested/Rejected: pababa ang date (pinakabago muna).
+ * Petsa ng pagkakatala (created_at) ang ginagamit. Kapag pareho, sinusunod ang id.
+ */
+function sortCropsForManager(array $crops) {
+    $rank = function ($status) {
+        if ($status === 'pending')          return 0;
+        if ($status === 'growing')          return 1;
+        if ($status === 'ready_to_harvest') return 2;
+        if ($status === 'harvested')        return 3;
+        return 4; // rejected
+    };
+
+    usort($crops, function ($a, $b) use ($rank) {
+        $ra = $rank($a['status']);
+        $rb = $rank($b['status']);
+
+        if ($ra !== $rb) {
+            return $ra <=> $rb;
+        }
+
+        $dateCmp = strcmp($a['created_at'], $b['created_at']);
+
+        if ($ra < 3) {
+            // Pending / Growing / Ready: pataas ang date (pinakaluma muna).
+            if ($dateCmp !== 0) return $dateCmp;
+            return ((int) $a['id']) <=> ((int) $b['id']);
+        }
+
+        // Harvested / Rejected: pababa ang date (pinakabago muna).
+        if ($dateCmp !== 0) return -$dateCmp;
+        return ((int) $b['id']) <=> ((int) $a['id']);
+    });
+
+    return $crops;
 }
 
 /**
@@ -601,6 +761,8 @@ function getEligibleMembersForDistribution($pdo) {
 /**
  * All distribution records, newest first, with member info joined in
  * (same join pattern as getAllLoans() / getAllCrops()).
+ * Ang SQL ay hindi ginalaw; ang ayos para sa manager's table ay ginagawa
+ * sa PHP gamit ang sortDistributionsForManager() sa ibaba.
  */
 function getAllDistributions($pdo) {
     $stmt = $pdo->query("
@@ -610,6 +772,43 @@ function getAllDistributions($pdo) {
         ORDER BY d.distribution_date DESC, d.created_at DESC
     ");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Inaayos ang distribution rows para sa manager's table (PHP sort, hindi SQL):
+ *   1) NOT RELEASED (may Confirm/Decline) sa TAAS, pataas ang date
+ *      (pinakaluma muna, pinakabago sa pinakababa ng grupo).
+ *   2) RELEASED (claimed) sa BABA, pababa ang date
+ *      (pinakabago muna, hal. Dec 4 -> Nov 26 -> Nov 20 ...).
+ * Kapag pareho ang date, sinusunod ang id para stable ang ayos.
+ *
+ * Gusto mo bang baliktarin ang date ng isang grupo? Palitan lang ang
+ * pagkakasunod ng $a at $b sa kaukulang linya.
+ */
+function sortDistributionsForManager(array $distributions) {
+    usort($distributions, function ($a, $b) {
+        $aReleased = ($a['status'] === 'released') ? 1 : 0;
+        $bReleased = ($b['status'] === 'released') ? 1 : 0;
+
+        // Not released (0) muna, Released (1) sa baba.
+        if ($aReleased !== $bReleased) {
+            return $aReleased <=> $bReleased;
+        }
+
+        $dateCmp = strcmp($a['distribution_date'], $b['distribution_date']);
+
+        if ($aReleased === 0) {
+            // Not released: pataas ang date (pinakaluma muna).
+            if ($dateCmp !== 0) return $dateCmp;
+            return ((int) $a['id']) <=> ((int) $b['id']);
+        }
+
+        // Released: pababa ang date (pinakabago muna).
+        if ($dateCmp !== 0) return -$dateCmp;
+        return ((int) $b['id']) <=> ((int) $a['id']);
+    });
+
+    return $distributions;
 }
 
 function getDistributionById($pdo, $id) {
@@ -676,9 +875,14 @@ function distributionStatusBadge($status) {
 
 
 /**
- * The current user's own bookings: active ones first (pending, approved,
- * ongoing, overdue), then returned ones, so finished bookings stay visible.
- * Rejected/cancelled bookings are still left out.
+ * The current user's own bookings. Rejected/cancelled bookings are left out.
+ * Ayos (PHP sort, hindi SQL), kapareho ng grupo sa manager:
+ *   1) PENDING
+ *   2) APPROVED
+ *   3) ONGOING / OVERDUE
+ *   4) RETURNED sa pinakababa
+ * Sa loob ng bawat grupo: pinakabagong start date sa taas, pinakaluma sa baba.
+ * Kapag pareho ang date, sinusunod ang id (pinakabago muna).
  */
 function getMyEquipmentBookings($pdo, $userId) {
     markOverdueBookings($pdo);
@@ -688,10 +892,32 @@ function getMyEquipmentBookings($pdo, $userId) {
         INNER JOIN equipment e ON e.id = b.equipment_id
         WHERE b.recorded_by = :user_id
           AND b.status IN ('pending', 'approved', 'ongoing', 'overdue', 'returned')
-        ORDER BY (b.status = 'returned') ASC, b.start_date DESC
     ");
     $stmt->execute([':user_id' => $userId]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $rank = function ($status) {
+        if ($status === 'pending')  return 0;
+        if ($status === 'approved') return 1;
+        if (in_array($status, ['ongoing', 'overdue'], true)) return 2;
+        return 3; // returned
+    };
+
+    usort($bookings, function ($a, $b) use ($rank) {
+        $ra = $rank($a['status']);
+        $rb = $rank($b['status']);
+
+        if ($ra !== $rb) {
+            return $ra <=> $rb;
+        }
+
+        // Pinakabagong start date muna sa loob ng grupo.
+        $dateCmp = strcmp($b['start_date'], $a['start_date']);
+        if ($dateCmp !== 0) return $dateCmp;
+        return ((int) $b['id']) <=> ((int) $a['id']);
+    });
+
+    return $bookings;
 }
 
 /**

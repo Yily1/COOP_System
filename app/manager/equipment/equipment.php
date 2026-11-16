@@ -14,6 +14,8 @@ $equipmentList    = getAllEquipment($pdo);
 $totalEquipment   = getTotalEquipmentCount($pdo);
 $rentedThisMonth  = getRentedThisMonthCount($pdo);
 $currentBookings  = getCurrentEquipmentBookings($pdo);
+// Hindi pa returned sa taas, Returned sa baba. PHP sort, hindi SQL.
+$currentBookings  = sortEquipmentBookingsForManager($currentBookings);
 $monthlyRentCounts = getMonthlyRentCountByEquipment($pdo);
 
 $iconMap = [
