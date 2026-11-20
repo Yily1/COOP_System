@@ -19,6 +19,11 @@ if (isLoggedIn()) {
 
 $error = '';
 
+// Galing sa requireLogin()/user-update.php kapag na-Inactive ang account
+if (isset($_GET['inactive'])) {
+    $error = "Your account is inactive. Please contact the manager.";
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Accepts either the account's email or its username in the
     // same field. Kept as $email for logActivity()/error messages
@@ -32,24 +37,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($user && password_verify($password, $user['password'])) {
-        // Successful login
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['email'] = $user['email'];
-        $_SESSION['role'] = $user['role'];
-        
-        // Log successful login
-        logActivity($pdo, $user['id'], $user['email'], 'login', 'success');
-        
-        switch($user['role']) {
-            case 'admin':
-                redirect('/app/admin/dashboard.php');
-                break;
-            case 'manager':
-                redirect('/app/manager/dashboard.php');
-                break;
-            case 'user':
-                redirect('/app/user/dashboard.php');
-                break;
+
+        // Tama ang password, pero Inactive ang account: hindi papasukin.
+        // (Sa tamang password lang ito sinasabi, para hindi malaman ng iba
+        // kung may account ang isang email/username.)
+        if (($user['account_status'] ?? '') === 'Inactive') {
+            $error = "Your account is inactive. Please contact the manager.";
+
+            // Log blocked login attempt
+            logActivity($pdo, $user['id'], $user['email'], 'login', 'failed');
+        } else {
+            // Successful login
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['email'] = $user['email'];
+            $_SESSION['role'] = $user['role'];
+
+            // First name para sa greeting sa header (galing sa members table).
+            // Walang member record (hal. admin)? Email name ang gagamitin.
+            unset($_SESSION['first_name']);
+            if (!empty($user['member_id'])) {
+                try {
+                    $fn = $pdo->prepare('SELECT first_name FROM members WHERE id = ?');
+                    $fn->execute([$user['member_id']]);
+                    $firstName = $fn->fetchColumn();
+                    if ($firstName) {
+                        $_SESSION['first_name'] = $firstName;
+                    }
+                } catch (Throwable $e) {
+                    error_log('first_name lookup failed: ' . $e->getMessage());
+                }
+            }
+            
+            // Log successful login
+            logActivity($pdo, $user['id'], $user['email'], 'login', 'success');
+            
+            switch($user['role']) {
+                case 'admin':
+                    redirect('/app/admin/dashboard.php');
+                    break;
+                case 'manager':
+                    redirect('/app/manager/dashboard.php');
+                    break;
+                case 'user':
+                    redirect('/app/user/dashboard.php');
+                    break;
+            }
         }
     } else {
         // Failed login

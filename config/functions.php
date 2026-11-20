@@ -16,9 +16,48 @@ function hasRole($role) {
     return isset($_SESSION['role']) && $_SESSION['role'] === $role;
 }
 
+/**
+ * True kung Inactive na ang account ng naka-login (o wala na ang account
+ * sa database). Tinitingnan sa database sa bawat page, kaya kahit may
+ * bukas pang session, agad siyang haharangin kapag na-Inactive.
+ * Kapag nag-error ang database mismo, hindi natin ila-lock out ang user.
+ */
+function isAccountInactive() {
+    global $pdo;
+    if (!isset($_SESSION['user_id']) || !isset($pdo)) {
+        return false;
+    }
+    try {
+        $stmt = $pdo->prepare('SELECT account_status FROM users WHERE id = ?');
+        $stmt->execute([$_SESSION['user_id']]);
+        $status = $stmt->fetchColumn();
+    } catch (Throwable $e) {
+        error_log('isAccountInactive failed: ' . $e->getMessage());
+        return false;
+    }
+    // false = wala nang ganung user; 'Inactive' = naka-deactivate
+    return $status === false || $status === 'Inactive';
+}
+
+/**
+ * Buburahin ang buong session (data + cookie).
+ */
+function forceLogoutInactive() {
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $p = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+    }
+    session_destroy();
+}
+
 function requireLogin() {
     if (!isLoggedIn()) {
         redirect('/index.php');
+    }
+    if (isAccountInactive()) {
+        forceLogoutInactive();
+        redirect('/index.php?inactive=1');
     }
 }
 
@@ -38,6 +77,13 @@ function apiRequireRole($role) {
         http_response_code(401);
         header('Content-Type: application/json');
         echo json_encode(['error' => 'Unauthorized. Please log in.']);
+        exit;
+    }
+    if (isAccountInactive()) {
+        forceLogoutInactive();
+        http_response_code(403);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Your account is inactive.', 'inactive' => true]);
         exit;
     }
     if (!hasRole($role)) {
@@ -1002,6 +1048,30 @@ function navActive($path) {
     return (strpos($_SERVER['REQUEST_URI'], $path) !== false) ? 'active' : '';
 }
 
+/**
+ * Greeting depende sa oras (Philippine time).
+ */
+function getGreeting() {
+    $hour = (int) (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('G');
+    if ($hour < 12) return 'Good morning';
+    if ($hour < 18) return 'Good afternoon';
+    return 'Good evening';
+}
+
+/**
+ * Pangalang ipapakita sa greeting. Una: $_SESSION['first_name'] (kung
+ * na-set sa login). Fallback: unang bahagi ng email, o ang role.
+ */
+function getDisplayName() {
+    if (!empty($_SESSION['first_name'])) {
+        return $_SESSION['first_name'];
+    }
+    if (!empty($_SESSION['email'])) {
+        return ucfirst(explode('@', $_SESSION['email'])[0]);
+    }
+    return ucfirst($_SESSION['role'] ?? 'User');
+}
+
 function renderHeader($title) {
     $currentRole = $_SESSION['role'] ?? 'guest';
     $currentEmail = $_SESSION['email'] ?? '';
@@ -1087,6 +1157,55 @@ function renderHeader($title) {
                 color: #fff;
             }
 
+            /* ===== Logo sa app bar (kita kapag naka-close ang drawer) ===== */
+            .app-bar-brand {
+                display: flex;
+                align-items: center;
+            }
+            .app-bar-brand img {
+                width: 40px;
+                height: 40px;
+                object-fit: contain;
+                background: #fff;
+                border-radius: 50%;
+                padding: 2px;
+                box-sizing: border-box;
+            }
+            /* Kapag bukas ang drawer, nasa drawer na ang logo, kaya itago dito */
+            .app-bar.app-bar-shift .app-bar-brand { display: none; }
+
+            /* ===== Greeting + Logout icon (kanan ng app bar) ===== */
+            .app-bar-right {
+                margin-left: auto;
+                display: flex;
+                align-items: center;
+                gap: 14px;
+            }
+            .logout-icon-btn {
+                width: 34px;
+                height: 34px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid rgba(255,255,255,0.6);
+                border-radius: 8px;
+                color: #fff;
+                text-decoration: none;
+            }
+            .logout-icon-btn .material-icons { font-size: 20px; }
+            .logout-icon-btn:hover { background: rgba(255,255,255,0.15); }
+            .app-bar-right { flex-shrink: 0; }
+
+            /* Admin/Manager: greeting sa kaliwa, katabi ng logo */
+            .app-bar-greeting-left {
+                margin-left: 10px;
+                font-size: .875rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                min-width: 0;
+            }
+
             /* ===== Drawer (mirrors MUI's <Drawer variant="persistent">) ===== */
             .drawer {
                 position: fixed;
@@ -1107,9 +1226,9 @@ function renderHeader($title) {
             .drawer-header {
                 display: flex;
                 align-items: center;
-                justify-content: flex-end;
+                justify-content: space-between;
                 height: var(--header-height);
-                padding: 0 8px;
+                padding: 0 8px 0 12px;
                 background: #3B6D11;
             }
             .drawer-header .icon-button {
@@ -1127,6 +1246,28 @@ function renderHeader($title) {
                 margin: 0;
             }
             .drawer-header .icon-button:hover { background: rgba(255,255,255,0.15); }
+
+            /* Logo + pangalan sa drawer header */
+            .drawer-brand {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: #fff;
+                text-decoration: none;
+            }
+            .drawer-brand img {
+                width: 44px;
+                height: 44px;
+                object-fit: contain;
+                background: #fff;
+                border-radius: 50%;
+                padding: 2px;
+                box-sizing: border-box;
+            }
+            .drawer-brand span {
+                font-weight: 700;
+                font-size: 15px;
+            }
 
             /* Divider (mirrors MUI's <Divider />) */
             hr.divider {
@@ -1218,6 +1359,12 @@ function renderHeader($title) {
                     font-size: 12px;
                 }
 
+                /* Phone (admin/manager): kita pa rin ang greeting sa tabi ng logo, mas maliit */
+                .app-bar-greeting-left {
+                    font-size: 12px;
+                    margin-left: 6px;
+                }
+
                 /* Phone: Logout sits right under the last menu item, so it never
                    ends up hidden under the browser's bottom bar */
                 .drawer .mobile-logout {
@@ -1241,11 +1388,32 @@ function renderHeader($title) {
                 <div class="app-bar" id="appBar">
                     <div class="toolbar">
                         <button class="icon-button" id="openBtn" aria-label="open drawer">&#9776;</button>
+
+                        <!-- Logo (kita kapag naka-close ang drawer). Pwedeng palitan ng logo-small.png -->
+                        <a class="app-bar-brand" href="<?php echo BASE_URL; ?>/index.php">
+                            <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC logo">
+                        </a>
+
+                        <?php if ($currentRole === 'admin' || $currentRole === 'manager'): ?>
+                            <!-- Admin/Manager: greeting sa tabi ng logo -->
+                            <span class="app-bar-greeting-left"><?php echo getGreeting() . ', ' . htmlspecialchars(getDisplayName()); ?></span>
+                        <?php endif; ?>
+
+                        <!-- Logout icon (lahat ng role) -->
+                        <div class="app-bar-right">
+                            <a class="logout-icon-btn" href="<?php echo BASE_URL; ?>/app/auth/signout.php" aria-label="Logout" title="Logout">
+                                <span class="material-icons">logout</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
 
                 <div class="drawer" id="drawer">
                     <div class="drawer-header">
+                        <a class="drawer-brand" href="<?php echo BASE_URL; ?>/index.php">
+                            <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC logo">
+                            <span>SJFMC</span>
+                        </a>
                         <button class="icon-button" id="closeBtn" aria-label="close drawer">&#8592;</button>
                     </div>
 

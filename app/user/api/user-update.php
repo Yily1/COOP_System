@@ -1,8 +1,7 @@
 <?php
-ob_start(); // buffer output so PHP warnings/notices can't corrupt the JSON
-// API: a regular user updates THEIR OWN account (JSON).
-// Called from the Update Account modal in app/user/profile.php
-//   POST with: username, email, password (optional), confirm_password, account_status
+ob_start(); 
+
+
 require_once '../../../config/config.php';
 require_once '../../../config/functions.php';
 
@@ -41,7 +40,8 @@ $username         = trim($_POST['username'] ?? '');
 $email            = trim($_POST['email'] ?? '');
 $password         = $_POST['password'] ?? '';
 $confirm_password = $_POST['confirm_password'] ?? '';
-$account_status   = ($_POST['account_status'] ?? 'Active') === 'Inactive' ? 'Inactive' : 'Active';
+// Isang direksyon lang: "Inactive" lang ang pinapansin. Kahit "Active" ang ipadala, walang mababago.
+$wantsInactive    = (($_POST['account_status'] ?? '') === 'Inactive');
 
 $errors = [];
 
@@ -74,14 +74,18 @@ if (!empty($errors)) {
 }
 
 try {
-    // NOTE: role is intentionally NOT updated here. Users can never change their own role.
-    $sql = 'UPDATE users SET username = :username, email = :email, account_status = :status';
+    // NOTE: role ay sinasadyang HINDI ina-update dito.
+    $sql = 'UPDATE users SET username = :username, email = :email';
     $params = [
         ':username' => $username,
         ':email'    => $email,
-        ':status'   => $account_status,
         ':id'       => $userId,
     ];
+
+    // Pwede lang gawing Inactive. Hindi kailanman nagse-set ng Active dito.
+    if ($wantsInactive) {
+        $sql .= ", account_status = 'Inactive'";
+    }
 
     if ($password !== '') {
         $sql .= ', password = :password';
@@ -96,11 +100,18 @@ try {
 
     upSafeLog($pdo, $userId, $email, 'user_updated', 'success');
 
+    if ($wantsInactive) {
+        upSafeLog($pdo, $userId, $email, 'account_deactivated', 'success');
+        forceLogoutInactive(); // buburahin ang session
+        upRespond(true, 'Your account is now inactive.', [
+            'redirect' => BASE_URL . '/login.php?inactive=1',
+        ]);
+    }
+
     upRespond(true, 'Account updated successfully.', [
         'user' => [
-            'username'       => $username,
-            'email'          => $email,
-            'account_status' => $account_status,
+            'username' => $username,
+            'email'    => $email,
         ],
     ]);
 
