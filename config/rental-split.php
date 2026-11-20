@@ -1,20 +1,6 @@
 <?php
-/**
- * Rental split rules (one place to change the numbers).
- *
- * Every confirmed RENTAL payment is divided into:
- *   - operator share
- *   - repair and maintenance share
- *   - coop income (whatever is left)
- *
- * Corn Harvester : operator = 1,500 per hectare, then 10% of the REST goes to repair.
- * Corn Sheller   : 60% operator, 10% repair, 30% income (of the whole payment).
- * Dryer          : no split, the whole payment is income.
- *
- * The two shares are saved with each payment (payments.operator_share and
- * payments.repair_share) so old records don't change if a rate is changed later.
- * Payments without a share (old rentals, other payment types) are NULL = no split.
- */
+
+
 
 if (!defined('RENTAL_HARVESTER_OPERATOR_PER_HECTARE')) define('RENTAL_HARVESTER_OPERATOR_PER_HECTARE', 1500);
 if (!defined('RENTAL_HARVESTER_REPAIR_RATE'))          define('RENTAL_HARVESTER_REPAIR_RATE', 0.10);
@@ -40,6 +26,41 @@ function rentalEquipmentUnit($key) {
 }
 
 /**
+ * Kinukuha ang rate mula sa isang equipment row. Sinusubukan muna ang mga
+ * kilalang pangalan ng column, tapos hinahanap ang kahit anong column na
+ * may "member" / "non" sa pangalan. Kapag wala, 0 (manual ang Amount).
+ */
+function rentalPickRate(array $row, $forNonMember) {
+    $known = $forNonMember
+        ? ['rate_nonmember', 'rate_non_member', 'nonmember_rate', 'non_member_rate', 'non_member_price', 'nonmember_price']
+        : ['rate_member', 'member_rate', 'rate_members', 'member_price'];
+
+    foreach ($known as $col) {
+        if (isset($row[$col]) && is_numeric($row[$col])) {
+            return (float) $row[$col];
+        }
+    }
+
+    foreach ($row as $col => $val) {
+        $c = strtolower((string) $col);
+        if (!is_numeric($val)) continue;
+        $isNon = (strpos($c, 'non') !== false);
+        $isMember = (strpos($c, 'member') !== false);
+        if ($forNonMember && $isNon && $isMember) return (float) $val;
+        if (!$forNonMember && $isMember && !$isNon) return (float) $val;
+    }
+
+    // Iisang rate lang ang meron (walang hiwalay para sa member / non-member)
+    foreach (['rate', 'price', 'rental_rate', 'rate_per_unit'] as $col) {
+        if (isset($row[$col]) && is_numeric($row[$col])) {
+            return (float) $row[$col];
+        }
+    }
+
+    return 0.0;
+}
+
+/**
  * Rates per hectare / per sack taken from the Equipment page, keyed by our
  * equipment keys. Returns e.g.
  *   ['corn_harvester' => ['member' => 2000.0, 'non_member' => 2500.0], ...]
@@ -48,6 +69,7 @@ function rentalEquipmentUnit($key) {
 function rentalEquipmentRates($pdo) {
     $rates = [];
     if (!function_exists('getAllEquipment')) {
+        error_log('rentalEquipmentRates: getAllEquipment() not found');
         return $rates;
     }
     foreach (getAllEquipment($pdo) as $eq) {
@@ -58,9 +80,12 @@ function rentalEquipmentRates($pdo) {
         elseif (strpos($n, 'dryer') !== false)   $key = 'dryer';
         if ($key) {
             $rates[$key] = [
-                'member'     => (float) ($eq['rate_member'] ?? 0),
-                'non_member' => (float) ($eq['rate_nonmember'] ?? 0),
+                'member'     => rentalPickRate($eq, false),
+                'non_member' => rentalPickRate($eq, true),
             ];
+            if ($rates[$key]['member'] <= 0 && $rates[$key]['non_member'] <= 0) {
+                error_log('rentalEquipmentRates: no rate found for ' . $key . '. Columns: ' . implode(', ', array_keys($eq)));
+            }
         }
     }
     return $rates;
