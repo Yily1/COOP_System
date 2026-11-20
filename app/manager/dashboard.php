@@ -34,16 +34,22 @@ function dash_peso0_signed($v) {
 /* ============================================================
    DISPLAY ONLY
    Ang mga numero sa ibaba ay NAKAPIRMI at hindi galing sa database.
-   Pwede mo silang palitan dito mismo. Ang tanging totoong data
-   sa dashboard na ito ay ang "Recent activity" sa pinakababa.
+   Pwede mo silang palitan dito mismo.
+   Ang TOTOONG data sa dashboard na ito ay:
+     1) Ang "Cooperative expenses" card (Operational + Repair and
+        Maintenance na expenses) - galing sa expenses table
+     2) Ang "Recent activity" sa pinakababa
+   Ang "Repair and maintenance" card ay income-side at DISPLAY ONLY pa rin.
    ============================================================ */
 
 // Mga label ng huling 6 na buwan at huling 5 taon (para sa mga chart lang)
 $monthLabels = [];
+$monthKeys   = [];   // 'Y-m' ng bawat buwan, para itugma sa expenses
 for ($i = 5; $i >= 0; $i--) {
     $d = new DateTime('first day of this month');
     $d->modify("-$i months");
     $monthLabels[] = $d->format('M');
+    $monthKeys[]   = $d->format('Y-m');
 }
 $years = [];
 for ($i = 4; $i >= 0; $i--) {
@@ -62,7 +68,7 @@ $incomeByType = [
     'product'        => 14000,
 ];
 
-// Net income
+// Net income (nakapirmi pa rin; hindi apektado ng expenses)
 $netIncome    = 98000;
 $netDeltaUp   = true;
 $netDeltaText = '₱12,000 more than last year';
@@ -73,11 +79,7 @@ $reserveTotal   = 15000;
 $reserveCount   = 30;
 $reserveByMonth = [1500, 2000, 2500, 3000, 3000, 3000];
 
-// Operational expenses
-$totalOperational = 27000;
-$expenseByMonth   = [3000, 4500, 4000, 5500, 5000, 5000];
-
-// Repair and maintenance
+// Repair and maintenance (income-side, display only; HINDI galing sa expenses)
 $totalRepair   = 12000;
 $repairByMonth = [1500, 2000, 1800, 2200, 2300, 2200];
 
@@ -103,6 +105,29 @@ $typeMeta = [
     'rental'         => ['Rental',         '#eda100'],
     'product'        => ['Product',        '#7f77dd'],
 ];
+
+/* ============================================================
+   TOTOONG DATA: COOPERATIVE EXPENSES (galing sa expenses table)
+   Kabuuan ng dalawang category: 'Operational' + 'Repair and Maintenance'.
+   - Ang total ay ALL TIME (kapareho ng Expenses page).
+   - Ang bar chart ay huling 6 na buwan.
+   ============================================================ */
+$totalCoopExpenses  = 0.0;
+$coopExpenseByMonth = array_fill(0, count($monthKeys), 0.0);
+
+$expenseRows = dash_rows($pdo, "
+    SELECT DATE_FORMAT(expense_date, '%Y-%m') AS ym, SUM(amount) AS total
+    FROM expenses
+    WHERE category IN ('Operational', 'Repair and Maintenance')
+    GROUP BY DATE_FORMAT(expense_date, '%Y-%m')");
+
+foreach ($expenseRows as $r) {
+    $totalCoopExpenses += (float) $r['total'];
+    $idx = array_search($r['ym'], $monthKeys, true);
+    if ($idx !== false) {
+        $coopExpenseByMonth[$idx] += (float) $r['total'];
+    }
+}
 
 /* ============================================================
    TOTOONG DATA: RECENT ACTIVITY
@@ -227,17 +252,22 @@ renderHeader($title);
 
         <div class="db-col">
 
+            <!-- ==================== COOPERATIVE EXPENSES (Operational + Repair and Maintenance) ==================== -->
             <div class="db-card">
                 <div class="db-head">
-                    <span class="material-icons">receipt_long</span>Operational expenses
+                    <span class="material-icons">receipt_long</span>Cooperative expenses
                     <a href="<?php echo BASE_URL; ?>/app/manager/expenses/expenses.php">Manage</a>
                 </div>
-                <p class="db-small-num"><?php echo dash_peso0($totalOperational); ?></p>
+                <div style="display:flex; align-items:baseline; gap:8px;">
+                    <p class="db-small-num"><?php echo dash_peso0($totalCoopExpenses); ?></p>
+                    <span class="db-sub">All time</span>
+                </div>
                 <div class="db-chart-sm">
-                    <canvas id="expenseChart" role="img" aria-label="Bar chart of expenses per month for the last six months"></canvas>
+                    <canvas id="coopExpenseChart" role="img" aria-label="Bar chart of cooperative expenses per month for the last six months"></canvas>
                 </div>
             </div>
 
+            <!-- ==================== REPAIR AND MAINTENANCE (income-side, display only) ==================== -->
             <div class="db-card">
                 <div class="db-head">
                     <span class="material-icons">handyman</span>Repair and maintenance
@@ -379,11 +409,12 @@ renderHeader($title);
         });
     }
 
-    const expense = document.getElementById('expenseChart');
-    if (expense) {
-        new Chart(expense, {
+    // Cooperative expenses (Operational + Repair and Maintenance)
+    const coopExpense = document.getElementById('coopExpenseChart');
+    if (coopExpense) {
+        new Chart(coopExpense, {
             type: 'bar',
-            data: { labels: monthLabels, datasets: [{ data: <?php echo json_encode(array_values($expenseByMonth)); ?>, backgroundColor: '#eb6834', borderRadius: 4, maxBarThickness: 26 }] },
+            data: { labels: monthLabels, datasets: [{ data: <?php echo json_encode(array_values($coopExpenseByMonth)); ?>, backgroundColor: '#eb6834', borderRadius: 4, maxBarThickness: 26 }] },
             options: Object.assign({}, base, { plugins: { legend: { display: false }, tooltip: tip }, scales: { y: { display: false, beginAtZero: true }, x: { ticks: { color: TICK, font: { size: 11 } }, grid: { display: false } } } })
         });
     }

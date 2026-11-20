@@ -7,16 +7,27 @@ date_default_timezone_set('Asia/Manila');
 
 $tableMissing = false;
 $expenses = [];
-$total = 0.0;
 $thisMonth = 0.0;
 
+// Mga category (galing sa functions.php, iisang listahan para sa page at API)
+$categories = getExpenseCategories();
+$totals = array_fill_keys($categories, 0.0);
+
+// Kulay ng category pill sa table
+$catClass = [
+    'Operational'            => 'ex-cat-op',
+    'Repair and Maintenance' => 'ex-cat-rm',
+];
+
 try {
-    $stmt = $pdo->query("
+    $in = implode(',', array_fill(0, count($categories), '?'));
+    $stmt = $pdo->prepare("
         SELECT e.*, u.email AS recorded_by_email
         FROM expenses e
         LEFT JOIN users u ON u.id = e.recorded_by
-        WHERE e.category = 'Operational'
+        WHERE e.category IN ($in)
     ");
+    $stmt->execute($categories);
     $expenses = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Sort sa PHP (hindi SQL): pinakamataas na date sa taas, pinakamababa sa baba
@@ -30,7 +41,7 @@ try {
 
     $currentMonth = date('Y-m');
     foreach ($expenses as $e) {
-        $total += (float) $e['amount'];
+        $totals[$e['category']] += (float) $e['amount'];
         if (substr($e['expense_date'], 0, 7) === $currentMonth) {
             $thisMonth += (float) $e['amount'];
         }
@@ -79,8 +90,24 @@ renderHeader('Expenses');
     font-family: 'Fraunces', 'Times New Roman', Times, serif;
     font-variant-numeric: lining-nums tabular-nums; white-space: nowrap;
 }
-.ex-stat-total { background: #a84438; }
-.ex-stat-month { background: #C1892B; }
+.ex-stat-total  { background: #a84438; }
+.ex-stat-repair { background: #2f5230; }
+.ex-stat-month  { background: #C1892B; }
+
+/* ===== Filter tabs (All / Operational / Repair and Maintenance) ===== */
+.ex-tabs {
+    display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+.ex-tab {
+    flex: 0 0 auto !important; width: auto !important; max-width: none !important; margin: 0 !important;
+    background: #fff !important; color: #3B6D11 !important; border: 1px solid #cfd8c3 !important;
+    border-radius: 999px !important; padding: 6px 14px !important; font-size: 13px !important; font-weight: 600 !important;
+    font-family: inherit !important; cursor: pointer; box-shadow: none !important;
+    text-transform: none !important; letter-spacing: normal !important;
+}
+.ex-tab:hover { background: #eef5e4 !important; }
+.ex-tab.active { background: #3B6D11 !important; color: #fff !important; border-color: #3B6D11 !important; }
 
 .ex-table-wrap { overflow-x: auto; border: 1px solid #e2e0d5; border-radius: 10px; background: #fff; }
 .ex-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -89,6 +116,14 @@ renderHeader('Expenses');
 .ex-table tbody tr:last-child td { border-bottom: none; }
 .ex-amount { font-weight: 600; white-space: nowrap; }
 .ex-empty { padding: 28px; text-align: center; color: #6b7280; font-size: 13px; }
+
+/* Category pill */
+.ex-cat {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.ex-cat-op { background: #e3efd2; color: #3B6D11; }
+.ex-cat-rm { background: #fbecc8; color: #8a5a00; }
 
 .ex-setup { background: #FAEEDA; border-left: 3px solid #EF9F27; color: #854F0B; border-radius: 6px; padding: 14px 16px; font-size: 13.5px; line-height: 1.6; }
 .ex-setup pre { background: #fff; border-radius: 6px; padding: 10px; margin: 10px 0 0; font-size: 12px; white-space: pre-wrap; color: #333; }
@@ -118,7 +153,8 @@ renderHeader('Expenses');
 .ex-form { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 10px; }
 .ex-form .form-group { margin: 0 !important; min-width: 0; }
 .ex-form .form-group label { display: block; font-size: 13px; margin-bottom: 3px !important; }
-.ex-form .form-group input {
+.ex-form .form-group input,
+.ex-form .form-group select {
     width: 100%; box-sizing: border-box; padding: 7px 9px !important; font-size: 13px !important;
 }
 .ex-form button[type="submit"] {
@@ -178,7 +214,11 @@ renderHeader('Expenses');
     <div class="ex-stats">
         <div class="ex-stat ex-stat-total">
             <p class="l">Operational expenses</p>
-            <p class="v">₱<?php echo number_format($total, 2); ?></p>
+            <p class="v">₱<?php echo number_format($totals['Operational'], 2); ?></p>
+        </div>
+        <div class="ex-stat ex-stat-repair">
+            <p class="l">Repair and Maintenance</p>
+            <p class="v">₱<?php echo number_format($totals['Repair and Maintenance'], 2); ?></p>
         </div>
         <div class="ex-stat ex-stat-month">
             <p class="l">This month</p>
@@ -189,11 +229,20 @@ renderHeader('Expenses');
     <?php if (empty($expenses)): ?>
         <div class="ex-table-wrap"><p class="ex-empty">No expenses recorded yet. Click &ldquo;+ Add expense&rdquo; to add the first one.</p></div>
     <?php else: ?>
+
+        <div class="ex-tabs" id="exTabs">
+            <button type="button" class="ex-tab active" data-filter="all">All</button>
+            <?php foreach ($categories as $c): ?>
+                <button type="button" class="ex-tab" data-filter="<?php echo htmlspecialchars($c); ?>"><?php echo htmlspecialchars($c); ?></button>
+            <?php endforeach; ?>
+        </div>
+
         <div class="ex-table-wrap">
             <table class="ex-table" id="exTable">
                 <thead>
                     <tr>
                         <th>Date</th>
+                        <th>Category</th>
                         <th>Description</th>
                         <th>Amount</th>
                         <th>Recorded by</th>
@@ -201,8 +250,11 @@ renderHeader('Expenses');
                 </thead>
                 <tbody>
                     <?php foreach ($expenses as $e): ?>
-                        <tr>
+                        <tr data-category="<?php echo htmlspecialchars($e['category']); ?>">
                             <td data-label="Date" style="white-space:nowrap;"><?php echo date('M j, Y', strtotime($e['expense_date'])); ?></td>
+                            <td data-label="Category">
+                                <span class="ex-cat <?php echo $catClass[$e['category']] ?? 'ex-cat-op'; ?>"><?php echo htmlspecialchars($e['category']); ?></span>
+                            </td>
                             <td data-label="Description"><?php echo htmlspecialchars($e['description']); ?></td>
                             <td data-label="Amount" class="ex-amount">₱<?php echo number_format($e['amount'], 2); ?></td>
                             <td data-label="Recorded by" style="color:#6b7280;"><?php echo htmlspecialchars($e['recorded_by_email'] ?? '-'); ?></td>
@@ -210,6 +262,7 @@ renderHeader('Expenses');
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            <p class="ex-empty" id="exNoRows" style="display:none;">No expenses in this category yet.</p>
         </div>
     <?php endif; ?>
 
@@ -220,6 +273,15 @@ renderHeader('Expenses');
             <div id="exErrors"></div>
 
             <form id="exForm" class="ex-form">
+                <div class="form-group">
+                    <label for="exCategory">Category</label>
+                    <select name="category" id="exCategory" required>
+                        <?php foreach ($categories as $c): ?>
+                            <option value="<?php echo htmlspecialchars($c); ?>"><?php echo htmlspecialchars($c); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label for="exDate">Date</label>
                     <input type="date" name="expense_date" id="exDate" required>
@@ -249,6 +311,16 @@ renderHeader('Expenses');
         const form = document.getElementById('exForm');
         const errors = document.getElementById('exErrors');
         const submitBtn = document.getElementById('exSubmit');
+        const catSel = document.getElementById('exCategory');
+        const desc = document.getElementById('exDesc');
+
+        // Placeholder ng Description depende sa category
+        const hints = {
+            'Operational': 'e.g. Fuel for delivery truck',
+            'Repair and Maintenance': 'e.g. Corn sheller repair'
+        };
+        function updateHint() { desc.placeholder = hints[catSel.value] || ''; }
+        catSel.addEventListener('change', updateHint);
 
         function openModal() { backdrop.style.display = 'flex'; }
         function closeModal() { backdrop.style.display = 'none'; errors.style.display = 'none'; }
@@ -256,6 +328,14 @@ renderHeader('Expenses');
         document.getElementById('exOpenAdd').addEventListener('click', function() {
             form.reset();
             document.getElementById('exDate').value = today;
+
+            // Kung may category tab na napili, iyon na ang naka-select sa form
+            const activeTab = document.querySelector('.ex-tab.active');
+            if (activeTab && activeTab.dataset.filter !== 'all') {
+                catSel.value = activeTab.dataset.filter;
+            }
+            updateHint();
+
             errors.style.display = 'none';
             openModal();
         });
@@ -265,6 +345,26 @@ renderHeader('Expenses');
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeModal(); }
         });
         backdrop.addEventListener('click', function(e) { if (e.target === backdrop) closeModal(); });
+
+        // ===== Filter tabs (All / Operational / Repair and Maintenance) =====
+        const tabs = document.querySelectorAll('.ex-tab');
+        const rows = document.querySelectorAll('#exTable tbody tr');
+        const noRows = document.getElementById('exNoRows');
+
+        tabs.forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                tabs.forEach(function(t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+
+                let shown = 0;
+                rows.forEach(function(row) {
+                    const ok = tab.dataset.filter === 'all' || row.dataset.category === tab.dataset.filter;
+                    row.style.display = ok ? '' : 'none';
+                    if (ok) shown++;
+                });
+                if (noRows) noRows.style.display = shown ? 'none' : 'block';
+            });
+        });
 
         form.addEventListener('submit', async function(e) {
             e.preventDefault();

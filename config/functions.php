@@ -57,7 +57,7 @@ function requireLogin() {
     }
     if (isAccountInactive()) {
         forceLogoutInactive();
-        redirect('/index.php?inactive=1');
+        redirect('/login.php?inactive=1');
     }
 }
 
@@ -1046,6 +1046,14 @@ function getAvailableMembers($pdo) {
 
 function navActive($path) {
     return (strpos($_SERVER['REQUEST_URI'], $path) !== false) ? 'active' : '';
+}
+
+/**
+ * Mga category ng Expenses. Iisang listahan ito para sa Expenses page at
+ * sa add-expense API. Ang value ay nase-save sa expenses.category (VARCHAR(30)).
+ */
+function getExpenseCategories() {
+    return ['Operational', 'Repair and Maintenance'];
 }
 
 /**
