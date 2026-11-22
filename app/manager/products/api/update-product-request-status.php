@@ -13,9 +13,6 @@ $pickupRaw    = trim((string) ($_POST['pickup_date'] ?? ''));
 
 $validStatuses = ['pending', 'under_review', 'approved', 'processing', 'ready_for_pickup', 'claimed', 'rejected'];
 
-// Allowed changes: pending -> approved or rejected, approved -> ready for pickup or claimed,
-// ready for pickup -> claimed. Claimed and rejected are final.
-// (under_review acts like pending and processing acts like approved, for older records.)
 $allowedMoves = [
     'pending'          => ['approved', 'rejected'],
     'under_review'     => ['approved', 'rejected'],
@@ -24,7 +21,6 @@ $allowedMoves = [
     'ready_for_pickup' => ['ready_for_pickup', 'claimed'],
 ];
 
-// Statuses a request is in BEFORE it is approved. Stock is deducted only on this move.
 $preApprovalStatuses = ['pending', 'under_review'];
 
 if (!$requestId || !ctype_digit((string) $requestId)) {
@@ -36,7 +32,6 @@ if (!in_array($status, $validStatuses, true)) {
     exit;
 }
 
-// Price per unit is optional. If it is left empty, the saved price stays as it is.
 $unitPrice = null;
 if ($unitPriceRaw !== '') {
     if (!is_numeric($unitPriceRaw) || (float) $unitPriceRaw < 0) {
@@ -50,7 +45,6 @@ if ($unitPriceRaw !== '') {
     }
 }
 
-// Pickup date is optional. If it is left empty, the saved pickup date stays as it is.
 $pickupDate = null;
 if ($pickupRaw !== '') {
     $d = DateTime::createFromFormat('Y-m-d', $pickupRaw);
@@ -61,7 +55,6 @@ if ($pickupRaw !== '') {
     $pickupDate = $pickupRaw;
 }
 
-// Rolls back the open transaction and sends an error to the page
 function failAndExit(PDO $pdo, string $message): void {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
@@ -75,10 +68,8 @@ function fmtQty($n): string {
 }
 
 try {
-    // Everything below happens in ONE transaction: if anything fails, nothing is changed.
     $pdo->beginTransaction();
 
-    // FOR UPDATE locks the row, so two clicks / two managers cannot approve the same request twice.
     $cur = $pdo->prepare("SELECT status, unit_price, product_id, quantity FROM product_requests WHERE id = ? FOR UPDATE");
     $cur->execute([$requestId]);
     $current = $cur->fetch(PDO::FETCH_ASSOC);
@@ -92,14 +83,27 @@ try {
     if (!in_array($status, $allowedMoves[$current['status']], true)) {
         failAndExit($pdo, 'That status change is not allowed.');
     }
+
+    // Listed product: the price is locked. The price typed in the form is ignored.
+    // The request keeps the price it already has; if it has none, the product's
+    // current price is saved when the request is approved.
+    // A product we don't carry yet (no product_id): the manager's price is used.
+    if (!empty($current['product_id'])) {
+        $unitPrice = null;
+        if ($status === 'approved' && $current['unit_price'] === null) {
+            $pp = $pdo->prepare("SELECT price FROM products WHERE id = ?");
+            $pp->execute([(int) $current['product_id']]);
+            $listedPrice = $pp->fetchColumn();
+            if ($listedPrice !== false) {
+                $unitPrice = round((float) $listedPrice, 2);
+            }
+        }
+    }
+
     if ($status === 'approved' && ($unitPrice === null || $unitPrice <= 0) && $current['unit_price'] === null) {
         failAndExit($pdo, 'Enter the price per unit before approving.');
     }
 
-    // ---- Deduct stock when the request is approved ----
-    // Only on pending / under_review -> approved. Later moves (Ready for Pickup, Claimed)
-    // never deduct again. Requests for a product the coop does not carry yet
-    // (no product_id) have nothing to deduct.
     if ($status === 'approved'
         && in_array($current['status'], $preApprovalStatuses, true)
         && !empty($current['product_id'])) {
@@ -123,8 +127,6 @@ try {
 
             $newStock = round($stock - $qty, 2);
 
-            // When the stock reaches 0, mark the product Out of Stock
-            // (a discontinued product keeps its status).
             if ($newStock <= 0 && $product['status'] === 'available') {
                 $up = $pdo->prepare("UPDATE products SET stock_quantity = ?, status = 'out_of_stock' WHERE id = ?");
                 $up->execute([$newStock, (int) $current['product_id']]);
@@ -135,9 +137,13 @@ try {
         }
     }
 
-    // ---- Save the new status (price and pickup date only when given) ----
-    $sets   = ['status = ?', 'manager_note = ?'];
-    $values = [$status, $managerNote !== '' ? $managerNote : null];
+    $sets   = ['status = ?'];
+    $values = [$status];
+
+    if (array_key_exists('manager_note', $_POST)) {
+        $sets[]   = 'manager_note = ?';
+        $values[] = $managerNote !== '' ? $managerNote : null;
+    }
 
     if ($unitPrice !== null) {
         $sets[]   = 'unit_price = ?';

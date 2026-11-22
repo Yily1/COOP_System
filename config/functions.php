@@ -549,10 +549,11 @@ function getAllProductRequests($pdo) {
 
 /**
  * Inaayos ang product requests para sa manager's table (PHP sort, hindi SQL):
- *   1) PENDING / UNDER REVIEW (Approve/Reject) sa TAAS, pataas ang date (pinakaluma muna).
- *   2) APPROVED / PROCESSING / READY FOR PICKUP (may Update) sunod, pataas din ang date.
- *   3) CLAIMED / REJECTED sa BABA, pababa ang date (pinakabago muna).
- * Petsa ng request (created_at) ang ginagamit. Kapag pareho, sinusunod ang id.
+ *   1) PENDING / UNDER REVIEW (Approve/Reject) sa TAAS.
+ *   2) APPROVED / PROCESSING / READY FOR PICKUP (may Update) sunod.
+ *   3) CLAIMED / REJECTED sa BABA.
+ * Sa loob ng bawat grupo: pinakabagong request (pinakamalaking id) sa taas,
+ * pinakaluma sa baba.
  */
 function sortProductRequestsForManager(array $requests) {
     $rank = function ($status) {
@@ -568,16 +569,6 @@ function sortProductRequestsForManager(array $requests) {
             return $ra <=> $rb;
         }
 
-        $dateCmp = strcmp($a['created_at'], $b['created_at']);
-
-        if ($ra < 2) {
-            // Pending / Approved group: pataas ang date (pinakaluma muna).
-            if ($dateCmp !== 0) return $dateCmp;
-            return ((int) $a['id']) <=> ((int) $b['id']);
-        }
-
-        // Claimed / Rejected: pababa ang date (pinakabago muna).
-        if ($dateCmp !== 0) return -$dateCmp;
         return ((int) $b['id']) <=> ((int) $a['id']);
     });
 
