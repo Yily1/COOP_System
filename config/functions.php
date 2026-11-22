@@ -801,6 +801,55 @@ function canAccessResourceDistribution($role) {
 }
 
 /**
+ * Fixed list ng resources sa Add distribution dropdown.
+ * Dagdagan o bawasan dito at susunod na ang dropdown at ang validation.
+ */
+function getDistributionResourceOptions() {
+    return ['Fertilizer', 'Seeds', 'Pesticide', 'Herbicide'];
+}
+
+/**
+ * Mga unit sa Unit dropdown: key (na nase-save) => label.
+ */
+function getDistributionUnitOptions() {
+    return [
+        'sack'  => 'Sack',
+        'pcs'   => 'Pcs',
+        'kg'    => 'Kg',
+        'liter' => 'Liter',
+        'can'   => 'Can',
+    ];
+}
+
+/**
+ * Quantity na ipapakita, hal. "5 sacks". Kapag walang unit (lumang record
+ * na text ang quantity, hal. "5 sacks"), ipinapakita ito nang buo.
+ */
+function formatDistributionQuantity($quantity, $unit) {
+    $quantity = trim((string) $quantity);
+    $unit = trim((string) $unit);
+
+    if ($unit === '' || !ctype_digit($quantity)) {
+        return $quantity;
+    }
+
+    $n = (int) $quantity;
+    $labels = [
+        'sack'  => ['sack', 'sacks'],
+        'pcs'   => ['pcs', 'pcs'],
+        'kg'    => ['kg', 'kg'],
+        'liter' => ['liter', 'liters'],
+        'can'   => ['can', 'cans'],
+    ];
+
+    if (!isset($labels[$unit])) {
+        return $n . ' ' . $unit;
+    }
+
+    return $n . ' ' . ($n === 1 ? $labels[$unit][0] : $labels[$unit][1]);
+}
+
+/**
  * Members who have at least one crop planting on record, whatever its
  * status (pending, growing, ready_to_harvest, harvested, rejected), for
  * the "Add distribution" member dropdown. A member with more than one
@@ -835,35 +884,22 @@ function getAllDistributions($pdo) {
 
 /**
  * Inaayos ang distribution rows para sa manager's table (PHP sort, hindi SQL):
- *   1) NOT RELEASED (may Confirm/Decline) sa TAAS, pataas ang date
- *      (pinakaluma muna, pinakabago sa pinakababa ng grupo).
- *   2) RELEASED (claimed) sa BABA, pababa ang date
- *      (pinakabago muna, hal. Dec 4 -> Nov 26 -> Nov 20 ...).
- * Kapag pareho ang date, sinusunod ang id para stable ang ayos.
- *
- * Gusto mo bang baliktarin ang date ng isang grupo? Palitan lang ang
- * pagkakasunod ng $a at $b sa kaukulang linya.
+ *   1) NOT RELEASED (may Confirm/Decline) sa TAAS.
+ *   2) RELEASED sa BABA.
+ * Sa loob ng bawat grupo: ang pinakabagong na-add (pinakamalaking id)
+ * ang nasa taas, ang pinakaunang na-add ang nasa baba.
+ * Ang id ang ginagamit, hindi ang distribution date, kaya ang bagong
+ * Add distribution ay laging nasa taas ng Not released.
  */
 function sortDistributionsForManager(array $distributions) {
     usort($distributions, function ($a, $b) {
         $aReleased = ($a['status'] === 'released') ? 1 : 0;
         $bReleased = ($b['status'] === 'released') ? 1 : 0;
 
-        // Not released (0) muna, Released (1) sa baba.
         if ($aReleased !== $bReleased) {
             return $aReleased <=> $bReleased;
         }
 
-        $dateCmp = strcmp($a['distribution_date'], $b['distribution_date']);
-
-        if ($aReleased === 0) {
-            // Not released: pataas ang date (pinakaluma muna).
-            if ($dateCmp !== 0) return $dateCmp;
-            return ((int) $a['id']) <=> ((int) $b['id']);
-        }
-
-        // Released: pababa ang date (pinakabago muna).
-        if ($dateCmp !== 0) return -$dateCmp;
         return ((int) $b['id']) <=> ((int) $a['id']);
     });
 
@@ -892,16 +928,41 @@ function getDistributionsForMember($pdo, $memberId) {
 }
 
 /**
+ * Inaayos ang distribution list ng member (PHP sort, hindi SQL):
+ *   1) NOT RELEASED sa TAAS
+ *   2) RELEASED sa baba
+ * Sa loob ng bawat grupo: pinakabagong date muna.
+ * Kapag pareho ang date, sinusunod ang id (pinakabago muna).
+ */
+function sortDistributionsForMember(array $distributions) {
+    usort($distributions, function ($a, $b) {
+        $aReleased = ($a['status'] === 'released') ? 1 : 0;
+        $bReleased = ($b['status'] === 'released') ? 1 : 0;
+
+        if ($aReleased !== $bReleased) {
+            return $aReleased <=> $bReleased;
+        }
+
+        $dateCmp = strcmp($b['distribution_date'], $a['distribution_date']);
+        if ($dateCmp !== 0) return $dateCmp;
+        return ((int) $b['id']) <=> ((int) $a['id']);
+    });
+
+    return $distributions;
+}
+
+/**
  * Records a new distribution. Always starts as 'not_released' —
  * the manager confirms it once the resource is actually handed over.
  * $distributedBy is the logged-in manager's user id (users.id).
+ * $quantity ay whole number (string), $unit ay key mula sa getDistributionUnitOptions().
  */
-function addDistribution($pdo, $memberId, $resourceName, $quantity, $distributionDate, $notes, $distributedBy) {
+function addDistribution($pdo, $memberId, $resourceName, $quantity, $unit, $distributionDate, $notes, $distributedBy) {
     $stmt = $pdo->prepare("
-        INSERT INTO resource_distributions (member_id, resource_name, quantity, distribution_date, notes, status, distributed_by)
-        VALUES (?, ?, ?, ?, ?, 'not_released', ?)
+        INSERT INTO resource_distributions (member_id, resource_name, quantity, unit, distribution_date, notes, status, distributed_by)
+        VALUES (?, ?, ?, ?, ?, ?, 'not_released', ?)
     ");
-    return $stmt->execute([$memberId, $resourceName, $quantity, $distributionDate, $notes, $distributedBy]);
+    return $stmt->execute([$memberId, $resourceName, $quantity, $unit, $distributionDate, $notes, $distributedBy]);
 }
 
 /**
@@ -1398,9 +1459,9 @@ function renderHeader($title) {
                         <button class="icon-button" id="openBtn" aria-label="open drawer">&#9776;</button>
 
                         <!-- Logo (kita kapag naka-close ang drawer). Pwedeng palitan ng logo-small.png -->
-                        <a class="app-bar-brand" href="<?php echo BASE_URL; ?>/index.php">
+                        <div class="app-bar-brand">
                             <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC logo">
-                        </a>
+                        </div>
 
                         <?php if ($currentRole === 'admin' || $currentRole === 'manager'): ?>
                             <!-- Admin/Manager: greeting sa tabi ng logo -->
@@ -1418,10 +1479,10 @@ function renderHeader($title) {
 
                 <div class="drawer" id="drawer">
                     <div class="drawer-header">
-                        <a class="drawer-brand" href="<?php echo BASE_URL; ?>/index.php">
+                        <div class="drawer-brand">
                             <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC logo">
                             <span>SJFMC</span>
-                        </a>
+                        </div>
                         <button class="icon-button" id="closeBtn" aria-label="close drawer">&#8592;</button>
                     </div>
 

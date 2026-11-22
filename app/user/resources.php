@@ -18,6 +18,7 @@ $myProfile = $stmt->fetch(PDO::FETCH_ASSOC);
 $memberId = $myProfile['member_db_id'] ?? 0;
 
 $distributions = getDistributionsForMember($pdo, $memberId);
+$distributions = sortDistributionsForMember($distributions);
 
 renderHeader('My Resources');
 ?>
@@ -142,7 +143,6 @@ renderHeader('My Resources');
     margin-bottom: 10px;
 }
 
-/* Green flash for a new or changed distribution (auto-update) */
 @keyframes resFlashCard {
     from { background: #e3f4e1; border-color: #2e7d32; }
     to   { background: #ffffff; border-color: #eceae4; }
@@ -194,7 +194,6 @@ renderHeader('My Resources');
 
 .empty-note { color: #667066; font-size: 13px; text-align: center; padding: 20px 0; }
 
-/* Long names and text wrap inside the card */
 .page-header > div:nth-child(2) { min-width: 0; }
 .page-sub { overflow-wrap: anywhere; }
 .res-card-top { gap: 10px; }
@@ -202,18 +201,12 @@ renderHeader('My Resources');
 .res-detail-grid span { min-width: 0; overflow-wrap: anywhere; }
 .res-notes { overflow-wrap: anywhere; }
 
-/* ============================================================
-   MOBILE (480px and below)
-   ============================================================ */
 @media (max-width: 480px) {
     .page-header { gap: 10px; }
     .page-title { font-size: 17px; }
     .page-back { width: 40px; height: 40px; }
 }
 
-/* ============================================================
-   TABLET (600px and up): wider page, 2 columns of cards
-   ============================================================ */
 @media (min-width: 600px) {
     .page-shell { max-width: 720px; }
     #resListLive {
@@ -225,9 +218,6 @@ renderHeader('My Resources');
     #resListLive .empty-note { grid-column: 1 / -1; }
 }
 
-/* ============================================================
-   DESKTOP (992px and up)
-   ============================================================ */
 @media (min-width: 992px) {
     .page-shell { max-width: 1040px; }
     .page-title { font-size: 22px; }
@@ -289,7 +279,7 @@ renderHeader('My Resources');
                 </div>
 
                 <div class="res-detail-grid">
-                    <span>Quantity: <b><?php echo htmlspecialchars($d['quantity']); ?></b></span>
+                    <span>Quantity: <b><?php echo htmlspecialchars(formatDistributionQuantity($d['quantity'], $d['unit'] ?? '')); ?></b></span>
                     <span>Date: <b><?php echo date('M j, Y', strtotime($d['distribution_date'])); ?></b></span>
                 </div>
 
@@ -303,14 +293,9 @@ renderHeader('My Resources');
 
 </div>
 
-<!-- ============================================================
-     AUTO-UPDATE (AJAX POLLING)
-     Fetches this same page, then swaps only the parts that changed.
-     Paused while the tab is hidden.
-     ============================================================ -->
 <script>
 (function () {
-    const LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+    const LIVE_CHECK_MS = 3000;
 
     function itemMap(root, sel, attr) {
         const m = new Map();
@@ -343,7 +328,6 @@ renderHeader('My Resources');
             const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
             const fresh = liveParts.map(p => doc.getElementById(p.id));
 
-            // If an expected element is missing (e.g. login page), leave the page alone
             if (fresh.every(Boolean)) {
                 liveParts.forEach(function (p, i) {
                     const f = fresh[i];
@@ -362,7 +346,7 @@ renderHeader('My Resources');
             }
             fails = 0;
         } catch (e) {
-            fails++;   // backoff on error
+            fails++;
         } finally {
             busy = false;
         }
@@ -378,4 +362,4 @@ renderHeader('My Resources');
 })();
 </script>
 
-<?php renderFooter(); ?> 
+<?php renderFooter(); ?>

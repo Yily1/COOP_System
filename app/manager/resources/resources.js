@@ -25,8 +25,6 @@
         box.classList.remove('rd-show');
     }
 
-    // Generic API helper: sends JSON, handles 401 (session expired),
-    // and turns any non-2xx response into an Error with the API's message.
     async function apiRequest(method, url, data) {
         const res = await fetch(url, {
             method: method,
@@ -54,8 +52,6 @@
         return payload;
     }
 
-    // ---------- ADD DISTRIBUTION ----------
-    // Nasa labas ito ng table na pinapalitan ng polling, kaya okay ang direct binding.
     const addBtn = document.getElementById('add-distribution-btn');
     if (addBtn) {
         addBtn.addEventListener('click', () => openModal('add-distribution-modal-wrap'));
@@ -76,6 +72,7 @@
         const chosenWrap  = document.getElementById('member-chosen-wrap');
         const chosenList  = document.getElementById('member-chosen');
         const countEl     = document.getElementById('member-count');
+        const quantityInput = addForm.querySelector('input[name="quantity"]');
 
         let picked = null;
 
@@ -117,7 +114,6 @@
                     const item = document.createElement('div');
                     item.className = 'rd-suggest-item';
                     item.textContent = labelOf(m);
-                    // mousedown (not click) so it fires before the input loses focus
                     item.addEventListener('mousedown', (e) => {
                         e.preventDefault();
                         pickMember(m);
@@ -193,8 +189,6 @@
             clearBtn.addEventListener('click', clearSearch);
         }
 
-        // "Select all" = every eligible member (members with a crop planting).
-        // The search is disabled and cleared while it is checked.
         if (selectAll) {
             selectAll.addEventListener('change', () => {
                 if (selectAll.checked) {
@@ -205,6 +199,17 @@
                 searchInput.disabled = selectAll.checked;
                 updateClearBtn();
                 renderChosen();
+            });
+        }
+
+        // Whole numbers lang: tinatanggal ang kahit anong hindi numero (decimal, e, -, +)
+        if (quantityInput) {
+            quantityInput.addEventListener('input', () => {
+                const digits = quantityInput.value.replace(/\D/g, '');
+                if (digits !== quantityInput.value) quantityInput.value = digits;
+            });
+            quantityInput.addEventListener('keydown', (e) => {
+                if (['.', ',', 'e', 'E', '-', '+'].includes(e.key)) e.preventDefault();
             });
         }
 
@@ -225,11 +230,19 @@
             }
 
             const fd = new FormData(addForm);
+            const quantity = String(fd.get('quantity') || '').trim();
+
+            if (!/^\d+$/.test(quantity) || Number(quantity) <= 0) {
+                showError('add-distribution-error', 'Quantity must be a whole number greater than 0.');
+                return;
+            }
+
             const data = {
                 action: 'add',
                 member_ids: memberIds,
                 resource_name: fd.get('resource_name'),
-                quantity: fd.get('quantity'),
+                quantity: quantity,
+                unit: fd.get('unit'),
                 distribution_date: fd.get('distribution_date'),
                 notes: fd.get('notes'),
             };
@@ -243,16 +256,12 @@
         });
     }
 
-    // ---------- CONFIRM / DECLINE (event delegation) ----------
-    // ISANG listener sa document. Hindi ito nawawala kapag pinalitan ng
-    // auto-update ang laman ng table.
     let actionBusy = false;
 
     document.addEventListener('click', async function (e) {
         const target = e.target;
         if (!target || !target.closest) return;
 
-        // CONFIRM (released)
         const confirmBtn = target.closest('.rd-confirm-btn');
         if (confirmBtn) {
             if (actionBusy) return;
@@ -270,7 +279,6 @@
             return;
         }
 
-        // DECLINE (not released)
         const declineBtn = target.closest('.rd-decline-btn');
         if (declineBtn) {
             if (actionBusy) return;

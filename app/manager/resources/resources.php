@@ -5,9 +5,11 @@ require_once __DIR__ . '/../../../config/functions.php';
 requireRole('manager');
 
 $distributions   = getAllDistributions($pdo);
-// Not released (may Confirm/Decline) sa taas, Released (claimed) sa baba. PHP sort, hindi SQL.
 $distributions   = sortDistributionsForManager($distributions);
 $eligibleMembers = getEligibleMembersForDistribution($pdo);
+
+$resourceOptions = getDistributionResourceOptions();
+$unitOptions     = getDistributionUnitOptions();
 
 $memberOptions = array_map(function ($m) {
     return [
@@ -65,7 +67,6 @@ renderHeader('Resource Distribution');
 .rd-text-center { text-align: center; }
 .rd-text-right { text-align: right; }
 
-/* HEADER */
 .rd-header {
     display: flex;
     justify-content: space-between;
@@ -77,7 +78,6 @@ renderHeader('Resource Distribution');
 .rd-header h1 { font-size: 26px; }
 .rd-header > div:first-child { flex: 1; min-width: 0; }
 
-/* BUTTONS */
 .rd-btn {
     box-sizing: border-box;
     width: auto !important;
@@ -106,7 +106,6 @@ renderHeader('Resource Distribution');
 .rd-btn:hover { background: #2e5a0d; border-color: #2e5a0d; }
 .rd-btn-full { width: 100% !important; flex: none; justify-content: center; padding: 11px; }
 
-/* SECTION */
 .rd-section {
     background: var(--rd-card);
     border: 1px solid var(--rd-line);
@@ -123,7 +122,6 @@ renderHeader('Resource Distribution');
 }
 .rd-section-header h2 { font-size: 19px; }
 
-/* TABLE */
 .rd-table-wrap { overflow-x: auto; }
 .rd-page table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .rd-page thead th {
@@ -138,14 +136,12 @@ renderHeader('Resource Distribution');
 .rd-page tbody td { padding: 12px 8px; border-bottom: 1px solid var(--rd-line); }
 .rd-page tbody tr:last-child td { border-bottom: none; }
 
-/* LIVE UPDATE FLASH (new or changed row) */
 @keyframes rdFlashRow {
     from { background: #e3f4e1; }
     to   { background: transparent; }
 }
 .rd-page tr.rd-flash td { animation: rdFlashRow 2.2s ease-out; }
 
-/* MEMBER CELL */
 .rd-member-cell { display: flex; align-items: center; gap: 10px; }
 .rd-avatar {
     width: 32px;
@@ -163,7 +159,6 @@ renderHeader('Resource Distribution');
 .rd-member-name { margin: 0; font-weight: 600; font-size: 13.5px; color: var(--rd-ink); }
 .rd-member-id { margin: 0; font-size: 11.5px; color: var(--rd-ink-soft); }
 
-/* STATUS BADGE */
 .rd-status-badge {
     display: inline-block;
     font-size: 11.5px;
@@ -174,7 +169,6 @@ renderHeader('Resource Distribution');
 .rd-status-badge.rd-released { background: var(--rd-success-soft); color: var(--rd-success); }
 .rd-status-badge.rd-not-released { background: #F6E1DC; color: var(--rd-danger); }
 
-/* CONFIRM / DECLINE ACTIONS */
 .rd-action-btn {
     width: auto !important;
     background: var(--rd-card);
@@ -199,7 +193,6 @@ renderHeader('Resource Distribution');
 .rd-action-btn-danger { color: var(--rd-danger); }
 .rd-action-btn-danger:hover { border-color: var(--rd-danger); }
 
-/* MODAL */
 .rd-modal {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     display: none;
@@ -259,7 +252,10 @@ renderHeader('Resource Distribution');
 .rd-modal-card select:focus,
 .rd-modal-card textarea:focus { outline: none; border-color: var(--rd-forest); background: #fff; }
 
-/* MEMBER PICKER (search + select all) */
+.rd-row { display: flex; gap: 10px; margin-top: 12px; }
+.rd-row > div { flex: 1 1 0; min-width: 0; }
+.rd-row label { margin-top: 0 !important; }
+
 .rd-search-wrap { position: relative; }
 .rd-modal-card .rd-search-wrap input { padding: 9px 34px; }
 .rd-modal-card .rd-search-wrap input:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -434,7 +430,7 @@ renderHeader('Resource Distribution');
                                 </div>
                             </td>
                             <td><?php echo htmlspecialchars($d['resource_name']); ?></td>
-                            <td><?php echo htmlspecialchars($d['quantity']); ?></td>
+                            <td><?php echo htmlspecialchars(formatDistributionQuantity($d['quantity'], $d['unit'] ?? '')); ?></td>
                             <td><?php echo date('M j, Y', strtotime($d['distribution_date'])); ?></td>
                             <td><?php echo $d['notes'] ? htmlspecialchars($d['notes']) : '—'; ?></td>
                             <td><?php echo distributionStatusBadge($d['status']); ?></td>
@@ -500,10 +496,27 @@ renderHeader('Resource Distribution');
             <?php endif; ?>
 
             <label style="margin-top:14px;">Resource</label>
-            <input type="text" name="resource_name" placeholder="e.g. Fertilizer, Seeds" required>
+            <select name="resource_name" required>
+                <option value="">Select resource</option>
+                <?php foreach ($resourceOptions as $resource): ?>
+                    <option value="<?php echo htmlspecialchars($resource); ?>"><?php echo htmlspecialchars($resource); ?></option>
+                <?php endforeach; ?>
+            </select>
 
-            <label>Quantity</label>
-            <input type="text" name="quantity" placeholder="e.g. 5 sacks, 2 kg" required>
+            <div class="rd-row">
+                <div>
+                    <label>Quantity</label>
+                    <input type="number" name="quantity" min="1" step="1" inputmode="numeric" placeholder="e.g. 5" required>
+                </div>
+                <div>
+                    <label>Unit</label>
+                    <select name="unit" required>
+                        <?php foreach ($unitOptions as $key => $label): ?>
+                            <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
 
             <label>Distribution date</label>
             <input type="date" name="distribution_date" required>
@@ -525,15 +538,10 @@ renderHeader('Resource Distribution');
 
 <script src="<?php echo BASE_URL; ?>/app/manager/resources/resources.js?v=<?php echo filemtime(__DIR__ . '/resources.js'); ?>"></script>
 
-<!-- ============================================================
-     AUTO-UPDATE (AJAX POLLING)
-     Paused while a modal is open or the tab is hidden.
-     ============================================================ -->
 <script>
 (function () {
-    const LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+    const LIVE_CHECK_MS = 3000;
 
-    // resources.js now uses event delegation, so the table can be polled safely.
     const POLL_TABLE = true;
 
     function itemMap(root, sel, attr) {
@@ -573,7 +581,6 @@ renderHeader('Resource Distribution');
             const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
             const fresh = liveParts.map(p => doc.getElementById(p.id));
 
-            // If an expected element is missing (e.g. login page), leave the page alone
             if (fresh.every(Boolean)) {
                 let changed = false;
                 liveParts.forEach(function (p, i) {

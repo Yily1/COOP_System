@@ -12,23 +12,41 @@ switch ($action) {
 
     case 'add':
         $rawIds           = $input['member_ids'] ?? [];
-        $resourceName     = trim($input['resource_name'] ?? '');
-        $quantity         = trim($input['quantity'] ?? '');
-        $distributionDate = trim($input['distribution_date'] ?? '');
-        $notes            = trim($input['notes'] ?? '');
+        $resourceName     = trim((string) ($input['resource_name'] ?? ''));
+        $quantity         = trim((string) ($input['quantity'] ?? ''));
+        $unit             = trim((string) ($input['unit'] ?? ''));
+        $distributionDate = trim((string) ($input['distribution_date'] ?? ''));
+        $notes            = trim((string) ($input['notes'] ?? ''));
 
-        // Normalize: ints only, positive, no duplicates
         $memberIds = is_array($rawIds)
             ? array_values(array_unique(array_filter(array_map('intval', $rawIds), fn($id) => $id > 0)))
             : [];
 
-        if (empty($memberIds) || $resourceName === '' || $quantity === '' || $distributionDate === '') {
+        if (empty($memberIds) || $resourceName === '' || $quantity === '' || $unit === '' || $distributionDate === '') {
             http_response_code(422);
-            echo json_encode(['success' => false, 'message' => 'At least one member, plus resource, quantity, and distribution date, are required.']);
+            echo json_encode(['success' => false, 'message' => 'At least one member, plus resource, quantity, unit, and distribution date, are required.']);
             exit;
         }
 
-        // Server-side eligibility check: EVERY selected member must be eligible.
+        if (!in_array($resourceName, getDistributionResourceOptions(), true)) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Please choose a resource from the list.']);
+            exit;
+        }
+
+        if (!ctype_digit($quantity) || (int) $quantity <= 0) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Quantity must be a whole number greater than 0.']);
+            exit;
+        }
+        $quantity = (string) (int) $quantity;
+
+        if (!array_key_exists($unit, getDistributionUnitOptions())) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Please choose a unit from the list.']);
+            exit;
+        }
+
         $eligibleIds = array_map('intval', array_column(getEligibleMembersForDistribution($pdo), 'id'));
         $invalid = array_diff($memberIds, $eligibleIds);
         if (!empty($invalid)) {
@@ -41,10 +59,9 @@ switch ($action) {
         $notesValue    = $notes !== '' ? $notes : null;
 
         try {
-            // All-or-nothing: if one insert fails, none are saved.
             $pdo->beginTransaction();
             foreach ($memberIds as $memberId) {
-                $ok = addDistribution($pdo, $memberId, $resourceName, $quantity, $distributionDate, $notesValue, $distributedBy);
+                $ok = addDistribution($pdo, $memberId, $resourceName, $quantity, $unit, $distributionDate, $notesValue, $distributedBy);
                 if (!$ok) {
                     throw new Exception('Insert failed for member ' . $memberId);
                 }
@@ -55,6 +72,7 @@ switch ($action) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
+            error_log('distributions add: ' . $e->getMessage());
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Could not save the distributions. Please try again.']);
         }
