@@ -547,7 +547,7 @@ renderHeader('Member Management');
                     </div>
                     <div class="mm-field">
                         <label for="mm_occupation">Occupation</label>
-                        <input type="text" id="mm_occupation" name="occupation" placeholder="Farming">
+                        <input type="text" id="mm_occupation" name="occupation" placeholder="Farmer">
                     </div>
                     <div class="mm-field span-2">
                         <label for="mm_address">Complete Address</label>
