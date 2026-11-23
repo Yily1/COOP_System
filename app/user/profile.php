@@ -49,9 +49,9 @@ function cropImageUrl($crop) {
 // submit to app/user/api/user-update.php - a handler that can only
 // ever edit the logged-in user's OWN account).
 //
-// Role ay HINDI na nae-edit ng user dito.
-// Account Status: pwede lang niyang gawing Inactive (ma-lo-logout agad).
-// Manager lang ang makakapag-reactivate.
+// Pwedeng baguhin ng user dito: Username, Email, Password.
+// Role at Account Status ay HINDI na nae-edit ng user.
+// Manager lang ang puwedeng mag-Active / Inactive ng account.
 // ============================================================
 
 $stmt = $pdo->prepare("
@@ -119,8 +119,8 @@ renderHeader($pageTitle);
         font-size: 13.5px;
     }
 
-    /* ===== Back to dashboard (round arrow, right side of the header row) =====
-       An <a> link, not a <button>, so the site-wide button rules can't touch it. */
+    /* ===== Back to dashboard (round arrow, right side of the header row)
+       An <a> link, not a <button>, so the site-wide button rules can't touch it. ===== */
     .page-back {
         margin-left: auto;
         flex: none;
@@ -185,10 +185,10 @@ renderHeader($pageTitle);
         color: #1b3a24;
     }
 
-    /* ===== Info rows (replaces the plain <table> look) =====
+    /* ===== Info rows (replaces the plain <table> look)
        Label on the left, value on the right - a site-wide default
        <table>/<th> style was rendering labels in blue/teal, so this
-       avoids <table> entirely for a clean, consistent look. */
+       avoids <table> entirely for a clean, consistent look. ===== */
     .info-rows {
         display: flex;
         flex-direction: column;
@@ -271,7 +271,7 @@ renderHeader($pageTitle);
     /* ===== Edit button: compact, never stretches =====
        Using #editBtn (id) for maximum specificity plus !important,
        since a site-wide "button { width: 100% }" rule elsewhere
-       keeps overriding class-based rules. */
+       keeps overriding class-based rules. ===== */
     #editBtn {
         display: inline-flex !important;
         align-items: center !important;
@@ -303,97 +303,6 @@ renderHeader($pageTitle);
     #editBtn .material-icons {
         font-size: 16px;
     }
-
-    /* ===== Pop-up (confirm / success) for deactivating the account ===== */
-    .confirm-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1100;
-        align-items: center;
-        justify-content: center;
-        padding: 16px;
-    }
-
-    .confirm-overlay.open {
-        display: flex;
-    }
-
-    .confirm-box {
-        background: #fff;
-        border-radius: 14px;
-        width: 100%;
-        max-width: 340px;
-        padding: 22px 22px 18px;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-    }
-
-    .confirm-icon {
-        width: 46px;
-        height: 46px;
-        border-radius: 50%;
-        margin: 0 auto 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .confirm-icon .material-icons { font-size: 26px; }
-    .confirm-icon-warn { background: #fdecea; color: #a6322f; }
-    .confirm-icon-ok   { background: #e3efd2; color: #3B6D11; }
-
-    .confirm-title {
-        margin: 0 0 6px;
-        font-size: 17px;
-        font-weight: 600;
-        color: #1b3a24;
-    }
-
-    .confirm-msg {
-        margin: 0 0 16px;
-        font-size: 13.5px;
-        line-height: 1.5;
-        color: #4a554a;
-    }
-
-    .confirm-actions {
-        display: flex;
-        gap: 10px;
-    }
-
-    /* ids + !important, because a site-wide "button { width: 100% }" rule exists */
-    #confirmCancelBtn,
-    #confirmOkBtn {
-        flex: 1 1 0 !important;
-        width: auto !important;
-        min-width: 0 !important;
-        max-width: none !important;
-        margin: 0 !important;
-        padding: 9px 10px !important;
-        border-radius: 9px !important;
-        font-size: 13px !important;
-        font-weight: 600 !important;
-        cursor: pointer !important;
-        box-shadow: none !important;
-        text-transform: none !important;
-        letter-spacing: normal !important;
-    }
-
-    #confirmCancelBtn {
-        background: #fff !important;
-        color: #3B6D11 !important;
-        border: 1px solid #cfd8c3 !important;
-    }
-    #confirmCancelBtn:hover { background: #eef5e4 !important; }
-
-    #confirmOkBtn {
-        background: #a6322f !important;
-        color: #fff !important;
-        border: 1px solid #a6322f !important;
-    }
-    #confirmOkBtn:hover { background: #8c2724 !important; }
 
     /* ===== Modal ===== */
     .modal-overlay {
@@ -440,7 +349,7 @@ renderHeader($pageTitle);
        stretching a <button>-based close icon into a full-width green
        bar even with #id + !important overrides, because it's still
        an element the global "button" selector matches. A <span>
-       can never be touched by any "button { }" rule anywhere. */
+       can never be touched by any "button { }" rule anywhere. ===== */
     #closeBtn {
         position: absolute !important;
         top: 16px !important;
@@ -479,7 +388,7 @@ renderHeader($pageTitle);
 
     /* ===== Compact, responsive Update Account form =====
        2 columns on desktop, 1 compact column on phones. Title stays on
-       top, only the fields scroll, and the button stays visible. */
+       top, only the fields scroll, and the button stays visible. ===== */
     .modal-box {
         display: flex;
         flex-direction: column;
@@ -635,6 +544,7 @@ renderHeader($pageTitle);
                             <?php echo ucfirst($user['role']); ?>
                         </span>
                     </div>
+                    <!-- Read-only: ang manager lang ang nagpapalit ng Account Status -->
                     <div class="info-row">
                         <span class="info-label">Account Status</span>
                         <span class="info-pill" id="acctStatusBadge" style="background: <?php echo $user['account_status'] === 'Active' ? '#2e7d32' : '#a9a79f'; ?>;">
@@ -786,82 +696,12 @@ renderHeader($pageTitle);
                         <input type="password" id="modal_confirm_password" name="confirm_password" autocomplete="new-password" placeholder="Re-enter password">
                     </div>
 
-                    <div class="form-group span-2">
-                        <label for="modal_account_status">Account Status:</label>
-                        <select id="modal_account_status" name="account_status">
-                            <option value="Active" selected>Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-                        <small class="form-hint" style="color: #666;">If you choose Inactive, you will be logged out. Only the manager can turn it back on.</small>
-                    </div>
-
                     <button type="submit">Update User</button>
                 </form>
             </div>
         </div>
 
-        <!-- ==================== POP-UP: confirm / success (deactivate) ==================== -->
-        <div class="confirm-overlay" id="confirmOverlay">
-            <div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-                <div class="confirm-icon confirm-icon-warn" id="confirmIcon"><span class="material-icons">warning</span></div>
-                <p class="confirm-title" id="confirmTitle">Deactivate your account?</p>
-                <p class="confirm-msg" id="confirmMsg">You will be logged out right away. You cannot log in again until the manager sets your account back to Active.</p>
-                <div class="confirm-actions" id="confirmActions">
-                    <button type="button" id="confirmCancelBtn">Cancel</button>
-                    <button type="button" id="confirmOkBtn">Yes, deactivate</button>
-                </div>
-            </div>
-        </div>
-
         <script>
-        // ===== Confirm / success pop-ups for deactivating the account =====
-        var confirmLocked = false;  // true while the success pop-up is showing (cannot be closed)
-        var pendingForm = null;
-
-        function showDeactivateConfirm(form) {
-            pendingForm = form;
-            confirmLocked = false;
-            document.getElementById('confirmIcon').className = 'confirm-icon confirm-icon-warn';
-            document.getElementById('confirmIcon').innerHTML = '<span class="material-icons">warning</span>';
-            document.getElementById('confirmTitle').textContent = 'Deactivate your account?';
-            document.getElementById('confirmMsg').textContent = 'You will be logged out right away. You cannot log in again until the manager sets your account back to Active.';
-            document.getElementById('confirmActions').style.display = 'flex';
-            document.getElementById('confirmOverlay').classList.add('open');
-        }
-
-        function hideDeactivateConfirm() {
-            if (confirmLocked) return;
-            document.getElementById('confirmOverlay').classList.remove('open');
-            pendingForm = null;
-        }
-
-        function showDeactivatedPopup(redirectUrl) {
-            confirmLocked = true;
-            document.getElementById('confirmIcon').className = 'confirm-icon confirm-icon-ok';
-            document.getElementById('confirmIcon').innerHTML = '<span class="material-icons">check_circle</span>';
-            document.getElementById('confirmTitle').textContent = 'Account deactivated';
-            document.getElementById('confirmMsg').textContent = 'Your account is now inactive. Taking you to the login page...';
-            document.getElementById('confirmActions').style.display = 'none';
-            document.getElementById('confirmOverlay').classList.add('open');
-            setTimeout(function () { window.location.href = redirectUrl; }, 1800);
-        }
-
-        document.getElementById('confirmCancelBtn').addEventListener('click', hideDeactivateConfirm);
-
-        // Click outside the pop-up = Cancel
-        document.getElementById('confirmOverlay').addEventListener('click', function (e) {
-            if (e.target === this) hideDeactivateConfirm();
-        });
-
-        // "Yes, deactivate": submit the form again, this time marked as confirmed
-        document.getElementById('confirmOkBtn').addEventListener('click', function () {
-            var form = pendingForm;
-            hideDeactivateConfirm();
-            if (!form) return;
-            form.dataset.confirmed = '1';
-            form.dispatchEvent(new Event('submit', { cancelable: true }));
-        });
-
         function openEditModal() {
             document.getElementById('editModalOverlay').classList.add('open');
         }
@@ -886,12 +726,7 @@ renderHeader($pageTitle);
 
         // Esc closes the modal (useful on desktop)
         document.addEventListener('keydown', function (e) {
-            if (e.key !== 'Escape') return;
-            if (document.getElementById('confirmOverlay').classList.contains('open')) {
-                hideDeactivateConfirm();   // closes only the pop-up
-                return;
-            }
-            closeEditModal();
+            if (e.key === 'Escape') closeEditModal();
         });
 
         document.getElementById('editAccountForm').addEventListener('submit', function (e) {
@@ -907,13 +742,6 @@ renderHeader($pageTitle);
                 msgBox.textContent = 'Passwords do not match.';
                 return;
             }
-
-            // If Inactive was chosen, ask first with a pop-up (not the browser alert)
-            if (document.getElementById('modal_account_status').value === 'Inactive' && !e.target.dataset.confirmed) {
-                showDeactivateConfirm(e.target);
-                return;
-            }
-            delete e.target.dataset.confirmed;
 
             const form = e.target;
             const submitBtn = form.querySelector('button[type="submit"]');
@@ -935,13 +763,6 @@ renderHeader($pageTitle);
                 msgBox.style.display = 'block';
                 msgBox.className = data.success ? 'success' : 'error';
                 msgBox.textContent = data.message;
-
-                // Account was deactivated: show the success pop-up, then go to the login page
-                if (data.success && data.redirect) {
-                    msgBox.style.display = 'none';
-                    showDeactivatedPopup(data.redirect);
-                    return;
-                }
 
                 if (data.success && data.user) {
                     // Update the Account Information card in place - no reload

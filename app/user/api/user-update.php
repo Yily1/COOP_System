@@ -1,5 +1,5 @@
 <?php
-ob_start(); 
+ob_start();
 
 
 require_once '../../../config/config.php';
@@ -40,8 +40,10 @@ $username         = trim($_POST['username'] ?? '');
 $email            = trim($_POST['email'] ?? '');
 $password         = $_POST['password'] ?? '';
 $confirm_password = $_POST['confirm_password'] ?? '';
-// Isang direksyon lang: "Inactive" lang ang pinapansin. Kahit "Active" ang ipadala, walang mababago.
-$wantsInactive    = (($_POST['account_status'] ?? '') === 'Inactive');
+
+// NOTE: Ang account_status (at role) ay sinasadyang HINDI binabasa dito.
+// Kahit may magpadala ng account_status sa request, hindi ito pinapansin.
+// Manager lang ang puwedeng mag-Active / Inactive ng account.
 
 $errors = [];
 
@@ -74,18 +76,13 @@ if (!empty($errors)) {
 }
 
 try {
-    // NOTE: role ay sinasadyang HINDI ina-update dito.
+    // Username, email, at password lang ang ina-update dito.
     $sql = 'UPDATE users SET username = :username, email = :email';
     $params = [
         ':username' => $username,
         ':email'    => $email,
         ':id'       => $userId,
     ];
-
-    // Pwede lang gawing Inactive. Hindi kailanman nagse-set ng Active dito.
-    if ($wantsInactive) {
-        $sql .= ", account_status = 'Inactive'";
-    }
 
     if ($password !== '') {
         $sql .= ', password = :password';
@@ -99,14 +96,6 @@ try {
     $_SESSION['email'] = $email;
 
     upSafeLog($pdo, $userId, $email, 'user_updated', 'success');
-
-    if ($wantsInactive) {
-        upSafeLog($pdo, $userId, $email, 'account_deactivated', 'success');
-        forceLogoutInactive(); // buburahin ang session
-        upRespond(true, 'Your account is now inactive.', [
-            'redirect' => BASE_URL . '/login.php?inactive=1',
-        ]);
-    }
 
     upRespond(true, 'Account updated successfully.', [
         'user' => [
