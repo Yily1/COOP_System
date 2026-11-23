@@ -714,12 +714,51 @@ function getCropById($pdo, $id) {
     return $row ?: null;
 }
 
-function addCropPlanting($pdo, $memberId, $cropName, $location, $areaHectares, $plantingDate, $expectedHarvestDate) {
+/**
+ * Listahan ng crops sa dropdown, galing sa crop_types table
+ * (i-edit sa phpMyAdmin: pangalan, min_value, max_value, unit = days o months).
+ */
+function getCropTypes($pdo) {
+    $stmt = $pdo->query("SELECT id, name, min_value, max_value, unit FROM crop_types ORDER BY name ASC");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function getCropTypeById($pdo, $id) {
+    $stmt = $pdo->prepare("SELECT id, name, min_value, max_value, unit FROM crop_types WHERE id = ?");
+    $stmt->execute([$id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
+/**
+ * Expected harvest = planting date + ang HULING araw ng range ng crop
+ * (max_value, sa days o months). Returns Y-m-d, o null kung mali ang petsa.
+ */
+function calculateCropExpectedHarvest($plantingDate, $maxValue, $unit) {
+    $d = DateTime::createFromFormat('Y-m-d', (string) $plantingDate);
+    if (!$d || $d->format('Y-m-d') !== $plantingDate) {
+        return null;
+    }
+    $d->modify('+' . (int) $maxValue . ($unit === 'months' ? ' months' : ' days'));
+    return $d->format('Y-m-d');
+}
+
+/**
+ * Petsa ngayon (Philippine time) bilang Y-m-d.
+ */
+function cropTodayManila() {
+    return (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d');
+}
+
+/**
+ * Bagong planting: Growing agad, walang approval.
+ */
+function addCropPlanting($pdo, $memberId, $cropName, $location, $areaHectares, $plantingDate, $expectedHarvestDate, $cropTypeId = null) {
     $stmt = $pdo->prepare("
-        INSERT INTO crops (member_id, crop_name, location, area_hectares, planting_date, expected_harvest_date, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        INSERT INTO crops (member_id, crop_type_id, crop_name, location, area_hectares, planting_date, expected_harvest_date, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'growing')
     ");
-    return $stmt->execute([$memberId, $cropName, $location, $areaHectares, $plantingDate, $expectedHarvestDate]);
+    return $stmt->execute([$memberId, $cropTypeId, $cropName, $location, $areaHectares, $plantingDate, $expectedHarvestDate]);
 }
 
 /**

@@ -19,6 +19,8 @@ $memberId = $myProfile['member_db_id'] ?? 0;
 
 $crops = getCropsForMember($pdo, $memberId);
 $stats = getCropStats($pdo, $memberId);
+$cropTypes = getCropTypes($pdo);
+$todayManila = cropTodayManila();
 
 function cmMobileStatusLabel($status) {
     $map = [
@@ -80,8 +82,6 @@ renderHeader('My Crops');
     font-size: 13.5px;
 }
 
-/* Back to dashboard (round arrow, right side of the header row).
-   An <a> link, not a <button>, so the site-wide button rules can't touch it. */
 .page-back {
     margin-left: auto;
     flex: none;
@@ -174,7 +174,6 @@ renderHeader('My Crops');
     margin-bottom: 10px;
 }
 
-/* Green flash for a new or changed planting (auto-update) */
 @keyframes cropFlashCard {
     from { background: #e3f4e1; border-color: #2e7d32; }
     to   { background: #ffffff; border-color: #eceae4; }
@@ -245,20 +244,11 @@ renderHeader('My Crops');
 
 .empty-note { color: #667066; font-size: 13px; text-align: center; padding: 20px 0; }
 
-/* ============================================================
-   MOBILE (480px pababa) - HINDI GINALAW, ito ang dating layout
-   ============================================================ */
 @media (max-width: 480px) {
     .page-title { font-size: 17px; }
     .btn-primary { padding: 8px 14px !important; font-size: 13px !important; }
 }
 
-/* ============================================================
-   ADD PLANTING MODAL
-   Same look as the Update Account modal on My Account: fixed title,
-   only the fields scroll, button always visible, 2 columns on
-   desktop and one compact column on phones.
-   ============================================================ */
 .crop-modal {
     display: none;
     position: fixed;
@@ -297,7 +287,6 @@ renderHeader('My Crops');
     flex: 0 0 auto;
 }
 
-/* Close (x): a <span role="button"> so no global "button { }" rule can stretch it */
 #closeCropModalBtn {
     position: absolute !important;
     top: 16px !important;
@@ -328,8 +317,7 @@ renderHeader('My Crops');
     border-color: #274b81 !important;
 }
 
-#cropModalErrors,
-#cropModalSuccess { flex: 0 0 auto; }
+#cropModalErrors { flex: 0 0 auto; }
 
 .crop-form {
     flex: 1 1 auto;
@@ -349,12 +337,24 @@ renderHeader('My Crops');
     font-size: 13px;
     margin-bottom: 3px !important;
 }
-.crop-form .form-group input {
+.crop-form .form-group input,
+.crop-form .form-group select {
     width: 100%;
     box-sizing: border-box;
     padding: 7px 9px !important;
     font-size: 13px !important;
 }
+
+.crop-info {
+    display: none;
+    background: #F1F6EA;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12.5px;
+    color: #3B6D11;
+    line-height: 1.5;
+}
+.crop-info.crop-show { display: block; }
 
 .crop-form button[type="submit"] {
     grid-column: 1 / -1;
@@ -374,9 +374,6 @@ renderHeader('My Crops');
     box-shadow: 0 -8px 8px -4px #fff;
 }
 
-/* ============================================================
-   CONFIRM MODAL (replaces the browser's confirm() / alert())
-   ============================================================ */
 .cc-backdrop {
     display: none;
     position: fixed;
@@ -439,7 +436,6 @@ button.cc-btn-ok { background: #2e7d32 !important; color: #fff !important; borde
 button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
 
 @media (max-width: 560px) {
-    /* Wider side margins = narrower modal */
     .crop-modal { padding: 10px 34px; }
     .crop-modal-card {
         padding: 18px 16px 14px;
@@ -453,26 +449,22 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
     }
     #closeCropModalBtn { top: 12px !important; right: 12px !important; }
 
-    /* One field per row, stacked top to bottom */
     .crop-form {
         grid-template-columns: 1fr;
         gap: 8px;
     }
     .crop-form .form-group label { font-size: 12px; }
-    .crop-form .form-group input {
+    .crop-form .form-group input,
+    .crop-form .form-group select {
         padding: 7px 9px !important;
         font-size: 13px !important;
     }
     .crop-form button[type="submit"] { padding: 10px !important; font-size: 13px !important; }
-    #cropModalErrors, #cropModalSuccess { margin-bottom: 8px !important; font-size: 12.5px !important; }
+    #cropModalErrors { margin-bottom: 8px !important; font-size: 12.5px !important; }
 
     .cc-backdrop { padding: 10px 34px; }
 }
 
-/* ============================================================
-   TABLET (600px pataas)
-   Mas malapad ang page, 2 columns ang planting cards.
-   ============================================================ */
 @media (min-width: 600px) {
     .page-shell { max-width: 720px; }
     #cropListLive {
@@ -484,9 +476,6 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
     #cropListLive .empty-note { grid-column: 1 / -1; }
 }
 
-/* ============================================================
-   DESKTOP (992px pataas)
-   ============================================================ */
 @media (min-width: 992px) {
     .page-shell { max-width: 1040px; }
     .page-title { font-size: 22px; }
@@ -521,7 +510,6 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
             <p class="page-sub">Track your plantings from planting to harvest</p>
         </div>
 
-        <!-- Back to dashboard: adjust the href if your user dashboard file is named differently -->
         <a href="<?php echo BASE_URL; ?>/app/user/dashboard.php" class="page-back" aria-label="Back to dashboard" title="Back to dashboard">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </a>
@@ -544,6 +532,7 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         <p class="empty-note">No crop plantings yet. Tap "+ Add planting" to get started.</p>
     <?php else: ?>
         <?php foreach ($crops as $c): ?>
+            <?php $harvestDateReached = $c['expected_harvest_date'] <= $todayManila; ?>
             <div class="crop-card" data-crop-id="<?php echo (int) $c['id']; ?>">
                 <div class="crop-card-top">
                     <div>
@@ -562,17 +551,13 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
                     <span>Harvested: <b><?php echo $c['actual_harvest_date'] ? date('M j, Y', strtotime($c['actual_harvest_date'])) : '—'; ?></b></span>
                 </div>
 
-                <?php if ($c['status'] === 'growing'): ?>
+                <?php if ($c['status'] === 'growing' && $harvestDateReached): ?>
                     <div class="crop-card-footer">
-                        <button class="crop-action-btn crop-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="ready_to_harvest" data-crop="<?php echo htmlspecialchars($c['crop_name']); ?>" type="button">Mark ready</button>
+                        <button class="crop-action-btn crop-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="ready_to_harvest" data-crop="<?php echo htmlspecialchars($c['crop_name']); ?>" type="button">Ready to harvest</button>
                     </div>
                 <?php elseif ($c['status'] === 'ready_to_harvest'): ?>
                     <div class="crop-card-footer">
-                        <button class="crop-action-btn crop-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="harvested" data-crop="<?php echo htmlspecialchars($c['crop_name']); ?>" type="button">Mark harvested</button>
-                    </div>
-                <?php elseif ($c['status'] === 'pending'): ?>
-                    <div class="crop-card-footer">
-                        <span style="color:#a9a79f; font-size: 12px;">Awaiting manager approval</span>
+                        <button class="crop-action-btn crop-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="harvested" data-crop="<?php echo htmlspecialchars($c['crop_name']); ?>" type="button">Mark as harvested</button>
                     </div>
                 <?php endif; ?>
             </div>
@@ -582,26 +567,34 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
 
 </div>
 
-<!-- MODAL - Add planting -->
 <div class="crop-modal" id="cropModalBackdrop">
     <div class="crop-modal-card">
         <span id="closeCropModalBtn" role="button" tabindex="0" aria-label="Close">&times;</span>
         <h2>Add planting</h2>
 
         <div id="cropModalErrors" style="display: none; background: #fbe6e6; color: #a6322f; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; text-align: left;"></div>
-        <div id="cropModalSuccess" style="display: none; background: #e8f5e9; color: #2e7d32; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; text-align: left;">
-            Your planting will be sent to a manager for approval before it starts tracking.
-        </div>
 
         <form id="cropForm" class="crop-form">
-            <div class="form-group">
-                <label for="crop_name">Crop</label>
-                <input type="text" id="crop_name" name="crop_name" placeholder="e.g. Rice, Corn, Eggplant" required>
+            <div class="form-group span-2">
+                <label for="crop_type">Crop</label>
+                <select id="crop_type" name="crop_type_id" required>
+                    <option value="">-- Select crop --</option>
+                    <?php foreach ($cropTypes as $t): ?>
+                        <option value="<?php echo (int) $t['id']; ?>"><?php echo htmlspecialchars($t['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
+
+            <div class="crop-info span-2" id="cropInfo"></div>
 
             <div class="form-group">
                 <label for="crop_area">Area (hectares)</label>
                 <input type="number" id="crop_area" name="area_hectares" placeholder="e.g. 1.5" min="0.01" step="0.01" required>
+            </div>
+
+            <div class="form-group">
+                <label for="crop_planting_date">Planting date</label>
+                <input type="date" id="crop_planting_date" name="planting_date" value="<?php echo htmlspecialchars($todayManila); ?>" required>
             </div>
 
             <div class="form-group span-2">
@@ -609,22 +602,11 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
                 <input type="text" id="crop_location" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
             </div>
 
-            <div class="form-group">
-                <label for="crop_planting_date">Planting date</label>
-                <input type="date" id="crop_planting_date" name="planting_date" required>
-            </div>
-
-            <div class="form-group">
-                <label for="crop_harvest_date">Expected harvest date</label>
-                <input type="date" id="crop_harvest_date" name="expected_harvest_date" required>
-            </div>
-
             <button type="submit" id="cropSubmitBtn">Submit planting</button>
         </form>
     </div>
 </div>
 
-<!-- MODAL - Confirm (replaces the browser confirm() / alert()) -->
 <div class="cc-backdrop" id="ccBackdrop">
     <div class="cc-card" role="dialog" aria-modal="true" aria-labelledby="ccTitle">
         <div class="cc-icon" id="ccIcon">
@@ -641,25 +623,80 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
 
 <script>
 (function() {
+    const CROP_TYPES = <?php echo json_encode($cropTypes, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
     const openBtn = document.getElementById('openCropModalBtn');
     const closeBtn = document.getElementById('closeCropModalBtn');
     const backdrop = document.getElementById('cropModalBackdrop');
     const form = document.getElementById('cropForm');
     const submitBtn = document.getElementById('cropSubmitBtn');
     const errorsEl = document.getElementById('cropModalErrors');
+    const typeSel = document.getElementById('crop_type');
+    const plantingInput = document.getElementById('crop_planting_date');
+    const infoEl = document.getElementById('cropInfo');
 
     if (!openBtn) return;
+
+    function findType(id) {
+        for (let i = 0; i < CROP_TYPES.length; i++) {
+            if (String(CROP_TYPES[i].id) === String(id)) return CROP_TYPES[i];
+        }
+        return null;
+    }
+
+    // Planting date + HULING araw ng range (days o months), kapareho ng ginagawa sa server
+    function addToDate(dateStr, amount, unit) {
+        const p = dateStr.split('-');
+        const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+        if (unit === 'months') d.setMonth(d.getMonth() + amount);
+        else d.setDate(d.getDate() + amount);
+        return d;
+    }
+
+    function rangeText(t) {
+        const unit = t.unit === 'months' ? 'months' : 'days';
+        return (Number(t.min_value) === Number(t.max_value))
+            ? t.max_value + ' ' + unit
+            : t.min_value + '\u2013' + t.max_value + ' ' + unit;
+    }
+
+    function updateInfo() {
+        const t = findType(typeSel.value);
+        if (!t) {
+            infoEl.classList.remove('crop-show');
+            infoEl.textContent = '';
+            return;
+        }
+        infoEl.textContent = '';
+        const line1 = document.createElement('div');
+        line1.textContent = 'Takes ' + rangeText(t);
+        infoEl.appendChild(line1);
+
+        if (plantingInput.value) {
+            const exp = addToDate(plantingInput.value, Number(t.max_value), t.unit);
+            const line2 = document.createElement('div');
+            line2.appendChild(document.createTextNode('Expected harvest: '));
+            const b = document.createElement('b');
+            b.textContent = exp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            line2.appendChild(b);
+            infoEl.appendChild(line2);
+        }
+        infoEl.classList.add('crop-show');
+    }
+
+    typeSel.addEventListener('change', updateInfo);
+    plantingInput.addEventListener('input', updateInfo);
 
     function openModal() { backdrop.classList.add('crop-open'); }
     function closeModal() {
         backdrop.classList.remove('crop-open');
         form.reset();
+        updateInfo();
         errorsEl.style.display = 'none';
     }
 
     openBtn.addEventListener('click', openModal);
     closeBtn.addEventListener('click', closeModal);
-    // The close (x) is a <span role="button">, so it needs a manual keyboard handler
     closeBtn.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeModal(); }
     });
@@ -672,8 +709,8 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         const formData = new FormData(form);
         const data = Object.fromEntries(formData.entries());
 
-        if (new Date(data.expected_harvest_date) < new Date(data.planting_date)) {
-            errorsEl.textContent = 'Expected harvest date cannot be before the planting date.';
+        if (!data.crop_type_id) {
+            errorsEl.textContent = 'Please choose a crop.';
             errorsEl.style.display = 'block';
             return;
         }
@@ -713,9 +750,6 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         }
     });
 
-    /* ============================================================
-       CONFIRM MODAL
-       ============================================================ */
     const ccBackdrop = document.getElementById('ccBackdrop');
     const ccIcon = document.getElementById('ccIcon');
     const ccTitle = document.getElementById('ccTitle');
@@ -735,7 +769,6 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         ccCancel.disabled = false;
     }
 
-    // Confirm dialog: title, message, then runs onConfirm when OK is tapped
     function ccConfirm(title, text, okLabel, onConfirm) {
         ccIcon.className = 'cc-icon';
         ccIcon.innerHTML = ICON_CHECK;
@@ -748,7 +781,6 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         ccBackdrop.classList.add('cc-open');
     }
 
-    // Error dialog: replaces alert(), only one button
     function ccError(text) {
         ccIcon.className = 'cc-icon cc-error';
         ccIcon.innerHTML = ICON_ERROR;
@@ -764,7 +796,6 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
     ccBackdrop.addEventListener('click', function(e) { if (e.target === ccBackdrop) ccClose(); });
     document.addEventListener('keydown', function(e) {
         if (e.key !== 'Escape') return;
-        // Esc closes the top-most dialog first: the confirm modal, then the Add planting modal
         if (ccBackdrop.classList.contains('cc-open')) ccClose();
         else if (backdrop.classList.contains('crop-open')) closeModal();
     });
@@ -772,8 +803,6 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         if (ccOnConfirm) ccOnConfirm();
     });
 
-    // Event delegation: the Mark ready / Mark harvested buttons keep working
-    // after the auto-update replaces the cards.
     document.getElementById('cropListLive').addEventListener('click', function(e) {
         const btn = e.target.closest('.crop-advance-btn');
         if (!btn) return;
@@ -782,12 +811,12 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
         const crop = btn.dataset.crop || 'this planting';
         const isHarvest = (next === 'harvested');
 
-        const title = isHarvest ? 'Mark as harvested?' : 'Mark as ready?';
+        const title = isHarvest ? 'Mark as harvested?' : 'Ready to harvest?';
         const text = isHarvest
             ? 'Confirm that your ' + crop + ' has been harvested.'
             : 'Confirm that your ' + crop + ' is ready to harvest.';
 
-        ccConfirm(title, text, isHarvest ? 'Mark harvested' : 'Mark ready', async function() {
+        ccConfirm(title, text, isHarvest ? 'Mark as harvested' : 'Ready to harvest', async function() {
             ccOk.disabled = true;
             ccCancel.disabled = true;
             ccOk.textContent = 'Saving...';
@@ -813,16 +842,10 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
 })();
 </script>
 
-<!-- ============================================================
-     AUTO-UPDATE (AJAX POLLING)
-     Fetches this same page, then swaps only the parts that changed.
-     Paused while a modal is open or the tab is hidden.
-     ============================================================ -->
 <script>
 (function () {
-    const LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+    const LIVE_CHECK_MS = 3000;
 
-    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
     function itemMap(root, sel, attr) {
         const m = new Map();
         if (!sel) return m;
@@ -850,7 +873,6 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
     }
 
     async function liveCheck() {
-        // Skip while the tab is hidden, a modal is open, or a check is running
         if (document.hidden || busy || anyModalOpen()) return;
         busy = true;
         try {
@@ -859,7 +881,6 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
             const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
             const fresh = liveParts.map(p => doc.getElementById(p.id));
 
-            // If an expected element is missing (e.g. login page), leave the page alone
             if (fresh.every(Boolean)) {
                 liveParts.forEach(function (p, i) {
                     const f = fresh[i];
@@ -878,7 +899,7 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
             }
             fails = 0;
         } catch (e) {
-            fails++;   // backoff on error
+            fails++;
         } finally {
             busy = false;
         }

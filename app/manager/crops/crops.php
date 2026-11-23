@@ -2,60 +2,40 @@
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/functions.php';
 
-requireLogin();
+requireRole('manager');
 
-if (!canAccessCrops($_SESSION['role'] ?? '')) {
-    die("Access denied.");
-}
+$crops = getAllCrops($pdo);
 
-$role = $_SESSION['role'] ?? '';
-$memberId = $_SESSION['member_id'] ?? 0;
+// Growing > Ready to harvest > Harvested > Rejected. PHP sort, hindi SQL.
+// Sa loob ng bawat grupo: pinakabagong na-add (pinakamalaking id) sa taas.
+$stageRank = [
+    'pending'          => 0,
+    'growing'          => 1,
+    'ready_to_harvest' => 2,
+    'harvested'        => 3,
+    'rejected'         => 4,
+];
+usort($crops, function ($a, $b) use ($stageRank) {
+    $ra = $stageRank[$a['status']] ?? 4;
+    $rb = $stageRank[$b['status']] ?? 4;
 
-$members = [];
+    if ($ra !== $rb) {
+        return $ra <=> $rb;
+    }
 
-if ($role === 'manager') {
-    $crops = getAllCrops($pdo);
+    return ((int) $b['id']) <=> ((int) $a['id']);
+});
 
-    // Pending > Growing > Ready to harvest > Harvested > Rejected. PHP sort, hindi SQL.
-    // Pending/Growing/Ready: pinakaluma muna. Harvested/Rejected: pinakabago muna.
-    $stageRank = [
-        'pending'          => 0,
-        'growing'          => 1,
-        'ready_to_harvest' => 2,
-        'harvested'        => 3,
-        'rejected'         => 4,
-    ];
-    usort($crops, function ($a, $b) use ($stageRank) {
-        $ra = $stageRank[$a['status']] ?? 4;
-        $rb = $stageRank[$b['status']] ?? 4;
+$stats = getCropStats($pdo);
+$cropTypes = getCropTypes($pdo);
+$todayManila = cropTodayManila();
 
-        if ($ra !== $rb) {
-            return $ra <=> $rb;
-        }
-
-        $dateCmp = strcmp($a['created_at'], $b['created_at']);
-
-        if ($ra < 3) {
-            if ($dateCmp !== 0) return $dateCmp;
-            return ((int) $a['id']) <=> ((int) $b['id']);
-        }
-
-        if ($dateCmp !== 0) return -$dateCmp;
-        return ((int) $b['id']) <=> ((int) $a['id']);
-    });
-
-    $stats = getCropStats($pdo);
-
-    $memberStmt = $pdo->query("
-        SELECT id, membership_id, first_name, last_name
-        FROM members
-        ORDER BY last_name, first_name
-    ");
-    $members = $memberStmt->fetchAll(PDO::FETCH_ASSOC);
-} else {
-    $crops = getCropsForMember($pdo, $memberId);
-    $stats = getCropStats($pdo, $memberId);
-}
+$memberStmt = $pdo->query("
+    SELECT id, membership_id, first_name, last_name
+    FROM members
+    ORDER BY last_name, first_name
+");
+$members = $memberStmt->fetchAll(PDO::FETCH_ASSOC);
 
 function cmInitials($lastName, $firstName) {
     $l = trim((string) $lastName);
@@ -125,7 +105,6 @@ renderHeader('Crops Management');
 .cm-text-center { text-align: center; }
 .cm-text-right { text-align: right; }
 
-/* HEADER */
 .cm-header {
     display: flex;
     justify-content: space-between;
@@ -145,7 +124,6 @@ renderHeader('Crops Management');
     flex: none;
 }
 
-/* BUTTONS */
 .cm-btn {
     box-sizing: border-box;
     display: inline-flex;
@@ -191,33 +169,6 @@ renderHeader('Crops Management');
 
 .cm-btn-full { width: 100%; justify-content: center; padding: 11px; }
 
-.cm-btn-link {
-    width: auto !important;
-    background: var(--cm-card);
-    border: 1px solid var(--cm-line);
-    border-radius: 20px;
-    box-shadow: none;
-    padding: 4px 10px;
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: none !important;
-    letter-spacing: normal;
-    color: var(--cm-forest);
-    cursor: pointer;
-    display: inline-flex !important;
-    align-items: center;
-    gap: 4px;
-    transition: border-color 0.12s ease;
-}
-.cm-btn-link .material-icons { font-size: 14px; }
-.cm-btn-link:hover { border-color: var(--cm-forest); text-decoration: none; }
-.cm-btn-link:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.cm-btn-link-danger { color: var(--cm-danger); }
-.cm-btn-link-danger:hover { border-color: var(--cm-danger); }
-
-/* SUMMARY CARDS */
 .cm-summary-grid {
     display: flex;
     flex-wrap: wrap;
@@ -244,7 +195,6 @@ renderHeader('Crops Management');
 .cm-metric-card.cm-tone-success .cm-metric-label,
 .cm-metric-card.cm-tone-success .cm-metric-value { color: var(--cm-success); }
 
-/* SECTION */
 .cm-section {
     background: var(--cm-card);
     border: 1px solid var(--cm-line);
@@ -262,7 +212,6 @@ renderHeader('Crops Management');
 }
 .cm-section-header h2 { font-size: 19px; }
 
-/* TABLE */
 .cm-table-wrap { overflow-x: auto; }
 .cm-page table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .cm-page thead th {
@@ -275,11 +224,9 @@ renderHeader('Crops Management');
     padding: 10px 8px;
     border-bottom: 1.5px solid var(--cm-line);
 }
-.cm-page thead th.cm-text-right { text-align: right; }
 .cm-page tbody td { padding: 12px 8px; border-bottom: 1px solid var(--cm-line); }
 .cm-page tbody tr:last-child td { border-bottom: none; }
 
-/* MEMBER CELL */
 .cm-member-cell { display: flex; align-items: center; gap: 10px; }
 .cm-avatar {
     width: 32px;
@@ -297,7 +244,6 @@ renderHeader('Crops Management');
 .cm-member-name { margin: 0; font-weight: 600; font-size: 13.5px; color: var(--cm-ink); }
 .cm-member-id { margin: 0; font-size: 11.5px; color: var(--cm-ink-soft); }
 
-/* STATUS BADGES */
 .cm-status-badge {
     display: inline-block;
     font-size: 11.5px;
@@ -312,14 +258,12 @@ renderHeader('Crops Management');
 .cm-status-badge.cm-ready    { background: var(--cm-gold-soft); color: var(--cm-gold); }
 .cm-status-badge.cm-harvested{ background: var(--cm-success-soft); color: var(--cm-success); }
 
-/* LIVE UPDATE FLASH (new or changed row) */
 @keyframes cmFlashRow {
     from { background: #e3f4e1; }
     to   { background: transparent; }
 }
 .cm-page tr.cm-flash td { animation: cmFlashRow 2.2s ease-out; }
 
-/* MODALS */
 .cm-modal {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     display: none;
@@ -381,7 +325,6 @@ renderHeader('Crops Management');
 .cm-icon-btn:hover { background: var(--cm-paper); color: var(--cm-ink); }
 .cm-icon-btn:active { transform: scale(0.94); }
 
-/* MODAL FORM */
 .cm-modal-card label {
     display: block;
     font-size: 12.5px;
@@ -415,7 +358,18 @@ renderHeader('Crops Management');
 
 .cm-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-/* MEMBER SEARCH (manager add planting) */
+.cm-crop-info {
+    display: none;
+    background: #F1F6EA;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 6px;
+    font-size: 12.5px;
+    color: #3B6D11;
+    line-height: 1.5;
+}
+.cm-crop-info.cm-show { display: block; }
+
 .cm-search-wrap { position: relative; }
 .cm-search-results {
     display: none;
@@ -444,7 +398,6 @@ renderHeader('Crops Management');
 .cm-search-item-id { margin: 0; font-size: 12px; color: var(--cm-ink-soft); }
 .cm-search-empty { padding: 10px 12px; font-size: 13px; color: var(--cm-ink-soft); }
 
-/* MESSAGES */
 .cm-error-box,
 .cm-success-box {
     display: none;
@@ -456,7 +409,6 @@ renderHeader('Crops Management');
 .cm-error-box.cm-show { display: block; background: var(--cm-danger-soft); color: var(--cm-danger); }
 .cm-success-box.cm-show { display: block; background: var(--cm-success-soft); color: var(--cm-success); }
 
-/* RESPONSIVE */
 @media (max-width: 560px) {
     .cm-page { padding: 0 0 40px; }
     .cm-header { flex-direction: column; gap: 12px; }
@@ -469,9 +421,6 @@ renderHeader('Crops Management');
     .cm-modal-card { max-width: 100%; max-height: 92vh; padding: 20px 18px 20px; }
 }
 
-/* ============================================================
-   PRINT REPORT
-   ============================================================ */
 #cmPrintReport { display: none; }
 
 @page {
@@ -561,7 +510,6 @@ renderHeader('Crops Management');
 
 <div class="cm-page">
 
-    <!-- PAGE HEADER -->
     <div class="cm-header">
         <div>
             <h1>Crops Records</h1>
@@ -572,21 +520,12 @@ renderHeader('Crops Management');
                 <span class="material-icons">print</span> Print
             </button>
 
-            <?php if ($role === 'manager'): ?>
-                <button class="cm-btn cm-btn-primary" id="mgr-add-planting-btn" type="button">
-                    <span class="material-icons">add</span> Add planting
-                </button>
-            <?php endif; ?>
-
-            <?php if ($role === 'user'): ?>
-                <button class="cm-btn cm-btn-outline" id="add-planting-btn" type="button">
-                    <span class="material-icons">add</span> Add planting
-                </button>
-            <?php endif; ?>
+            <button class="cm-btn cm-btn-primary" id="mgr-add-planting-btn" type="button">
+                <span class="material-icons">add</span> Add planting
+            </button>
         </div>
     </div>
 
-    <!-- SUMMARY -->
     <div class="cm-summary-grid" id="cmSummaryLive">
         <div class="cm-metric-card cm-tone-forest">
             <p class="cm-metric-label">Total plantings</p>
@@ -606,17 +545,16 @@ renderHeader('Crops Management');
         </div>
     </div>
 
-    <!-- PLANTINGS TABLE -->
     <div class="cm-section">
         <div class="cm-section-header">
-            <h2><?php echo $role === 'manager' ? 'All plantings' : 'My plantings'; ?></h2>
+            <h2>All plantings</h2>
         </div>
 
         <div class="cm-table-wrap" id="cmTableLive">
             <table>
                 <thead>
                     <tr>
-                        <?php if ($role === 'manager'): ?><th>Member</th><?php endif; ?>
+                        <th>Member</th>
                         <th>Crop</th>
                         <th>Location</th>
                         <th>Area (ha)</th>
@@ -624,27 +562,24 @@ renderHeader('Crops Management');
                         <th>Expected harvest</th>
                         <th>Actual harvest</th>
                         <th>Status</th>
-                        <th class="cm-text-right">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($crops)): ?>
-                        <tr><td colspan="9" class="cm-muted cm-text-center">No crop plantings yet.</td></tr>
+                        <tr><td colspan="8" class="cm-muted cm-text-center">No crop plantings yet.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($crops as $c): ?>
                         <?php $memberName = trim($c['last_name'] . ', ' . $c['first_name']); ?>
                         <tr data-crop-id="<?php echo (int) $c['id']; ?>">
-                            <?php if ($role === 'manager'): ?>
-                                <td>
-                                    <div class="cm-member-cell">
-                                        <div class="cm-avatar"><?php echo htmlspecialchars(cmInitials($c['last_name'], $c['first_name'])); ?></div>
-                                        <div>
-                                            <p class="cm-member-name"><?php echo htmlspecialchars($memberName); ?></p>
-                                            <p class="cm-member-id"><?php echo htmlspecialchars($c['membership_id']); ?></p>
-                                        </div>
+                            <td>
+                                <div class="cm-member-cell">
+                                    <div class="cm-avatar"><?php echo htmlspecialchars(cmInitials($c['last_name'], $c['first_name'])); ?></div>
+                                    <div>
+                                        <p class="cm-member-name"><?php echo htmlspecialchars($memberName); ?></p>
+                                        <p class="cm-member-id"><?php echo htmlspecialchars($c['membership_id']); ?></p>
                                     </div>
-                                </td>
-                            <?php endif; ?>
+                                </div>
+                            </td>
                             <td><?php echo htmlspecialchars($c['crop_name']); ?></td>
                             <td><?php echo htmlspecialchars($c['location']); ?></td>
                             <td><?php echo rtrim(rtrim(number_format($c['area_hectares'], 2), '0'), '.'); ?> ha</td>
@@ -652,28 +587,6 @@ renderHeader('Crops Management');
                             <td><?php echo date('M j, Y', strtotime($c['expected_harvest_date'])); ?></td>
                             <td><?php echo $c['actual_harvest_date'] ? date('M j, Y', strtotime($c['actual_harvest_date'])) : '—'; ?></td>
                             <td><?php echo cropStatusBadge($c['status']); ?></td>
-                            <td class="cm-text-right">
-                                <?php if ($role === 'manager' && $c['status'] === 'pending'): ?>
-                                    <button class="cm-btn-link cm-approve-btn" data-id="<?php echo $c['id']; ?>" type="button">
-                                        <span class="material-icons">check</span> Approve
-                                    </button>
-                                    <button class="cm-btn-link cm-btn-link-danger cm-reject-btn" data-id="<?php echo $c['id']; ?>" type="button">
-                                        <span class="material-icons">close</span> Reject
-                                    </button>
-                                <?php elseif ($role === 'user' && (int) $c['member_id'] === (int) $memberId): ?>
-                                    <?php if ($c['status'] === 'growing'): ?>
-                                        <button class="cm-btn-link cm-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="ready_to_harvest" type="button">
-                                            <span class="material-icons">check_circle</span> Mark ready
-                                        </button>
-                                    <?php elseif ($c['status'] === 'ready_to_harvest'): ?>
-                                        <button class="cm-btn-link cm-advance-btn" data-id="<?php echo $c['id']; ?>" data-next="harvested" type="button">
-                                            <span class="material-icons">agriculture</span> Mark harvested
-                                        </button>
-                                    <?php elseif ($c['status'] === 'pending'): ?>
-                                        <span class="cm-muted">Awaiting approval</span>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                            </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -684,7 +597,6 @@ renderHeader('Crops Management');
 </div>
 
 
-<!-- PRINT REPORT -->
 <div id="cmPrintReport">
     <div class="cm-pr-head">
         <div>
@@ -720,10 +632,6 @@ renderHeader('Crops Management');
 </div>
 
 
-<?php if ($role === 'manager'): ?>
-<!-- ============================================================
-     MANAGER: ADD PLANTING MODAL (member search)
-     ============================================================ -->
 <div class="cm-modal" id="mgr-add-modal">
     <div class="cm-modal-card">
         <div class="cm-modal-header">
@@ -748,80 +656,32 @@ renderHeader('Crops Management');
             </div>
 
             <label>Crop</label>
-            <input type="text" name="crop_name" placeholder="e.g. Rice, Corn, Eggplant" required>
+            <select name="crop_type_id" id="mgr-crop-type" required>
+                <option value="">-- Select crop --</option>
+                <?php foreach ($cropTypes as $t): ?>
+                    <option value="<?php echo (int) $t['id']; ?>"><?php echo htmlspecialchars($t['name']); ?></option>
+                <?php endforeach; ?>
+            </select>
+            <div class="cm-crop-info" id="mgr-crop-info"></div>
 
-            <label>Farm location</label>
-            <input type="text" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
-
-            <label>Area (hectares)</label>
-            <input type="number" name="area_hectares" placeholder="e.g. 1.5" min="0.01" step="0.01" required>
-
-            <div class="cm-form-row">
+            <div class="cm-form-row" style="margin-top:12px;">
                 <div>
-                    <label>Planting date</label>
-                    <input type="date" name="planting_date" required>
+                    <label style="margin-top:0;">Area (ha)</label>
+                    <input type="number" name="area_hectares" placeholder="e.g. 1.5" min="0.01" step="0.01" required>
                 </div>
                 <div>
-                    <label>Expected harvest date</label>
-                    <input type="date" name="expected_harvest_date" required>
-                </div>
-            </div>
-
-            <button type="submit" id="mgr-add-submit" class="cm-btn cm-btn-primary cm-btn-full" style="margin-top:16px;">Add planting</button>
-        </form>
-    </div>
-</div>
-<?php endif; ?>
-
-
-<?php if ($role === 'user'): ?>
-<!-- ============================================================
-     ADD PLANTING MODAL (user)
-     ============================================================ -->
-<div class="cm-modal" id="add-planting-modal-wrap">
-    <div class="cm-modal-card">
-        <div class="cm-modal-header">
-            <h2>Add planting</h2>
-            <button class="cm-icon-btn" id="close-add-planting" type="button" aria-label="Close">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-        </div>
-
-        <div class="cm-success-box cm-show" style="margin-bottom:14px;">
-            Your planting will be sent to a manager for approval before it starts tracking.
-        </div>
-
-        <div id="add-planting-error" class="cm-error-box"></div>
-
-        <form id="add-planting-form">
-            <label>Crop</label>
-            <input type="text" name="crop_name" placeholder="e.g. Rice, Corn, Eggplant" required>
-
-            <label>Farm location</label>
-            <input type="text" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
-
-            <label>Area (hectares)</label>
-            <input type="number" name="area_hectares" placeholder="e.g. 1.5" min="0.01" step="0.01" required>
-
-            <div class="cm-form-row">
-                <div>
-                    <label>Planting date</label>
-                    <input type="date" name="planting_date" required>
-                </div>
-                <div>
-                    <label>Expected harvest date</label>
-                    <input type="date" name="expected_harvest_date" required>
+                    <label style="margin-top:0;">Farm location</label>
+                    <input type="text" name="location" placeholder="e.g. Purok 3" required>
                 </div>
             </div>
 
-            <button type="submit" class="cm-btn cm-btn-primary cm-btn-full" style="margin-top:16px;">Submit planting</button>
+            <label>Planting date</label>
+            <input type="date" name="planting_date" id="mgr-planting-date" value="<?php echo htmlspecialchars($todayManila); ?>" required>
+
+            <button type="submit" id="mgr-add-submit" class="cm-btn cm-btn-primary cm-btn-full" style="margin-top:16px;">Save planting</button>
         </form>
     </div>
 </div>
-<?php endif; ?>
 
 
 <script>
@@ -832,10 +692,10 @@ renderHeader('Crops Management');
     });
 </script>
 
-<?php if ($role === 'manager'): ?>
 <script>
 (function() {
     const MEMBERS = <?php echo json_encode($members, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    const CROP_TYPES = <?php echo json_encode($cropTypes, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
     const openBtn   = document.getElementById('mgr-add-planting-btn');
     const modal     = document.getElementById('mgr-add-modal');
@@ -846,8 +706,59 @@ renderHeader('Crops Management');
     const searchEl  = document.getElementById('mgr-member-search');
     const resultsEl = document.getElementById('mgr-member-results');
     const memberEl  = document.getElementById('mgr-member-id');
+    const typeSel   = document.getElementById('mgr-crop-type');
+    const plantEl   = document.getElementById('mgr-planting-date');
+    const infoEl    = document.getElementById('mgr-crop-info');
 
     if (!openBtn) return;
+
+    function findType(id) {
+        for (let i = 0; i < CROP_TYPES.length; i++) {
+            if (String(CROP_TYPES[i].id) === String(id)) return CROP_TYPES[i];
+        }
+        return null;
+    }
+
+    function addToDate(dateStr, amount, unit) {
+        const p = dateStr.split('-');
+        const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+        if (unit === 'months') d.setMonth(d.getMonth() + amount);
+        else d.setDate(d.getDate() + amount);
+        return d;
+    }
+
+    function rangeText(t) {
+        const unit = t.unit === 'months' ? 'months' : 'days';
+        return (Number(t.min_value) === Number(t.max_value))
+            ? t.max_value + ' ' + unit
+            : t.min_value + '\u2013' + t.max_value + ' ' + unit;
+    }
+
+    function updateInfo() {
+        const t = findType(typeSel.value);
+        infoEl.textContent = '';
+        if (!t) {
+            infoEl.classList.remove('cm-show');
+            return;
+        }
+        const line1 = document.createElement('div');
+        line1.textContent = 'Takes ' + rangeText(t);
+        infoEl.appendChild(line1);
+
+        if (plantEl.value) {
+            const exp = addToDate(plantEl.value, Number(t.max_value), t.unit);
+            const line2 = document.createElement('div');
+            line2.appendChild(document.createTextNode('Expected harvest: '));
+            const b = document.createElement('b');
+            b.textContent = exp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            line2.appendChild(b);
+            infoEl.appendChild(line2);
+        }
+        infoEl.classList.add('cm-show');
+    }
+
+    typeSel.addEventListener('change', updateInfo);
+    plantEl.addEventListener('input', updateInfo);
 
     function showError(msg) {
         errorBox.textContent = msg;
@@ -864,6 +775,7 @@ renderHeader('Crops Management');
         form.reset();
         memberEl.value = '';
         resultsEl.classList.remove('cm-show');
+        updateInfo();
         clearError();
     }
 
@@ -949,8 +861,8 @@ renderHeader('Crops Management');
             showError('Select a member from the search results.');
             return;
         }
-        if (new Date(data.expected_harvest_date) < new Date(data.planting_date)) {
-            showError('Expected harvest date cannot be before the planting date.');
+        if (!data.crop_type_id) {
+            showError('Please choose a crop.');
             return;
         }
 
@@ -982,30 +894,16 @@ renderHeader('Crops Management');
             showError('Could not reach the server: ' + err.message);
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Add planting';
+            submitBtn.textContent = 'Save planting';
         }
     });
 })();
 </script>
-<?php endif; ?>
 
-<script src="<?php echo BASE_URL; ?>/app/manager/crops/crops.js"></script>
-
-<!-- ============================================================
-     AUTO-UPDATE (AJAX POLLING)
-     Fetches this same page, then swaps only the parts that changed.
-     Paused while a modal is open or the tab is hidden.
-     ============================================================ -->
 <script>
 (function () {
-    const LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
+    const LIVE_CHECK_MS = 3000;
 
-    // The Approve / Reject / Mark buttons in the table are wired up in crops.js.
-    // Keep this false until crops.js uses event delegation (one click listener on
-    // the document), otherwise those buttons stop working after the table is replaced.
-    const POLL_TABLE = true;
-
-    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
     function itemMap(root, sel, attr) {
         const m = new Map();
         if (!sel) return m;
@@ -1016,9 +914,8 @@ renderHeader('Crops Management');
     const liveParts = [
         { id: 'cmSummaryLive' },
         { id: 'cmPrintReport' },
-        { id: 'cmTableLive', sel: 'tr[data-crop-id]', attr: 'data-crop-id', table: true }
+        { id: 'cmTableLive', sel: 'tr[data-crop-id]', attr: 'data-crop-id' }
     ].filter(function (p) {
-        if (p.table && !POLL_TABLE) return false;
         p.el = document.getElementById(p.id);
         if (!p.el) return false;
         p.html = p.el.innerHTML;
@@ -1035,7 +932,6 @@ renderHeader('Crops Management');
     }
 
     async function liveCheck() {
-        // Skip while the tab is hidden, a modal is open, or a check is running
         if (document.hidden || busy || anyModalOpen()) return;
         busy = true;
         try {
@@ -1044,13 +940,10 @@ renderHeader('Crops Management');
             const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
             const fresh = liveParts.map(p => doc.getElementById(p.id));
 
-            // If an expected element is missing (e.g. login page), leave the page alone
             if (fresh.every(Boolean)) {
-                let changed = false;
                 liveParts.forEach(function (p, i) {
                     const f = fresh[i];
                     if (f.innerHTML === p.html) return;
-                    changed = true;
                     p.html = f.innerHTML;
                     const newItems = itemMap(f, p.sel, p.attr);
                     p.el.innerHTML = p.html;
@@ -1062,11 +955,10 @@ renderHeader('Crops Management');
                     }
                     p.items = newItems;
                 });
-                if (changed) document.dispatchEvent(new CustomEvent('cm:refreshed'));
             }
             fails = 0;
         } catch (e) {
-            fails++;   // backoff on error
+            fails++;
         } finally {
             busy = false;
         }

@@ -17,22 +17,29 @@ if (!is_array($input)) {
     exit;
 }
 
-$memberId = (int) ($input['member_id'] ?? 0);
-$cropName = trim($input['crop_name'] ?? '');
-$location = trim($input['location'] ?? '');
-$area     = (float) ($input['area_hectares'] ?? 0);
-$planted  = trim($input['planting_date'] ?? '');
-$expected = trim($input['expected_harvest_date'] ?? '');
+$memberId   = (int) ($input['member_id'] ?? 0);
+$cropTypeId = (int) ($input['crop_type_id'] ?? 0);
+$location   = trim($input['location'] ?? '');
+$area       = (float) ($input['area_hectares'] ?? 0);
+$planted    = trim($input['planting_date'] ?? '');
 
-if ($memberId <= 0 || $cropName === '' || $location === '' || $area <= 0 || $planted === '' || $expected === '') {
+if ($memberId <= 0 || $cropTypeId <= 0 || $location === '' || $area <= 0 || $planted === '') {
     http_response_code(422);
     echo json_encode(['success' => false, 'message' => 'Please fill in all fields.']);
     exit;
 }
 
-if (strtotime($expected) < strtotime($planted)) {
+$cropType = getCropTypeById($pdo, $cropTypeId);
+if (!$cropType) {
     http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Expected harvest date cannot be before the planting date.']);
+    echo json_encode(['success' => false, 'message' => 'Please choose a crop from the list.']);
+    exit;
+}
+
+$expected = calculateCropExpectedHarvest($planted, $cropType['max_value'], $cropType['unit']);
+if ($expected === null) {
+    http_response_code(422);
+    echo json_encode(['success' => false, 'message' => 'Enter a valid planting date.']);
     exit;
 }
 
@@ -45,13 +52,8 @@ if (!$check->fetch()) {
 }
 
 try {
-    $stmt = $pdo->prepare("
-        INSERT INTO crops (member_id, crop_name, location, area_hectares, planting_date, expected_harvest_date, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'growing')
-    ");
-    $stmt->execute([$memberId, $cropName, $location, $area, $planted, $expected]);
-
-    echo json_encode(['success' => true]);
+    $ok = addCropPlanting($pdo, $memberId, $cropType['name'], $location, $area, $planted, $expected, (int) $cropType['id']);
+    echo json_encode(['success' => (bool) $ok]);
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Could not save the planting.']);

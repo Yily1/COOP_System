@@ -7,8 +7,6 @@ requireRole('user');
 
 $role = $_SESSION['role'] ?? 'user';
 
-// Same account-linking pattern used by payments.php: look up members.id
-// via the users -> members join, not a session value.
 $userId = (int) ($_SESSION['user_id'] ?? 0);
 
 $stmt = $pdo->prepare("
@@ -41,7 +39,6 @@ if (!$crop) {
 switch ($action) {
 
     case 'advance':
-        // Only the owning member can move their own crop forward.
         if ($role !== 'user' || (int) $crop['member_id'] !== $memberId) {
             http_response_code(403);
             echo json_encode(['success' => false, 'message' => 'You can only update your own plantings.']);
@@ -50,7 +47,6 @@ switch ($action) {
 
         $nextStatus = $input['status'] ?? '';
 
-        // Enforce the allowed forward transitions server-side.
         $validTransitions = [
             'growing'          => 'ready_to_harvest',
             'ready_to_harvest' => 'harvested',
@@ -59,6 +55,16 @@ switch ($action) {
         if (($validTransitions[$crop['status']] ?? null) !== $nextStatus) {
             http_response_code(422);
             echo json_encode(['success' => false, 'message' => 'That status change is not allowed from the current stage.']);
+            exit;
+        }
+
+        // Ready to harvest is only allowed on or after the expected harvest date.
+        if ($nextStatus === 'ready_to_harvest' && $crop['expected_harvest_date'] > cropTodayManila()) {
+            http_response_code(422);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Ready to harvest is only available from ' . date('M j, Y', strtotime($crop['expected_harvest_date'])) . '.'
+            ]);
             exit;
         }
 
