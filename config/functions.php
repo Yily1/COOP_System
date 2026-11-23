@@ -1149,6 +1149,7 @@ function getExpenseCategories() {
 
 /**
  * Greeting depende sa oras (Philippine time).
+ * (Hindi na ginagamit sa header, pero nandito pa rin kung kailanganin sa ibang page.)
  */
 function getGreeting() {
     $hour = (int) (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('G');
@@ -1270,10 +1271,18 @@ function renderHeader($title) {
                 padding: 2px;
                 box-sizing: border-box;
             }
-            /* Kapag bukas ang drawer, nasa drawer na ang logo, kaya itago dito */
+            /* Pangalan sa tabi ng logo (kita kapag naka-close ang drawer) */
+            .app-bar-brand span {
+                margin-left: 8px;
+                font-weight: 700;
+                font-size: 15px;
+                color: #fff;
+                white-space: nowrap;
+            }
+            /* Kapag bukas ang drawer, nasa drawer na ang logo at SJFMC, kaya itago dito */
             .app-bar.app-bar-shift .app-bar-brand { display: none; }
 
-            /* ===== Greeting + Logout icon (kanan ng app bar) ===== */
+            /* ===== Logout icon (kanan ng app bar) ===== */
             .app-bar-right {
                 margin-left: auto;
                 display: flex;
@@ -1294,16 +1303,6 @@ function renderHeader($title) {
             .logout-icon-btn .material-icons { font-size: 20px; }
             .logout-icon-btn:hover { background: rgba(255,255,255,0.15); }
             .app-bar-right { flex-shrink: 0; }
-
-            /* Admin/Manager: greeting sa kaliwa, katabi ng logo */
-            .app-bar-greeting-left {
-                margin-left: 10px;
-                font-size: .875rem;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                min-width: 0;
-            }
 
             /* ===== Drawer (mirrors MUI's <Drawer variant="persistent">) ===== */
             .drawer {
@@ -1458,12 +1457,6 @@ function renderHeader($title) {
                     font-size: 12px;
                 }
 
-                /* Phone (admin/manager): kita pa rin ang greeting sa tabi ng logo, mas maliit */
-                .app-bar-greeting-left {
-                    font-size: 12px;
-                    margin-left: 6px;
-                }
-
                 /* Phone: Logout sits right under the last menu item, so it never
                    ends up hidden under the browser's bottom bar */
                 .drawer .mobile-logout {
@@ -1488,15 +1481,11 @@ function renderHeader($title) {
                     <div class="toolbar">
                         <button class="icon-button" id="openBtn" aria-label="open drawer">&#9776;</button>
 
-                        <!-- Logo (kita kapag naka-close ang drawer). Pwedeng palitan ng logo-small.png -->
+                        <!-- Logo at pangalan (kita kapag naka-close ang drawer, lahat ng role) -->
                         <div class="app-bar-brand">
                             <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC logo">
+                            <span>SJFMC</span>
                         </div>
-
-                        <?php if ($currentRole === 'admin' || $currentRole === 'manager'): ?>
-                            <!-- Admin/Manager: greeting sa tabi ng logo -->
-                            <span class="app-bar-greeting-left"><?php echo getGreeting() . ', ' . htmlspecialchars(getDisplayName()); ?></span>
-                        <?php endif; ?>
 
                         <!-- Logout icon (lahat ng role) -->
                         <div class="app-bar-right">
