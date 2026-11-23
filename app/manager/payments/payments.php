@@ -6,6 +6,11 @@ require_once '../../../config/rental-split.php';
 
 requireRole('manager');
 
+// Para sa printout (palitan dito kung magbago)
+$coopName        = 'San Jose Farmers Multipurpose Cooperative';
+$preparedByName  = 'Lielane Marie F. Dagdagan';
+$preparedByTitle = 'Cooperative President';
+
 $filterType = $_GET['payment_type'] ?? '';
 $filterPayer = $_GET['payer'] ?? '';
 
@@ -161,6 +166,8 @@ foreach ($payments as $payment) {
 
 // ============================================================
 // PRINT DATA (Name, Type, Amount, Date) for the Print modal
+// Ang 'amount' ay numero lang (walang ₱); ang JS ang naglalagay ng
+// ₱ sa hiwalay na column para magkakahanay ang piso sign sa printout.
 // ============================================================
 $printRows = [];
 foreach ($printPayments as $pp) {
@@ -189,7 +196,7 @@ foreach ($printPayments as $pp) {
         'type'      => $pp['payment_type'],
         'typeLabel' => $pMeta['label'],
         'sub'       => $pSub,
-        'amount'    => '₱' . number_format($pp['amount'], 2),
+        'amount'    => number_format($pp['amount'], 2),
         'date'      => date('M d, Y', strtotime($pp['payment_date'])),
         'search'    => $pSearch,
     ];
@@ -293,6 +300,8 @@ renderHeader('Payments');
    follows the type picked in the modal (or All types), the payer
    filter, and the search box.
    Columns: Name, Type, Amount, Date
+   Layout: logo + buong pangalan ng coop sa itaas, "Prepared by"
+   (may petsa) sa ibabang bahagi ng page, "Page X of Y" sa footer.
    ============================================================ */
 #payPrintReport { display: none; }
 
@@ -304,12 +313,7 @@ renderHeader('Payments');
     @top-left   { content: ""; }
     @top-center { content: ""; }
     @top-right  { content: ""; }
-    @bottom-left {
-        content: "Printed on <?php echo date('F j, Y'); ?>";
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 10px;
-        color: #000;
-    }
+    @bottom-left { content: ""; }
     @bottom-right {
         content: "Page " counter(page) " of " counter(pages);
         font-family: Arial, Helvetica, sans-serif;
@@ -333,8 +337,14 @@ renderHeader('Payments');
     #payPrintReport,
     #payPrintReport * { visibility: visible !important; }
 
+    /* Flex column + min-height = isang buong page (A4 landscape:
+       210mm - 14mm top - 16mm bottom margin = 180mm).
+       Dahil dito, naitutulak ng "Prepared by" (margin-top: auto)
+       ang sarili niya sa ibabang bahagi ng page. */
     #payPrintReport {
-        display: block;
+        display: flex;
+        flex-direction: column;
+        min-height: 180mm;
         position: absolute;
         left: 0;
         top: 0;
@@ -345,33 +355,47 @@ renderHeader('Payments');
         -webkit-font-smoothing: auto;
     }
 
+    /* Header: logo + buong pangalan ng coop (walang total) */
     .pay-pr-head {
         display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #000;
+        align-items: center;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #000;
     }
-    .pay-pr-title { font-size: 16px; font-weight: 700; }
-    .pay-pr-sub, .pay-pr-total { font-size: 12px; color: #333; }
+    .pay-pr-brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    .pay-pr-logo {
+        width: 84px;
+        height: 84px;
+        object-fit: contain;
+        flex: none;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .pay-pr-title { font-size: 17px; font-weight: 700; line-height: 1.2; }
+    .pay-pr-sub { font-size: 12px; color: #333; margin-top: 3px; }
 
     .pay-pr-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 12px;
         table-layout: fixed;
+        margin-top: 10px;
     }
     .pay-pr-table thead { display: table-header-group; } /* repeats on every page */
     .pay-pr-table th {
         text-align: left;
-        padding: 8px 6px;
+        padding: 8px 16px;
         border-bottom: 1px solid #000;
         font-size: 12px;
         font-weight: 700;
         white-space: nowrap;
     }
     .pay-pr-table td {
-        padding: 7px 6px;
+        padding: 8px 16px;
         border-bottom: 1px solid #ddd;
         vertical-align: top;
         word-wrap: break-word;
@@ -380,18 +404,37 @@ renderHeader('Payments');
     .pay-pr-table tr { page-break-inside: avoid; }
 
     /* Column widths (4 columns) */
-    .pay-pr-table th:nth-child(1) { width: 32%; } /* Name */
+    .pay-pr-table th:nth-child(1) { width: 28%; } /* Name */
     .pay-pr-table th:nth-child(2) { width: 24%; } /* Type */
     .pay-pr-table th:nth-child(3) { width: 22%; } /* Amount */
-    .pay-pr-table th:nth-child(4) { width: 22%; } /* Date */
+    .pay-pr-table th:nth-child(4) { width: 26%; } /* Date */
 
-    /* Amount on the right with a gap, Date on the left, so they stay clearly separate */
+    /* Amount: nakalipat nang bahagya pakanan (malaking padding sa kaliwa).
+       Ang ₱ ay may sariling fixed na lapad kaya magkakahanay ang piso sign,
+       at magkakahanay din ang simula ng mga numero. */
     .pay-pr-table th.pay-pr-amt,
-    .pay-pr-table td.pay-pr-amt { text-align: right; padding-right: 34px; }
+    .pay-pr-table td.pay-pr-amt { padding-left: 52px; }
+    .pay-pr-money { display: flex; }
+    .pay-pr-peso { width: 16px; flex: none; }
+
+    /* Date: malaking pagitan mula sa Amount para hindi magdikit */
     .pay-pr-table th.pay-pr-date,
-    .pay-pr-table td.pay-pr-date { padding-left: 10px; }
+    .pay-pr-table td.pay-pr-date { padding-left: 62px; }
 
     .pay-pr-sub-line { font-size: 10px; color: #444; margin-top: 2px; }
+
+    /* "Prepared by" nasa ibabang bahagi ng page (margin-top: auto).
+       Kung mahaba ang table, susunod ito sa dulo ng table. */
+    .pay-pr-prepared {
+        margin-top: auto;
+        padding-top: 20px;
+        font-size: 12px;
+        page-break-inside: avoid;
+    }
+    .pay-pr-prepared-label { margin: 0 0 40px; }
+    .pay-pr-prepared-name { margin: 0; font-weight: 700; }
+    .pay-pr-prepared-title { margin: 2px 0 0; font-size: 12px; }
+    .pay-pr-prepared-date { margin: 6px 0 0; font-size: 12px; }
 }
 </style>
 
@@ -591,11 +634,15 @@ renderHeader('Payments');
      ============================================================ -->
 <div id="payPrintReport">
     <div class="pay-pr-head">
-        <div>
-            <div class="pay-pr-title">SJFMC Cooperative</div>
-            <div class="pay-pr-sub" id="payPrintSub">Payments list: All types</div>
+        <div class="pay-pr-brand">
+            <!-- BAGONG LOGO: palitan ang file sa assets/img/logo.png ng bagong logo.
+                 Ang ?v=2 ay para hindi gamitin ng browser ang lumang naka-cache na logo. -->
+            <img class="pay-pr-logo" src="<?php echo BASE_URL; ?>/assets/img/logo.png?v=2" alt="San Jose Farmers Multipurpose Cooperative logo">
+            <div>
+                <div class="pay-pr-title"><?php echo htmlspecialchars($coopName); ?></div>
+                <div class="pay-pr-sub" id="payPrintSub">Payments list: All types</div>
+            </div>
         </div>
-        <div class="pay-pr-total" id="payPrintTotal">Total: 0 payments</div>
     </div>
     <table class="pay-pr-table">
         <thead>
@@ -608,6 +655,15 @@ renderHeader('Payments');
         </thead>
         <tbody id="payPrintBody"></tbody>
     </table>
+
+    <div class="pay-pr-prepared">
+        <p class="pay-pr-prepared-label">Prepared by:</p>
+        <p class="pay-pr-prepared-name"><?php echo htmlspecialchars($preparedByName); ?></p>
+        <p class="pay-pr-prepared-title"><?php echo htmlspecialchars($preparedByTitle); ?></p>
+        <!-- Awtomatikong petsa ng pag-print. Ang PHP ang unang laman (Philippine time);
+             ina-update ito ng JavaScript sa mismong oras ng pag-print. -->
+        <p class="pay-pr-prepared-date">Date: <span id="payPrintDate"><?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('F j, Y'); ?></span></p>
+    </div>
 </div>
 
 <!-- MODAL - Print payments (choose the type) -->
@@ -1303,8 +1359,8 @@ renderHeader('Payments');
 
     const printBtn = document.getElementById('payPrintBtn');
     const printBody = document.getElementById('payPrintBody');
-    const printTotal = document.getElementById('payPrintTotal');
     const printSub = document.getElementById('payPrintSub');
+    const printDate = document.getElementById('payPrintDate');
     const printModal = document.getElementById('printModalBackdrop');
     const printTypeSelect = document.getElementById('printTypeSelect');
     const printCountNote = document.getElementById('printCountNote');
@@ -1338,6 +1394,36 @@ renderHeader('Payments');
         return td;
     }
 
+    // Amount cell: ang ₱ at ang numero ay magkahiwalay, para magkakahanay
+    // ang piso sign at ang simula ng mga numero sa bawat row.
+    function makeAmountCell(value) {
+        const td = document.createElement('td');
+        td.className = 'pay-pr-amt';
+        const box = document.createElement('div');
+        box.className = 'pay-pr-money';
+        const pesoSign = document.createElement('span');
+        pesoSign.className = 'pay-pr-peso';
+        pesoSign.textContent = '\u20B1';
+        const num = document.createElement('span');
+        num.textContent = value;
+        box.appendChild(pesoSign);
+        box.appendChild(num);
+        td.appendChild(box);
+        return td;
+    }
+
+    // Isinusulat ang petsa ngayon (Philippine time) sa "Prepared by"
+    // bago mag-print, kaya tama pa rin kahit matagal nang nakabukas ang page.
+    function setPrintDate() {
+        if (!printDate) return;
+        printDate.textContent = new Date().toLocaleDateString('en-US', {
+            timeZone: 'Asia/Manila',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+
     function buildPrintReport() {
         const rows = getPrintRows(printType);
         printBody.textContent = '';
@@ -1356,7 +1442,7 @@ renderHeader('Payments');
             }
             tr.appendChild(typeTd);
 
-            tr.appendChild(makeCell(r.amount, 'pay-pr-amt'));
+            tr.appendChild(makeAmountCell(r.amount));
             tr.appendChild(makeCell(r.date, 'pay-pr-date'));
             printBody.appendChild(tr);
         });
@@ -1370,7 +1456,7 @@ renderHeader('Payments');
         }
 
         printSub.textContent = 'Payments list: ' + typeLabelFor(printType);
-        printTotal.textContent = 'Total: ' + rows.length + (rows.length === 1 ? ' payment' : ' payments');
+        setPrintDate();
     }
 
     function updatePrintCount() {

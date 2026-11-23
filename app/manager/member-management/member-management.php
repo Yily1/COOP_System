@@ -4,6 +4,11 @@ require_once '../../../config/functions.php';
 
 requireRole('manager');
 
+// Para sa printout (palitan dito kung magbago)
+$coopName        = 'San Jose Farmers Multipurpose Cooperative';
+$preparedByName  = 'Lielane Marie F. Dagdagan';
+$preparedByTitle = 'Cooperative President';
+
 // Show every member, plus whether they already have a linked account
 $stmt = $pdo->query("
     SELECT m.*, u.id as user_id, u.email
@@ -306,7 +311,7 @@ renderHeader('Member Management');
    ============================================================ */
 #mmPrintReport { display: none; }
 
-/* Footer on every page: "Printed on ..." (left) and "Page X of Y" (right).
+/* Footer on every page: "Page X of Y" (right) lang.
    Works in Chrome / Edge. Firefox may not show the margin boxes. */
 @page {
     size: A4 landscape;
@@ -316,12 +321,7 @@ renderHeader('Member Management');
     @top-left   { content: ""; }
     @top-center { content: ""; }
     @top-right  { content: ""; }
-    @bottom-left {
-        content: "Printed on <?php echo date('F j, Y'); ?>";
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 10px;
-        color: #000;
-    }
+    @bottom-left { content: ""; }
     @bottom-right {
         content: "Page " counter(page) " of " counter(pages);
         font-family: Arial, Helvetica, sans-serif;
@@ -345,8 +345,14 @@ renderHeader('Member Management');
     #mmPrintReport,
     #mmPrintReport * { visibility: visible !important; }
 
+    /* Flex column + min-height = isang buong page (A4 landscape:
+       210mm - 14mm top - 16mm bottom margin = 180mm).
+       Dahil dito, naitutulak ng "Prepared by" (margin-top: auto)
+       ang sarili niya sa ibabang bahagi ng page. */
     #mmPrintReport {
-        display: block;
+        display: flex;
+        flex-direction: column;
+        min-height: 180mm;
         position: absolute;
         left: 0;
         top: 0;
@@ -357,21 +363,37 @@ renderHeader('Member Management');
         -webkit-font-smoothing: auto;
     }
 
+    /* Header: logo + buong pangalan ng coop sa kaliwa */
     .pr-head {
         display: flex;
         justify-content: space-between;
-        align-items: flex-end;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #000;
+        align-items: center;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #000;
     }
-    .pr-title { font-size: 16px; font-weight: 700; }
-    .pr-sub, .pr-total { font-size: 12px; color: #333; }
+    .pr-brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    /* Bagong logo (square, may text sa paligid kaya mas malaki para mabasa) */
+    .pr-logo {
+        width: 84px;
+        height: 84px;
+        object-fit: contain;
+        flex: none;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .pr-title { font-size: 17px; font-weight: 700; line-height: 1.2; }
+    .pr-sub { font-size: 12px; color: #333; margin-top: 3px; }
 
     .pr-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 12px;
         table-layout: fixed;
+        margin-top: 10px;
     }
     .pr-table thead { display: table-header-group; } /* repeats on every page */
     .pr-table th {
@@ -390,6 +412,19 @@ renderHeader('Member Management');
         color: #000;
     }
     .pr-table tr { page-break-inside: avoid; }
+
+    /* "Prepared by" nasa ibabang bahagi ng page (margin-top: auto).
+       Kung mahaba ang table, susunod ito sa dulo ng table. */
+    .pr-prepared {
+        margin-top: auto;
+        padding-top: 20px;
+        font-size: 12px;
+        page-break-inside: avoid;
+    }
+    .pr-prepared-label { margin: 0 0 40px; }
+    .pr-prepared-name { margin: 0; font-weight: 700; }
+    .pr-prepared-title { margin: 2px 0 0; font-size: 12px; }
+    .pr-prepared-date { margin: 6px 0 0; font-size: 12px; }
 
     /* Column widths (8 columns) */
     .pr-table th:nth-child(1) { width: 13%; } /* Membership ID */
@@ -653,11 +688,16 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
 ?>
 <div id="mmPrintReport">
     <div class="pr-head">
-        <div>
-            <div class="pr-title">SJFMC Cooperative</div>
-            <div class="pr-sub">Member list</div>
+        <div class="pr-brand">
+            <!-- BAGONG LOGO: palitan ang file sa assets/img/logo.png ng bagong logo.
+                 Ang ?v=2 ay para hindi gamitin ng browser ang lumang naka-cache na logo.
+                 (Kung may bago kang file name, e.g. logo-new.png, palitan dito.) -->
+            <img class="pr-logo" src="<?php echo BASE_URL; ?>/assets/img/logo.png?v=2" alt="San Jose Farmers Multipurpose Cooperative logo">
+            <div>
+                <div class="pr-title"><?php echo htmlspecialchars($coopName); ?></div>
+                <div class="pr-sub">List of Registered Members</div>
+            </div>
         </div>
-        <div class="pr-total">Total: <?php echo $totalMembers; ?> members</div>
     </div>
     <table class="pr-table">
         <thead>
@@ -689,6 +729,15 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
             <?php endforeach; ?>
         </tbody>
     </table>
+
+    <div class="pr-prepared">
+        <p class="pr-prepared-label">Prepared by:</p>
+        <p class="pr-prepared-name"><?php echo htmlspecialchars($preparedByName); ?></p>
+        <p class="pr-prepared-title"><?php echo htmlspecialchars($preparedByTitle); ?></p>
+        <!-- Awtomatikong petsa ng pag-print. Ang PHP ang unang laman (Philippine time);
+             ina-update ito ng JavaScript sa mismong oras ng pag-print. -->
+        <p class="pr-prepared-date">Date: <span id="mmPrintDate"><?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('F j, Y'); ?></span></p>
+    </div>
 </div>
 
 <script type="application/json" id="mmLivestockImageMap"><?php echo json_encode($livestockImageMap); ?></script>
@@ -701,7 +750,23 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
     const cropImageMap = JSON.parse(document.getElementById('mmCropImageMap').textContent);
 
     // ---------- Print ----------
+    // Isinusulat ang petsa ngayon (Philippine time) sa printout bago mag-print,
+    // kaya tama pa rin kahit matagal nang nakabukas ang page.
+    function setPrintDate() {
+        const el = document.getElementById('mmPrintDate');
+        if (!el) return;
+        el.textContent = new Date().toLocaleDateString('en-US', {
+            timeZone: 'Asia/Manila',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+    // Gumagana rin kapag Ctrl+P ang ginamit imbes na Print button
+    window.addEventListener('beforeprint', setPrintDate);
+
     document.getElementById('mmPrintBtn')?.addEventListener('click', function() {
+        setPrintDate();
         window.print();
     });
 

@@ -4,6 +4,11 @@ require_once __DIR__ . '/../../../config/functions.php';
 
 requireRole('manager');
 
+// Para sa printout (palitan dito kung magbago)
+$coopName        = 'San Jose Farmers Multipurpose Cooperative';
+$preparedByName  = 'Lielane Marie F. Dagdagan';
+$preparedByTitle = 'Cooperative President';
+
 $crops = getAllCrops($pdo);
 
 // Growing > Ready to harvest > Harvested > Rejected. PHP sort, hindi SQL.
@@ -168,6 +173,17 @@ renderHeader('Crops Management');
 .cm-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .cm-btn-full { width: 100%; justify-content: center; padding: 11px; }
+
+/* Print at Add planting: kapareho ng laki ng Print at + Add payment sa Payments */
+.cm-header-actions .cm-btn {
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 6px;
+    border-width: 1px;
+    gap: 6px;
+}
+.cm-header-actions .cm-btn .material-icons { font-size: 18px; }
 
 .cm-summary-grid {
     display: flex;
@@ -421,6 +437,13 @@ renderHeader('Crops Management');
     .cm-modal-card { max-width: 100%; max-height: 92vh; padding: 20px 18px 20px; }
 }
 
+/* ============================================================
+   PRINT REPORT
+   Hidden on screen. Columns: Membership ID, Name, Crop, Location,
+   Hectare, Date Planted, Expected Harvest.
+   Layout: logo + buong pangalan ng coop sa itaas, "Prepared by"
+   (may petsa) sa ibabang bahagi ng page, "Page X of Y" sa footer.
+   ============================================================ */
 #cmPrintReport { display: none; }
 
 @page {
@@ -429,12 +452,7 @@ renderHeader('Crops Management');
     @top-left   { content: ""; }
     @top-center { content: ""; }
     @top-right  { content: ""; }
-    @bottom-left {
-        content: "Printed on <?php echo date('F j, Y'); ?>";
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 10px;
-        color: #000;
-    }
+    @bottom-left { content: ""; }
     @bottom-right {
         content: "Page " counter(page) " of " counter(pages);
         font-family: Arial, Helvetica, sans-serif;
@@ -465,33 +483,47 @@ renderHeader('Crops Management');
         -webkit-font-smoothing: auto;
     }
 
+    /* Header: logo + buong pangalan ng coop (walang total) */
     .cm-pr-head {
         display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #000;
+        align-items: center;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #000;
     }
-    .cm-pr-title { font-size: 16px; font-weight: 700; }
-    .cm-pr-sub, .cm-pr-total { font-size: 12px; color: #333; }
+    .cm-pr-brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    .cm-pr-logo {
+        width: 84px;
+        height: 84px;
+        object-fit: contain;
+        flex: none;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .cm-pr-title { font-size: 17px; font-weight: 700; line-height: 1.2; }
+    .cm-pr-sub { font-size: 12px; color: #333; margin-top: 3px; }
 
     .cm-pr-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 12px;
         table-layout: fixed;
+        margin-top: 10px;
     }
     .cm-pr-table thead { display: table-header-group; }
     .cm-pr-table th {
         text-align: left;
-        padding: 8px 6px;
+        padding: 8px 12px;
         border-bottom: 1px solid #000;
         font-size: 12px;
         font-weight: 700;
         white-space: nowrap;
     }
     .cm-pr-table td {
-        padding: 7px 6px;
+        padding: 8px 12px;
         border-bottom: 1px solid #ddd;
         vertical-align: top;
         word-wrap: break-word;
@@ -499,12 +531,30 @@ renderHeader('Crops Management');
     }
     .cm-pr-table tr { page-break-inside: avoid; }
 
-    .cm-pr-table th:nth-child(1) { width: 15%; }
-    .cm-pr-table th:nth-child(2) { width: 23%; }
-    .cm-pr-table th:nth-child(3) { width: 15%; }
-    .cm-pr-table th:nth-child(4) { width: 25%; }
-    .cm-pr-table th:nth-child(5) { width: 10%; }
-    .cm-pr-table th:nth-child(6) { width: 12%; }
+    /* Column widths (7 columns) */
+    .cm-pr-table th:nth-child(1) { width: 14%; } /* Membership ID */
+    .cm-pr-table th:nth-child(2) { width: 17%; } /* Name */
+    .cm-pr-table th:nth-child(3) { width: 12%; } /* Crop */
+    .cm-pr-table th:nth-child(4) { width: 14%; } /* Location */
+    .cm-pr-table th:nth-child(5) { width: 10%; } /* Hectare */
+    .cm-pr-table th:nth-child(6) { width: 15%; } /* Date Planted */
+    .cm-pr-table th:nth-child(7) { width: 18%; } /* Expected Harvest */
+
+    /* "Prepared by": position fixed = inuulit sa BAWAT page, sa ibabang bahagi.
+       Ang tfoot spacer ng table ay nag-iiwan ng espasyo sa bawat page para
+       hindi tamaan ng mga row ang "Prepared by". */
+    .cm-pr-prepared {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        font-size: 12px;
+    }
+    .cm-pr-table tfoot { display: table-footer-group; }
+    .cm-pr-table tfoot td { height: 36mm; padding: 0; border: none; }
+    .cm-pr-prepared-label { margin: 0 0 40px; }
+    .cm-pr-prepared-name { margin: 0; font-weight: 700; }
+    .cm-pr-prepared-title { margin: 2px 0 0; font-size: 12px; }
+    .cm-pr-prepared-date { margin: 6px 0 0; font-size: 12px; }
 }
 </style>
 
@@ -599,11 +649,15 @@ renderHeader('Crops Management');
 
 <div id="cmPrintReport">
     <div class="cm-pr-head">
-        <div>
-            <div class="cm-pr-title">SJFMC Cooperative</div>
-            <div class="cm-pr-sub">Crops list</div>
+        <div class="cm-pr-brand">
+            <!-- BAGONG LOGO: palitan ang file sa assets/img/logo.png ng bagong logo.
+                 Ang ?v=2 ay para hindi gamitin ng browser ang lumang naka-cache na logo. -->
+            <img class="cm-pr-logo" src="<?php echo BASE_URL; ?>/assets/img/logo.png?v=2" alt="San Jose Farmers Multipurpose Cooperative logo">
+            <div>
+                <div class="cm-pr-title"><?php echo htmlspecialchars($coopName); ?></div>
+                <div class="cm-pr-sub">Crops list</div>
+            </div>
         </div>
-        <div class="cm-pr-total">Total: <?php echo count($crops); ?> plantings</div>
     </div>
     <table class="cm-pr-table">
         <thead>
@@ -614,6 +668,7 @@ renderHeader('Crops Management');
                 <th>Location</th>
                 <th>Hectare</th>
                 <th>Date Planted</th>
+                <th>Expected Harvest</th>
             </tr>
         </thead>
         <tbody>
@@ -625,10 +680,23 @@ renderHeader('Crops Management');
                 <td><?php echo htmlspecialchars($c['location']); ?></td>
                 <td><?php echo rtrim(rtrim(number_format($c['area_hectares'], 2), '0'), '.'); ?> ha</td>
                 <td><?php echo date('M j, Y', strtotime($c['planting_date'])); ?></td>
+                <td><?php echo !empty($c['expected_harvest_date']) ? date('M j, Y', strtotime($c['expected_harvest_date'])) : '-'; ?></td>
             </tr>
             <?php endforeach; ?>
         </tbody>
+        <tfoot>
+            <tr><td colspan="7"></td></tr>
+        </tfoot>
     </table>
+
+    <div class="cm-pr-prepared">
+        <p class="cm-pr-prepared-label">Prepared by:</p>
+        <p class="cm-pr-prepared-name"><?php echo htmlspecialchars($preparedByName); ?></p>
+        <p class="cm-pr-prepared-title"><?php echo htmlspecialchars($preparedByTitle); ?></p>
+        <!-- Awtomatikong petsa ng pag-print. Ang PHP ang unang laman (Philippine time);
+             ina-update ito ng JavaScript sa mismong oras ng pag-print. -->
+        <p class="cm-pr-prepared-date">Date: <span id="cmPrintDate"><?php echo (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('F j, Y'); ?></span></p>
+    </div>
 </div>
 
 
@@ -687,7 +755,25 @@ renderHeader('Crops Management');
 <script>
     window.CROPS_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/crops/api/";
 
+    // Isinusulat ang petsa ngayon (Philippine time) sa "Prepared by" bago mag-print,
+    // kaya tama pa rin kahit matagal nang nakabukas ang page.
+    // Kinukuha ang element sa mismong oras ng pag-print, dahil pinapalitan ng
+    // auto-update ang laman ng print report.
+    function cmSetPrintDate() {
+        const el = document.getElementById('cmPrintDate');
+        if (!el) return;
+        el.textContent = new Date().toLocaleDateString('en-US', {
+            timeZone: 'Asia/Manila',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+    // Gumagana rin kapag Ctrl+P ang ginamit imbes na Print button
+    window.addEventListener('beforeprint', cmSetPrintDate);
+
     document.getElementById('cm-print-btn')?.addEventListener('click', function() {
+        cmSetPrintDate();
         window.print();
     });
 </script>
