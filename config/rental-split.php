@@ -100,17 +100,17 @@ function validateRentalInput($equipment, $quantity) {
     $qty = null;
 
     if (!array_key_exists((string) $equipment, rentalEquipmentOptions())) {
-        $errors[] = 'Piliin ang equipment na inupahan.';
+        $errors[] = 'Please select the equipment being rented.';
     } elseif ($equipment === 'corn_harvester') {
         // The operator share depends on the number of hectares
         if (!is_numeric($quantity) || (float) $quantity <= 0) {
-            $errors[] = 'Ilagay kung ilang hectare ang inupahan.';
+            $errors[] = 'Please enter how many hectares are being rented.';
         } else {
             $qty = (float) $quantity;
         }
     } elseif ($quantity !== '' && $quantity !== null) {
         if (!is_numeric($quantity) || (float) $quantity < 0) {
-            $errors[] = 'Mali ang bilang ng sako.';
+            $errors[] = 'Invalid number of sacks.';
         } else {
             $qty = (float) $quantity;
         }

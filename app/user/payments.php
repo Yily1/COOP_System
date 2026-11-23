@@ -423,7 +423,7 @@ renderHeader('Payments');
              Hindi kasama ang "+ Add payment" button sa itaas, para hindi masira ang click nito. -->
         <div id="payHistoryLive">
         <?php if (empty($paymentHistory)): ?>
-            <p style="color: #666;">Wala pang payment history.</p>
+            <p style="color: #666;">No payment history yet.</p>
         <?php else: ?>
             <?php
                 // Same type badge colors as the manager-side Payments page,
@@ -504,14 +504,14 @@ renderHeader('Payments');
 
         <div id="payModalErrors" style="display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; text-align: left;"></div>
         <div id="payModalSuccess" style="display: none; background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; text-align: left;">
-            Na-submit na para sa confirmation ng manager.
+            Submitted for manager confirmation.
         </div>
 
         <form id="payForm" class="pay-form" enctype="multipart/form-data">
             <div class="form-group">
                 <label for="payTypeSelect">Payment type</label>
                 <select name="payment_type" id="payTypeSelect" required>
-                    <option value="">-- Piliin --</option>
+                    <option value="">-- Select --</option>
                     <option value="registration">Registration Fee (₱150)</option>
                     <option value="investment">Investment</option>
                     <option value="rental">Rental</option>
@@ -534,7 +534,7 @@ renderHeader('Payments');
             <div class="form-group span-2" id="payEquipGroup" style="display: none;">
                 <label for="payEquipSelect">Equipment <span style="color:#c62828;">*</span></label>
                 <select name="equipment" id="payEquipSelect">
-                    <option value="">-- Piliin --</option>
+                    <option value="">-- Select --</option>
                     <?php foreach (rentalEquipmentOptions() as $key => $label): ?>
                         <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($label); ?></option>
                     <?php endforeach; ?>
@@ -576,16 +576,16 @@ renderHeader('Payments');
                 <div class="proof-drop" id="payProofDrop" role="button" tabindex="0">
                     <div id="payProofEmpty">
                         <span class="material-icons">upload</span>
-                        <div class="proof-drop-text">I-tap para mag-upload</div>
-                        <div class="proof-drop-hint">PNG o JPG, hanggang 5MB</div>
+                        <div class="proof-drop-text">Tap to upload</div>
+                        <div class="proof-drop-hint">PNG or JPG, up to 5MB</div>
                     </div>
                     <div class="proof-done" id="payProofDone">
                         <div class="proof-done-icon"><span class="material-icons">photo</span></div>
                         <div style="min-width: 0; flex: 1;">
                             <div class="proof-done-name" id="payProofName"></div>
-                            <div class="proof-done-ok">Na-upload na</div>
+                            <div class="proof-done-ok">Uploaded</div>
                         </div>
-                        <span class="proof-remove" id="payProofRemove">Alisin</span>
+                        <span class="proof-remove" id="payProofRemove">Remove</span>
                     </div>
                 </div>
             </div>
@@ -744,12 +744,12 @@ renderHeader('Payments');
 
         if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
             resetProofUI();
-            showError('PNG o JPG lang ang pwedeng i-upload.');
+            showError('Only PNG or JPG files are allowed.');
             return;
         }
         if (file.size > MAX_PROOF_BYTES) {
             resetProofUI();
-            showError('Hanggang 5MB lang ang pwedeng i-upload.');
+            showError('File must be 5MB or smaller.');
             return;
         }
 
@@ -766,7 +766,7 @@ renderHeader('Payments');
 
         // Hindi puwedeng mag-submit kung wala pang proof of payment.
         if (!proofInput.files || !proofInput.files.length) {
-            showError('Mag-upload muna ng screenshot ng payment.');
+            showError('Please upload a screenshot of your payment first.');
             return;
         }
 
@@ -785,7 +785,7 @@ renderHeader('Payments');
                 data = JSON.parse(rawText);
             } catch (parseErr) {
                 console.error('Non-JSON response:', rawText);
-                showError('Server error. Tingnan ang console (F12).');
+                showError('Server error. Check the console (F12).');
                 return;
             }
 
@@ -794,10 +794,10 @@ renderHeader('Payments');
                 resetFormState();
                 setTimeout(() => { window.location.reload(); }, 1200);
             } else {
-                showError((data.errors || ['May error, subukan ulit.']).join('<br>'));
+                showError((data.errors || ['Something went wrong. Please try again.']).join('<br>'));
             }
         } catch (err) {
-            showError('Hindi makonekta sa server: ' + err.message);
+            showError('Could not reach the server: ' + err.message);
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Submit for confirmation';
