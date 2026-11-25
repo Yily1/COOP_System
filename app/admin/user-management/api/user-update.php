@@ -1,7 +1,7 @@
 <?php
 ob_start(); // buffer output so PHP warnings/notices can't corrupt the JSON
 // API: update a user account (JSON). Called from the Edit modal in user-management.php
-//   POST ?user_id=ID  with: username, email, password (optional), role, account_status
+//   POST ?user_id=ID  with: first_name, last_name, username, email, password (optional), role, account_status
 require_once '../../../../config/config.php';
 require_once '../../../../config/functions.php';
 
@@ -54,11 +54,13 @@ if (!canEditUser($currentRole, $currentUserId, $target['role'], $target['id'])) 
     uuRespond(false, 'You are not allowed to edit this user.');
 }
 
-$username       = trim($_POST['username'] ?? '');
-$email          = trim($_POST['email'] ?? '');
-$password       = $_POST['password'] ?? '';
+$first_name       = trim($_POST['first_name'] ?? '');
+$last_name        = trim($_POST['last_name'] ?? '');
+$username         = trim($_POST['username'] ?? '');
+$email            = trim($_POST['email'] ?? '');
+$password         = $_POST['password'] ?? '';
 $confirm_password = $_POST['confirm_password'] ?? '';
-$account_status = ($_POST['account_status'] ?? 'Active') === 'Inactive' ? 'Inactive' : 'Active';
+$account_status   = ($_POST['account_status'] ?? 'Active') === 'Inactive' ? 'Inactive' : 'Active';
 
 // Role: the select is disabled (not submitted) when the role can't be changed
 $newRole = $target['role'];
@@ -69,6 +71,15 @@ if (isset($_POST['role']) && canChangeRole($currentRole, $currentUserId, $target
 }
 
 $errors = [];
+
+// First name / Last name
+foreach (['First name' => $first_name, 'Last name' => $last_name] as $label => $val) {
+    if ($val === '') {
+        $errors[] = $label . ' is required.';
+    } elseif (!preg_match('/^[\p{L}\p{M} .\'\-]{1,50}$/u', $val)) {
+        $errors[] = $label . ' may only contain letters, spaces, . \' and - (max 50).';
+    }
+}
 
 if ($username === '') {
     $errors[] = 'Username is required.';
@@ -100,13 +111,15 @@ if (!empty($errors)) {
 }
 
 try {
-    $sql = 'UPDATE users SET username = :username, email = :email, role = :role, account_status = :status';
+    $sql = 'UPDATE users SET username = :username, first_name = :first_name, last_name = :last_name, email = :email, role = :role, account_status = :status';
     $params = [
-        ':username' => $username,
-        ':email'    => $email,
-        ':role'     => $newRole,
-        ':status'   => $account_status,
-        ':id'       => $userId,
+        ':username'   => $username,
+        ':first_name' => $first_name,
+        ':last_name'  => $last_name,
+        ':email'      => $email,
+        ':role'       => $newRole,
+        ':status'     => $account_status,
+        ':id'         => $userId,
     ];
 
     // Only change the password when a new one was typed
@@ -117,6 +130,11 @@ try {
 
     $sql .= ' WHERE id = :id';
     $pdo->prepare($sql)->execute($params);
+
+    // Kung sariling account ang ina-edit, i-update din ang pangalan sa session (greeting)
+    if ($userId == $currentUserId) {
+        $_SESSION['first_name'] = $first_name;
+    }
 
     apiSafeLog($pdo, $currentUserId, $_SESSION['email'], 'user_updated', 'success');
     uuRespond(true, 'User updated successfully.');

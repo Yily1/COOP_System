@@ -24,7 +24,10 @@ function umInitials($name) {
 // accounts created by Managers. Members are view-only: canEditUser() and
 // canDeleteUser() in functions.php return false for role 'user' when the
 // current role is admin, so no Edit/Delete is shown or allowed.
-$baseSelect = "SELECT u.id, u.username, u.email, u.role, u.account_status, u.is_verified, u.created_at,
+// Ang pangalan ng staff (admin/manager) ay nasa users.first_name / users.last_name;
+// ang pangalan ng member ay nasa members table.
+$baseSelect = "SELECT u.id, u.username, u.first_name AS staff_first_name, u.last_name AS staff_last_name,
+                      u.email, u.role, u.account_status, u.is_verified, u.created_at,
                       m.membership_id, m.last_name, m.first_name, m.middle_name
                FROM users u
                LEFT JOIN members m ON u.member_id = m.id";
@@ -314,7 +317,14 @@ renderHeader($pageTitle);
     <tbody id="umTbody">
         <?php foreach ($users as $user): ?>
         <?php
-            $rowName = $user['last_name'] ? ($user['last_name'] . ', ' . $user['first_name']) : '-';
+            // Member: pangalan galing sa members table. Staff: galing sa users.first_name / last_name.
+            if (!empty($user['last_name'])) {
+                $rowName = $user['last_name'] . ', ' . $user['first_name'];
+            } elseif (!empty($user['staff_last_name']) || !empty($user['staff_first_name'])) {
+                $rowName = trim(($user['staff_last_name'] ?? '') . ', ' . ($user['staff_first_name'] ?? ''), ', ');
+            } else {
+                $rowName = '-';
+            }
             $rowUsername = $user['username'] ?? '';
             $rowSearchText = strtolower($rowName . ' ' . $user['membership_id'] . ' ' . $rowUsername . ' ' . $user['email']);
             $canEditThisUser = canEditUser($currentRole, $currentUserId, $user['role'], $user['id']);
@@ -352,7 +362,7 @@ renderHeader($pageTitle);
             <td style="white-space: nowrap;">
                 <?php if ($canEditThisUser): ?>
                     <a href="#"
-                         onclick="openEditUserModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($rowUsername), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['account_status']), ENT_QUOTES); ?>, <?php echo $canChangeThisUserRole ? 'true' : 'false'; ?>); return false;"
+                         onclick="openEditUserModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($rowUsername), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['account_status']), ENT_QUOTES); ?>, <?php echo $canChangeThisUserRole ? 'true' : 'false'; ?>, <?php echo htmlspecialchars(json_encode($user['staff_first_name'] ?? ''), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['staff_last_name'] ?? ''), ENT_QUOTES); ?>); return false;"
                          style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#274b81 !important; text-decoration:none !important; margin-right:4px !important; cursor:pointer;">
                         <span class="material-icons" style="font-size:14px !important;">edit</span>Edit
                     </a>
@@ -471,6 +481,16 @@ renderHeader($pageTitle);
         <div id="editUserModalMessage" class="um-modal-message"></div>
 
         <form id="editUserForm" class="um-form-grid">
+            <div class="form-group">
+                <label for="eu_first_name">First name:</label>
+                <input type="text" id="eu_first_name" name="first_name" required maxlength="50" autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label for="eu_last_name">Last name:</label>
+                <input type="text" id="eu_last_name" name="last_name" required maxlength="50" autocomplete="off">
+            </div>
+
             <div class="form-group">
                 <label for="eu_username">Username:</label>
                 <input type="text" id="eu_username" name="username" required
@@ -644,8 +664,10 @@ renderHeader($pageTitle);
     // ============================================================
     let currentEditUserId = null;
 
-    window.openEditUserModal = function(userId, username, email, role, accountStatus, canChangeRole) {
+    window.openEditUserModal = function(userId, username, email, role, accountStatus, canChangeRole, firstName, lastName) {
         currentEditUserId = userId;
+        document.getElementById('eu_first_name').value = firstName || '';
+        document.getElementById('eu_last_name').value = lastName || '';
         document.getElementById('eu_username').value = username || '';
         document.getElementById('eu_email').value = email;
         document.getElementById('eu_password').value = '';

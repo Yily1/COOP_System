@@ -1172,10 +1172,61 @@ function getDisplayName() {
     return ucfirst($_SESSION['role'] ?? 'User');
 }
 
+/**
+ * Pangalan at ikalawang linya para sa header (sa tabi ng logout button).
+ *  - admin / manager: pangalan + "Admin" / "Manager"
+ *  - user: pangalan + membership ID (hal. SJFMC-0001)
+ * Kinukuha sa database ang pangalan (users.member_id -> members).
+ * Kapag walang naka-link na member (hal. admin), fallback sa getDisplayName().
+ */
+function getHeaderUserInfo() {
+    global $pdo;
+    $role = $_SESSION['role'] ?? '';
+    $name = '';
+    $membershipId = '';
+
+    if (isset($pdo) && isset($_SESSION['user_id'])) {
+        try {
+            $stmt = $pdo->prepare("
+                SELECT m.first_name, m.last_name, m.membership_id,
+                       u.first_name AS staff_first, u.last_name AS staff_last
+                FROM users u
+                LEFT JOIN members m ON m.id = u.member_id
+                WHERE u.id = ?
+            ");
+            $stmt->execute([$_SESSION['user_id']]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                // Member: pangalan galing sa members. Staff (admin/manager): galing sa users.
+                $name = trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''));
+                if ($name === '') {
+                    $name = trim(($row['staff_first'] ?? '') . ' ' . ($row['staff_last'] ?? ''));
+                }
+                $membershipId = $row['membership_id'] ?? '';
+            }
+        } catch (Throwable $e) {
+            error_log('getHeaderUserInfo failed: ' . $e->getMessage());
+        }
+    }
+
+    if ($name === '') {
+        $name = getDisplayName();
+    }
+
+    if ($role === 'user') {
+        $sub = $membershipId !== '' ? $membershipId : 'Member';
+    } else {
+        $sub = ucfirst($role);
+    }
+
+    return ['name' => $name, 'sub' => $sub];
+}
+
 function renderHeader($title) {
     $currentRole = $_SESSION['role'] ?? 'guest';
     $currentEmail = $_SESSION['email'] ?? '';
     $isLoggedIn = isset($_SESSION['user_id']);
+    $headerUser = $isLoggedIn ? getHeaderUserInfo() : ['name' => '', 'sub' => ''];
     ?>
     <!DOCTYPE html>
     <html lang="en">
@@ -1261,6 +1312,8 @@ function renderHeader($title) {
             .app-bar-brand {
                 display: flex;
                 align-items: center;
+                flex: 1 1 auto;
+                min-width: 0;
             }
             .app-bar-brand img {
                 width: 40px;
@@ -1270,24 +1323,49 @@ function renderHeader($title) {
                 border-radius: 50%;
                 padding: 2px;
                 box-sizing: border-box;
+                flex-shrink: 0;
             }
-            /* Pangalan sa tabi ng logo (kita kapag naka-close ang drawer) */
+            /* Buong pangalan ng coop sa tabi ng logo (kita kapag naka-close ang drawer) */
             .app-bar-brand span {
                 margin-left: 8px;
                 font-weight: 700;
                 font-size: 15px;
                 color: #fff;
                 white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             /* Kapag bukas ang drawer, nasa drawer na ang logo at SJFMC, kaya itago dito */
             .app-bar.app-bar-shift .app-bar-brand { display: none; }
 
-            /* ===== Logout icon (kanan ng app bar) ===== */
+            /* ===== Pangalan + role/member ID at Logout icon (kanan ng app bar) ===== */
             .app-bar-right {
                 margin-left: auto;
                 display: flex;
                 align-items: center;
                 gap: 14px;
+            }
+            .header-user {
+                text-align: right;
+                line-height: 1.2;
+                color: #fff;
+            }
+            .header-user .hu-name {
+                display: block;
+                font-size: 13px;
+                font-weight: 500;
+                white-space: nowrap;
+            }
+            .header-user .hu-sub {
+                display: block;
+                font-size: 11px;
+                opacity: .85;
+                white-space: nowrap;
+            }
+            /* Admin at Manager lang: mas malaki ang pangalan at role (desktop lang) */
+            @media (min-width: 769px) {
+                .header-user.hu-staff .hu-name { font-size: 15px; }
+                .header-user.hu-staff .hu-sub  { font-size: 12px; }
             }
             .logout-icon-btn {
                 width: 34px;
@@ -1457,6 +1535,24 @@ function renderHeader($title) {
                     font-size: 12px;
                 }
 
+                /* Phone: mas maliit ang brand text at user info para magkasya */
+                .app-bar { padding: 0 8px; }
+                .toolbar .icon-button { margin-right: 6px; padding: 6px; }
+                .app-bar-brand img { width: 30px; height: 30px; }
+                .app-bar-brand span {
+                    margin-left: 6px;
+                    font-size: 11px;
+                    line-height: 1.2;
+                    white-space: normal;
+                    overflow: visible;
+                    text-overflow: clip;
+                }
+                .app-bar-right { gap: 6px; margin-left: 6px; }
+                .header-user .hu-name { font-size: 9px; }
+                .header-user .hu-sub { font-size: 8px; }
+                .logout-icon-btn { width: 30px; height: 30px; }
+                .logout-icon-btn .material-icons { font-size: 18px; }
+
                 /* Phone: Logout sits right under the last menu item, so it never
                    ends up hidden under the browser's bottom bar */
                 .drawer .mobile-logout {
@@ -1481,14 +1577,18 @@ function renderHeader($title) {
                     <div class="toolbar">
                         <button class="icon-button" id="openBtn" aria-label="open drawer">&#9776;</button>
 
-                        <!-- Logo at pangalan (kita kapag naka-close ang drawer, lahat ng role) -->
+                        <!-- Logo at buong pangalan ng coop (kita kapag naka-close ang drawer, lahat ng role) -->
                         <div class="app-bar-brand">
                             <img src="<?php echo BASE_URL; ?>/assets/img/logo.png" alt="SJFMC logo">
-                            <span>SJFMC</span>
+                            <span>San Jose Farmers Multipurpose Cooperative</span>
                         </div>
 
-                        <!-- Logout icon (lahat ng role) -->
+                        <!-- Pangalan + role/member ID at Logout icon (lahat ng role) -->
                         <div class="app-bar-right">
+                            <div class="header-user<?php echo in_array($currentRole, ['admin', 'manager'], true) ? ' hu-staff' : ''; ?>">
+                                <span class="hu-name"><?php echo htmlspecialchars($headerUser['name']); ?></span>
+                                <span class="hu-sub"><?php echo htmlspecialchars($headerUser['sub']); ?></span>
+                            </div>
                             <a class="logout-icon-btn" href="<?php echo BASE_URL; ?>/app/auth/signout.php" aria-label="Logout" title="Logout">
                                 <span class="material-icons">logout</span>
                             </a>
