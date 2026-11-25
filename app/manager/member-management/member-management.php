@@ -293,6 +293,13 @@ renderHeader('Member Management');
     background: #f5f5f5; color: #666;
 }
 
+/* Auto-built address preview */
+.mm-address-preview {
+    background: #f5f8f0; border: 1px solid var(--c-divider); border-radius: 6px;
+    padding: 9px 12px; font-size: 13px; color: var(--c-text); min-height: 18px;
+}
+.mm-address-note { margin: 4px 0 0; font-size: 12px; color: var(--c-warn-ink); display: none; }
+
 .mm-checkbox-group { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 4px; margin-bottom: 8px; }
 .mm-checkbox-group label { display: flex; align-items: center; font-weight: normal; font-size: 13px; cursor: pointer; }
 .mm-checkbox-group input[type="checkbox"] { width: auto; margin-right: 6px; }
@@ -598,7 +605,7 @@ renderHeader('Member Management');
         <div id="mmErrors"></div>
         <div id="mmSuccess"></div>
 
-        <form id="mmForm">
+        <form id="mmForm" autocomplete="off">
             <input type="hidden" id="mm_member_id" name="member_id" value="">
 
             <div class="mm-form-body">
@@ -610,15 +617,15 @@ renderHeader('Member Management');
                     </div>
                     <div class="mm-field">
                         <label for="mm_last_name">Last Name</label>
-                        <input type="text" id="mm_last_name" name="last_name" placeholder="Dela Cruz">
+                        <input type="text" id="mm_last_name" name="last_name" placeholder="Dela Cruz" maxlength="50">
                     </div>
                     <div class="mm-field">
                         <label for="mm_first_name">First Name</label>
-                        <input type="text" id="mm_first_name" name="first_name" placeholder="Juan">
+                        <input type="text" id="mm_first_name" name="first_name" placeholder="Juan" maxlength="50">
                     </div>
                     <div class="mm-field">
                         <label for="mm_middle_name">Middle Name</label>
-                        <input type="text" id="mm_middle_name" name="middle_name" placeholder="Santos">
+                        <input type="text" id="mm_middle_name" name="middle_name" placeholder="Santos" maxlength="50">
                     </div>
                     <div class="mm-field">
                         <label for="mm_gender">Gender</label>
@@ -634,16 +641,45 @@ renderHeader('Member Management');
                     </div>
                     <div class="mm-field">
                         <label for="mm_occupation">Occupation</label>
-                        <input type="text" id="mm_occupation" name="occupation" placeholder="Farmer">
-                    </div>
-                    <div class="mm-field span-2">
-                        <label for="mm_address">Complete Address</label>
-                        <input type="text" id="mm_address" name="address" placeholder="Street, Barangay, City, Province">
+                        <input type="text" id="mm_occupation" name="occupation" placeholder="Farmer" maxlength="60">
                     </div>
                     <div class="mm-field span-2">
                         <label for="mm_contact_number">Contact Number</label>
-                        <input type="text" id="mm_contact_number" name="contact_number" placeholder="09XXXXXXXXX">
+                        <input type="text" id="mm_contact_number" name="contact_number" placeholder="09XXXXXXXXX" maxlength="11" inputmode="numeric">
                     </div>
+                </div>
+
+                <h3>Address</h3>
+                <div class="mm-form-grid">
+                    <div class="mm-field">
+                        <label for="mm_region">Region</label>
+                        <select id="mm_region" name="region_code"><option value="">-- Select Region --</option></select>
+                    </div>
+                    <div class="mm-field">
+                        <label for="mm_province">Province</label>
+                        <select id="mm_province" name="province_code"><option value="">-- Select Province --</option></select>
+                    </div>
+                    <div class="mm-field">
+                        <label for="mm_city">Municipality / City</label>
+                        <select id="mm_city" name="city_code"><option value="">-- Select Municipality / City --</option></select>
+                    </div>
+                    <div class="mm-field">
+                        <label for="mm_barangay">Barangay</label>
+                        <select id="mm_barangay" name="barangay_code"><option value="">-- Select Barangay --</option></select>
+                    </div>
+                    <div class="mm-field span-2">
+                        <label for="mm_purok">Purok / Street</label>
+                        <input type="text" id="mm_purok" name="purok" placeholder="Purok 3, Rizal St." maxlength="100">
+                    </div>
+                    <div class="mm-field span-2">
+                        <label>Complete Address (auto-built)</label>
+                        <div class="mm-address-preview" id="mm_address_preview">—</div>
+                        <p class="mm-address-note" id="mm_address_note">This member's address was saved in the old format. Please select the address above, then save.</p>
+                    </div>
+                    <input type="hidden" id="mm_region_name" name="region_name">
+                    <input type="hidden" id="mm_province_name" name="province_name">
+                    <input type="hidden" id="mm_city_name" name="city_name">
+                    <input type="hidden" id="mm_barangay_name" name="barangay_name">
                 </div>
 
                 <h3>Membership Information</h3>
@@ -690,7 +726,7 @@ renderHeader('Member Management');
                                 <label><input type="checkbox" name="livestock[]" value="<?php echo $opt; ?>"><?php echo $opt; ?></label>
                             <?php endforeach; ?>
                         </div>
-                        <input type="text" id="mm_livestock_others" name="livestock_others" placeholder="Others (specify)">
+                        <input type="text" id="mm_livestock_others" name="livestock_others" placeholder="Others (specify)" maxlength="100">
                         <div class="mm-badge-view" id="mm_livestock_badges" style="display: none;"></div>
                     </div>
 
@@ -701,7 +737,7 @@ renderHeader('Member Management');
                                 <label><input type="checkbox" name="crops[]" value="<?php echo $opt; ?>"><?php echo $opt; ?></label>
                             <?php endforeach; ?>
                         </div>
-                        <input type="text" id="mm_crops_others" name="crops_others" placeholder="Others (specify)">
+                        <input type="text" id="mm_crops_others" name="crops_others" placeholder="Others (specify)" maxlength="100">
                         <div class="mm-badge-view" id="mm_crops_badges" style="display: none;"></div>
                     </div>
                 </div>
@@ -799,14 +835,16 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
 <script>
 (function() {
     const BASE = '<?php echo BASE_URL; ?>';
+    const API = `${BASE}/app/manager/member-management/api`;
     const livestockImageMap = JSON.parse(document.getElementById('mmLivestockImageMap').textContent);
     const cropImageMap = JSON.parse(document.getElementById('mmCropImageMap').textContent);
+    const $ = id => document.getElementById(id);
 
     // ---------- Print ----------
     // Isinusulat ang petsa ngayon (Philippine time) sa printout bago mag-print,
     // kaya tama pa rin kahit matagal nang nakabukas ang page.
     function setPrintDate() {
-        const el = document.getElementById('mmPrintDate');
+        const el = $('mmPrintDate');
         if (!el) return;
         el.textContent = new Date().toLocaleDateString('en-US', {
             timeZone: 'Asia/Manila',
@@ -818,15 +856,15 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
     // Gumagana rin kapag Ctrl+P ang ginamit imbes na Print Report button
     window.addEventListener('beforeprint', setPrintDate);
 
-    document.getElementById('mmPrintBtn')?.addEventListener('click', function() {
+    $('mmPrintBtn')?.addEventListener('click', function() {
         setPrintDate();
         window.print();
     });
 
     // ---------- Search / filter ----------
-    const searchInput = document.getElementById('mmSearchInput');
+    const searchInput = $('mmSearchInput');
     const rows = document.querySelectorAll('.mm-row');
-    const noResults = document.getElementById('mmNoResults');
+    const noResults = $('mmNoResults');
 
     function applyFilters() {
         const q = (searchInput?.value || '').toLowerCase().trim();
@@ -843,34 +881,221 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
     searchInput?.addEventListener('input', applyFilters);
 
     // ---------- Member modal (Add / Edit / View) ----------
-    const modalBackdrop = document.getElementById('mmModalBackdrop');
-    const modalTitle = document.getElementById('mmModalTitle');
-    const modalSubtext = document.getElementById('mmModalSubtext');
-    const form = document.getElementById('mmForm');
+    const modalBackdrop = $('mmModalBackdrop');
+    const modalTitle = $('mmModalTitle');
+    const modalSubtext = $('mmModalSubtext');
+    const form = $('mmForm');
     const formBody = form.querySelector('.mm-form-body');
-    const errorsBox = document.getElementById('mmErrors');
-    const successBox = document.getElementById('mmSuccess');
-    const submitBtn = document.getElementById('mmSubmitBtn');
-    const cancelBtn = document.getElementById('mmCancelBtn');
-    const closeBtn = document.getElementById('mmModalClose');
-    const membershipIdField = document.getElementById('mm_membership_id');
-    const memberIdField = document.getElementById('mm_member_id');
+    const errorsBox = $('mmErrors');
+    const successBox = $('mmSuccess');
+    const submitBtn = $('mmSubmitBtn');
+    const cancelBtn = $('mmCancelBtn');
+    const closeBtn = $('mmModalClose');
+    const membershipIdField = $('mm_membership_id');
+    const memberIdField = $('mm_member_id');
 
-    const livestockCheckboxes = document.getElementById('mm_livestock_checkboxes');
-    const livestockOthersInput = document.getElementById('mm_livestock_others');
-    const livestockBadges = document.getElementById('mm_livestock_badges');
-    const cropsCheckboxes = document.getElementById('mm_crops_checkboxes');
-    const cropsOthersInput = document.getElementById('mm_crops_others');
-    const cropsBadges = document.getElementById('mm_crops_badges');
+    const livestockCheckboxes = $('mm_livestock_checkboxes');
+    const livestockOthersInput = $('mm_livestock_others');
+    const livestockBadges = $('mm_livestock_badges');
+    const cropsCheckboxes = $('mm_crops_checkboxes');
+    const cropsOthersInput = $('mm_crops_others');
+    const cropsBadges = $('mm_crops_badges');
 
     const allFormControls = () => form.querySelectorAll('input, select, textarea, button[type="submit"]');
 
-    function toggleFarmerFields() {
-        const type = document.getElementById('mm_farmer_type').value;
-        document.getElementById('mm_livestock_field').style.display = (type === 'Livestock' || type === 'Both') ? 'block' : 'none';
-        document.getElementById('mm_crops_field').style.display = (type === 'Crops' || type === 'Both') ? 'block' : 'none';
+    function showError(msg) {
+        errorsBox.textContent = msg;
+        errorsBox.style.display = 'block';
     }
-    document.getElementById('mm_farmer_type').addEventListener('change', toggleFarmerFields);
+
+    // ---------- Input rules: letters only / numbers only ----------
+    // (Server-side validation pa rin ang final na bantay.)
+    const RE_NAME   = /[^\p{L} .'’\-]/gu;          // letters, space . ' -
+    const RE_OTHERS = /[^\p{L} ,.'’\-]/gu;         // letters, space , . ' -
+    const RE_DIGITS = /[^0-9]/g;                   // numbers only
+    const RE_PURok  = /[^\p{L}\p{N} .,#\/\-]/gu;   // letters + numbers (Purok 3)
+
+    function bindFilter(id, re) {
+        const el = $(id);
+        el.addEventListener('input', () => {
+            const v = el.value.replace(re, '');
+            if (v !== el.value) el.value = v;
+        });
+    }
+    bindFilter('mm_last_name', RE_NAME);
+    bindFilter('mm_first_name', RE_NAME);
+    bindFilter('mm_middle_name', RE_NAME);
+    bindFilter('mm_occupation', RE_NAME);
+    bindFilter('mm_contact_number', RE_DIGITS);
+    bindFilter('mm_purok', RE_PURok);
+    bindFilter('mm_livestock_others', RE_OTHERS);
+    bindFilter('mm_crops_others', RE_OTHERS);
+
+    $('mm_date_of_birth').max = new Date().toISOString().slice(0, 10);
+
+    // ---------- Philippine address (PSGC) ----------
+    const regionSel = $('mm_region');
+    const provinceSel = $('mm_province');
+    const citySel = $('mm_city');
+    const brgySel = $('mm_barangay');
+    const purokInput = $('mm_purok');
+    const addrPreview = $('mm_address_preview');
+    const addrNote = $('mm_address_note');
+
+    let addrLocked = false;     // true sa View mode
+    let regionsCache = null;
+    let legacyAddress = '';     // lumang address na walang codes
+    let hasProvinces = true;    // false sa mga region na walang province (hal. NCR)
+
+    async function psgc(params) {
+        const res = await fetch(`${API}/psgc.php?` + new URLSearchParams(params));
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || 'Could not load address list.');
+        return json.data;
+    }
+
+    function setLoading(sel) {
+        sel.innerHTML = '';
+        const o = document.createElement('option');
+        o.value = ''; o.textContent = 'Loading...';
+        sel.appendChild(o);
+        sel.disabled = true;
+    }
+
+    function fillSelect(sel, items, label, selected) {
+        sel.innerHTML = '';
+        const first = document.createElement('option');
+        first.value = ''; first.textContent = `-- Select ${label} --`;
+        sel.appendChild(first);
+        items.forEach(i => {
+            const o = document.createElement('option');
+            o.value = i.code; o.textContent = i.name;
+            sel.appendChild(o);
+        });
+        if (selected) sel.value = selected;
+        sel.disabled = addrLocked || items.length === 0;
+    }
+
+    function refreshAddrDisabled() {
+        [regionSel, provinceSel, citySel, brgySel].forEach(s => {
+            s.disabled = addrLocked || s.options.length <= 1;
+        });
+    }
+
+    async function loadRegions(selected) {
+        if (!regionsCache) {
+            setLoading(regionSel);
+            regionsCache = await psgc({ type: 'regions' });
+        }
+        fillSelect(regionSel, regionsCache, 'Region', selected);
+    }
+    async function loadProvinces(regionCode, selected) {
+        if (!regionCode) { hasProvinces = true; fillSelect(provinceSel, [], 'Province'); return; }
+        setLoading(provinceSel);
+        const list = await psgc({ type: 'provinces', code: regionCode });
+        hasProvinces = list.length > 0;
+        fillSelect(provinceSel, list, 'Province', selected);
+        if (!hasProvinces) provinceSel.options[0].textContent = '-- No province for this region --';
+    }
+    async function loadCities(regionCode, provinceCode, selected) {
+        if (!regionCode || (hasProvinces && !provinceCode)) { fillSelect(citySel, [], 'Municipality / City'); return; }
+        setLoading(citySel);
+        const list = hasProvinces
+            ? await psgc({ type: 'cities_by_province', code: provinceCode })
+            : await psgc({ type: 'cities_by_region', code: regionCode });
+        fillSelect(citySel, list, 'Municipality / City', selected);
+    }
+    async function loadBarangays(cityCode, selected) {
+        if (!cityCode) { fillSelect(brgySel, [], 'Barangay'); return; }
+        setLoading(brgySel);
+        const list = await psgc({ type: 'barangays', code: cityCode });
+        fillSelect(brgySel, list, 'Barangay', selected);
+    }
+
+    function selName(sel) {
+        const o = sel.options[sel.selectedIndex];
+        return sel.value && o ? o.textContent : '';
+    }
+
+    // Isinusulat ang pangalan sa hidden fields at ina-update ang preview
+    function updateAddress() {
+        const rn = selName(regionSel), pn = selName(provinceSel), cn = selName(citySel), bn = selName(brgySel);
+        $('mm_region_name').value = rn;
+        $('mm_province_name').value = pn;
+        $('mm_city_name').value = cn;
+        $('mm_barangay_name').value = bn;
+
+        const brgy = bn ? (/^(brgy|barangay)\b/i.test(bn) ? bn : 'Brgy. ' + bn) : '';
+        const built = [purokInput.value.trim(), brgy, cn, pn, rn].filter(Boolean).join(', ');
+
+        if (built) {
+            addrPreview.textContent = built;
+            addrNote.style.display = 'none';
+        } else if (legacyAddress) {
+            addrPreview.textContent = legacyAddress;
+            addrNote.style.display = addrLocked ? 'none' : 'block';
+        } else {
+            addrPreview.textContent = '—';
+            addrNote.style.display = 'none';
+        }
+    }
+
+    regionSel.addEventListener('change', async () => {
+        fillSelect(provinceSel, [], 'Province');
+        fillSelect(citySel, [], 'Municipality / City');
+        fillSelect(brgySel, [], 'Barangay');
+        updateAddress();
+        try {
+            await loadProvinces(regionSel.value);
+            if (regionSel.value && !hasProvinces) await loadCities(regionSel.value, '');
+        } catch (e) { showError(e.message); }
+        updateAddress();
+    });
+    provinceSel.addEventListener('change', async () => {
+        fillSelect(citySel, [], 'Municipality / City');
+        fillSelect(brgySel, [], 'Barangay');
+        updateAddress();
+        try { await loadCities(regionSel.value, provinceSel.value); } catch (e) { showError(e.message); }
+        updateAddress();
+    });
+    citySel.addEventListener('change', async () => {
+        fillSelect(brgySel, [], 'Barangay');
+        updateAddress();
+        try { await loadBarangays(citySel.value); } catch (e) { showError(e.message); }
+        updateAddress();
+    });
+    brgySel.addEventListener('change', updateAddress);
+    purokInput.addEventListener('input', updateAddress);
+
+    function resetAddress() {
+        legacyAddress = '';
+        hasProvinces = true;
+        fillSelect(regionSel, regionsCache || [], 'Region');
+        fillSelect(provinceSel, [], 'Province');
+        fillSelect(citySel, [], 'Municipality / City');
+        fillSelect(brgySel, [], 'Barangay');
+        updateAddress();
+    }
+
+    // Para sa Edit / View: i-load nang sunud-sunod ang bawat dropdown
+    async function prefillAddress(member) {
+        legacyAddress = member.region_code ? '' : (member.address || '');
+        await loadRegions(member.region_code || '');
+        if (member.region_code) {
+            await loadProvinces(member.region_code, member.province_code || '');
+            await loadCities(member.region_code, member.province_code || '', member.city_code || '');
+            if (member.city_code) await loadBarangays(member.city_code, member.barangay_code || '');
+        }
+        updateAddress();
+    }
+
+    // ---------- Farming profile ----------
+    function toggleFarmerFields() {
+        const type = $('mm_farmer_type').value;
+        $('mm_livestock_field').style.display = (type === 'Livestock' || type === 'Both') ? 'block' : 'none';
+        $('mm_crops_field').style.display = (type === 'Crops' || type === 'Both') ? 'block' : 'none';
+    }
+    $('mm_farmer_type').addEventListener('change', toggleFarmerFields);
 
     // Builds the read-only "picture + label" pills shown in View mode.
     // Falls back to the __default__ image for anything typed into
@@ -883,9 +1108,10 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
         if (items.length === 0) {
             return '<p style="color:#5a645a; font-size:13px; margin:0;">None specified.</p>';
         }
+        const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         return items.map(item => {
             const src = imageMap[item] || imageMap['__default__'];
-            return `<div class="mm-crop-card"><img src="${src}" alt="${item}"><span>${item}</span></div>`;
+            return `<div class="mm-crop-card"><img src="${src}" alt="${esc(item)}"><span>${esc(item)}</span></div>`;
         }).join('');
     }
 
@@ -898,17 +1124,20 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
         livestockBadges.innerHTML = '';
         cropsBadges.innerHTML = '';
         formBody.scrollTop = 0; // always start at the top of the form
+        resetAddress();
         toggleFarmerFields();
     }
 
     function setMode(mode) {
         // mode: 'add' | 'edit' | 'view'
         const readOnly = mode === 'view';
+        addrLocked = readOnly;
         allFormControls().forEach(el => {
             if (el === submitBtn) return;
             if (el.id === 'mm_membership_id') return; // always disabled
             el.disabled = readOnly;
         });
+        refreshAddrDisabled();
         submitBtn.style.display = readOnly ? 'none' : 'inline-flex';
 
         // View mode: show picture badges instead of the checkbox grid
@@ -931,15 +1160,19 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
             modalTitle.textContent = 'Member Details';
             modalSubtext.textContent = 'Viewing this member\'s profile (read-only).';
         }
+        updateAddress();
     }
 
     function openModal() { modalBackdrop.style.display = 'flex'; }
     function closeModal() { modalBackdrop.style.display = 'none'; resetForm(); }
 
-    document.getElementById('mmAddBtn').addEventListener('click', function() {
+    $('mmAddBtn').addEventListener('click', async function() {
         resetForm();
         setMode('add');
         openModal();
+        try {
+            await loadRegions('');
+        } catch (e) { showError(e.message); }
     });
     cancelBtn.addEventListener('click', closeModal);
     closeBtn.addEventListener('click', closeModal);
@@ -948,18 +1181,18 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
     function populateForm(member) {
         memberIdField.value = member.id;
         membershipIdField.value = member.membership_id;
-        document.getElementById('mm_last_name').value = member.last_name || '';
-        document.getElementById('mm_first_name').value = member.first_name || '';
-        document.getElementById('mm_middle_name').value = member.middle_name || '';
-        document.getElementById('mm_gender').value = member.gender || '';
-        document.getElementById('mm_date_of_birth').value = member.date_of_birth || '';
-        document.getElementById('mm_occupation').value = member.occupation || '';
-        document.getElementById('mm_address').value = member.address || '';
-        document.getElementById('mm_contact_number').value = member.contact_number || '';
-        document.getElementById('mm_membership_type').value = member.membership_type || '';
-        document.getElementById('mm_date_joined').value = member.date_joined || '';
-        document.getElementById('mm_hectares_cultivated').value = member.hectares_cultivated || '';
-        document.getElementById('mm_farmer_type').value = member.farmer_type || '';
+        $('mm_last_name').value = member.last_name || '';
+        $('mm_first_name').value = member.first_name || '';
+        $('mm_middle_name').value = member.middle_name || '';
+        $('mm_gender').value = member.gender || '';
+        $('mm_date_of_birth').value = member.date_of_birth || '';
+        $('mm_occupation').value = member.occupation || '';
+        $('mm_purok').value = member.purok || '';
+        $('mm_contact_number').value = member.contact_number || '';
+        $('mm_membership_type').value = member.membership_type || '';
+        $('mm_date_joined').value = member.date_joined || '';
+        $('mm_hectares_cultivated').value = member.hectares_cultivated || '';
+        $('mm_farmer_type').value = member.farmer_type || '';
 
         form.querySelectorAll('input[name="livestock[]"]').forEach(cb => {
             cb.checked = (member.livestock_selected || []).includes(cb.value);
@@ -983,22 +1216,25 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
         modalTitle.textContent = mode === 'edit' ? 'Loading edit form...' : 'Loading member...';
 
         try {
-            const res = await fetch(`${BASE}/app/manager/member-management/api/get-member.php?member_id=${memberId}`);
+            const res = await fetch(`${API}/get-member.php?member_id=${memberId}`);
             const data = await res.json();
             if (!data.success) {
-                errorsBox.textContent = data.message || 'Could not load member.';
-                errorsBox.style.display = 'block';
+                showError(data.message || 'Could not load member.');
                 return;
             }
             populateForm(data.member);
+            try {
+                await prefillAddress(data.member);
+            } catch (e) {
+                showError(e.message);
+            }
             setMode(mode);
         } catch (err) {
-            errorsBox.textContent = 'Could not connect to the server.';
-            errorsBox.style.display = 'block';
+            showError('Could not connect to the server.');
         }
     }
 
-    document.getElementById('mmTableBody')?.addEventListener('click', function(e) {
+    $('mmTableBody')?.addEventListener('click', function(e) {
         const link = e.target.closest('[data-action]');
         if (!link) return;
         const row = link.closest('.mm-row');
@@ -1015,14 +1251,13 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
         e.preventDefault();
         errorsBox.style.display = 'none';
         successBox.style.display = 'none';
+        updateAddress();
         submitBtn.disabled = true;
         const originalText = submitBtn.textContent;
         submitBtn.textContent = 'Saving...';
 
         const isEdit = !!memberIdField.value;
-        const endpoint = isEdit
-            ? `${BASE}/app/manager/member-management/api/update-member.php`
-            : `${BASE}/app/manager/member-management/api/save-member.php`;
+        const endpoint = isEdit ? `${API}/update-member.php` : `${API}/save-member.php`;
 
         try {
             const formData = new FormData(form);
@@ -1034,12 +1269,13 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
                 successBox.style.display = 'block';
                 setTimeout(() => { window.location.reload(); }, 900);
             } else {
-                errorsBox.innerHTML = (data.errors || ['Something went wrong.']).join('<br>');
+                errorsBox.innerHTML = (data.errors || ['Something went wrong.'])
+                    .map(s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('<br>');
                 errorsBox.style.display = 'block';
+                errorsBox.scrollIntoView({ block: 'nearest' });
             }
         } catch (err) {
-            errorsBox.textContent = 'Could not connect to the server.';
-            errorsBox.style.display = 'block';
+            showError('Could not connect to the server.');
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = originalText;
@@ -1047,11 +1283,11 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
     });
 
     // ---------- Delete confirmation ----------
-    const deleteBackdrop = document.getElementById('mmDeleteBackdrop');
-    const deleteText = document.getElementById('mmDeleteText');
-    const deleteErrors = document.getElementById('mmDeleteErrors');
-    const deleteCancelBtn = document.getElementById('mmDeleteCancelBtn');
-    const deleteConfirmBtn = document.getElementById('mmDeleteConfirmBtn');
+    const deleteBackdrop = $('mmDeleteBackdrop');
+    const deleteText = $('mmDeleteText');
+    const deleteErrors = $('mmDeleteErrors');
+    const deleteCancelBtn = $('mmDeleteCancelBtn');
+    const deleteConfirmBtn = $('mmDeleteConfirmBtn');
     let memberIdToDelete = null;
 
     function openDeleteModal(memberId, row) {
@@ -1077,7 +1313,7 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
         try {
             const formData = new FormData();
             formData.append('member_id', memberIdToDelete);
-            const res = await fetch(`${BASE}/app/manager/member-management/api/delete-member.php`, { method: 'POST', body: formData });
+            const res = await fetch(`${API}/delete-member.php`, { method: 'POST', body: formData });
             const data = await res.json();
 
             if (data.success) {

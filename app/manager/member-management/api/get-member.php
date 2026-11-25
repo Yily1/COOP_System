@@ -12,8 +12,7 @@ $livestockOptions = ['Chicken', 'Duck', 'Pig', 'Goat', 'Cow', 'Carabao'];
 $cropOptions = ['Corn', 'Cassava', 'Cucumber', 'Eggplant', 'Squash', 'Chayote', 'Bitter Melon', 'String Beans'];
 
 // Splits a stored "Chicken, Goat, Turkey" string back into
-// [known checkbox values, leftover "others" text] - same logic
-// used by update-member.php.
+// [known checkbox values, leftover "others" text].
 function splitDetails($stored, $options) {
     if (empty($stored)) return ['selected' => [], 'others' => ''];
     $parts = array_filter(array_map('trim', explode(',', $stored)));
@@ -58,6 +57,11 @@ echo json_encode([
         'date_of_birth' => $member['date_of_birth'],
         'occupation' => $member['occupation'],
         'address' => $member['address'],
+        'region_code' => $member['region_code'] ?? '',
+        'province_code' => $member['province_code'] ?? '',
+        'city_code' => $member['city_code'] ?? '',
+        'barangay_code' => $member['barangay_code'] ?? '',
+        'purok' => $member['purok'] ?? '',
         'contact_number' => $member['contact_number'],
         'membership_type' => $member['membership_type'],
         'date_joined' => $member['date_joined'],
