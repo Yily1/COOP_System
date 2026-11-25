@@ -24,50 +24,66 @@ if ($viewingId) {
     renderHeader('Meeting — ' . $meeting['title']);
     ?>
     <style>
-        .mtg-back { display:inline-flex; align-items:center; gap:6px; color:#3B6D11; text-decoration:none; font-size:13px; margin-bottom:16px; }
+        /* SHARED COLOR THEME (ilipat sa global stylesheet kung maaari) */
+        :root {
+            --c-brand:        #3B6D11;
+            --c-brand-hover:  #2e5a0d;
+            --c-brand-soft:   #EAF3DE;
+            --c-brand-ink:    #27500A;
+            --c-ink:          #1b3a24;
+            --c-text:         #2c2c2a;
+            --c-muted:        #5a645a;
+            --c-success:      #2e7d32;
+            --c-danger:       #a6322f;
+            --c-danger-solid: #b02a37;
+            --c-field-border: #7a857a;
+        }
+
+        .mtg-back { display:inline-flex; align-items:center; gap:6px; color:var(--c-brand); text-decoration:none; font-size:13px; margin-bottom:16px; }
         .mtg-back:hover { text-decoration:underline; }
 
         .mtg-card { background:#fff; border:1px solid #e2e0d5; border-radius:10px; padding:20px; margin-bottom:16px; }
-        .mtg-card h1 { font-size:19px; margin:0 0 12px; color:#2c2c2a; }
+        .mtg-card h1 { font-size:19px; margin:0 0 12px; color:var(--c-text); }
 
         .mtg-title-center { text-align:center; padding-bottom:16px; margin-bottom:4px; border-bottom:1px solid #f0f0ea; }
         .mtg-title-center h1 { margin:0; }
 
         .mtg-detail-list { list-style:none; margin:0; padding:0; }
         .mtg-detail-list li {
-            display:flex; padding:9px 0; font-size:13px; color:#2c2c2a;
+            display:flex; padding:9px 0; font-size:13px; color:var(--c-text);
             border-bottom:1px solid #f0f0ea;
         }
         .mtg-detail-list li:last-child { border-bottom:none; }
-        .mtg-detail-list .label { width:110px; flex-shrink:0; color:#6b7280; }
+        .mtg-detail-list .label { width:110px; flex-shrink:0; color:var(--c-muted); }
         .mtg-detail-list .value { flex:1; }
 
-        .mtg-desc { margin-top:12px; padding-top:12px; border-top:1px solid #eee; font-size:13px; color:#6b7280; line-height:1.6; }
+        .mtg-desc { margin-top:12px; padding-top:12px; border-top:1px solid #eee; font-size:13px; color:var(--c-muted); line-height:1.6; }
 
         /* Both cards share the same compact width */
         .mtg-detail-wrap { max-width:420px; }
         .mtg-checkin-wrap .mtg-card { margin-bottom:0; }
-        .mtg-checkin-card p.mtg-checkin-label { font-size:14px; font-weight:600; margin:0 0 12px; color:#2c2c2a; }
+        .mtg-checkin-card p.mtg-checkin-label { font-size:14px; font-weight:600; margin:0 0 12px; color:var(--c-text); }
 
-        .mtg-attendance-card p.mtg-checkin-label { font-size:14px; font-weight:600; margin:0 0 12px; color:#2c2c2a; }
-        .mtg-attendance-card p.mtg-checkin-label span { color:#6b7280; font-weight:500; }
+        .mtg-attendance-card p.mtg-checkin-label { font-size:14px; font-weight:600; margin:0 0 12px; color:var(--c-text); }
+        .mtg-attendance-card p.mtg-checkin-label span { color:var(--c-muted); font-weight:500; }
         .mtg-attendance-list { list-style:none; margin:0; padding:0; }
         .mtg-attendance-list li { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0ea; }
         .mtg-attendance-list li:last-child { border-bottom:none; }
         .mtg-attendance-list .mtg-avatar { width:28px; height:28px; font-size:11px; }
-        .mtg-attendance-list .att-name { font-size:13px; font-weight:600; color:#2c2c2a; margin:0; }
-        .mtg-attendance-list .att-id { font-size:11px; color:#6b7280; margin:0; }
+        .mtg-attendance-list .att-name { font-size:13px; font-weight:600; color:var(--c-text); margin:0; }
+        .mtg-attendance-list .att-id { font-size:11px; color:var(--c-muted); margin:0; }
 
         .mtg-search-wrap { position:relative; margin-bottom:0; }
         .mtg-search-wrap input[type="text"] {
-            width:100%; padding:9px 10px 9px 32px; border:1px solid #d8d2c4; border-radius:8px; font-size:13px;
+            width:100%; padding:9px 10px 9px 32px; border:1px solid var(--c-field-border); border-radius:8px; font-size:13px;
         }
-        .mtg-search-wrap input:focus { outline:2px solid #3B6D11; outline-offset:1px; }
-        .mtg-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#9ca3af; font-size:13px; }
+        .mtg-search-wrap input::placeholder { color:#6b756b; opacity:1; }
+        .mtg-search-wrap input:focus { outline:2px solid var(--c-brand); outline-offset:1px; }
+        .mtg-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--c-muted); font-size:13px; }
 
         #mtg-suggestions {
             display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff;
-            border:1px solid #d8d2c4; border-radius:8px; overflow:hidden; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.06);
+            border:1px solid var(--c-field-border); border-radius:8px; overflow:hidden; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.06);
         }
         #mtg-suggestions .sug-row { padding:9px 10px; cursor:pointer; border-bottom:1px solid #eee; }
         #mtg-suggestions .sug-row:last-child { border-bottom:none; }
@@ -77,19 +93,19 @@ if ($viewingId) {
             display:none; align-items:center; justify-content:space-between;
             background:#f3f6f1; border:1px solid #cfe0c6; border-radius:8px; padding:10px 12px; margin-top:10px; gap:8px;
         }
-        .mtg-avatar { width:30px; height:30px; border-radius:50%; background:#3B6D11; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:12px; flex-shrink:0; }
+        .mtg-avatar { width:30px; height:30px; border-radius:50%; background:var(--c-brand); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:12px; flex-shrink:0; }
 
         button.mtg-btn-checkin {
             display:inline-flex !important; width:auto !important; align-items:center; gap:6px;
-            background:#3B6D11; color:#fff; border:none; border-radius:6px !important;
+            background:var(--c-brand); color:#fff; border:none; border-radius:6px !important;
             padding:8px 14px !important; font-size:12px !important; font-weight:600; cursor:pointer;
             text-transform:none !important; letter-spacing:normal !important; box-shadow:none !important; flex-shrink:0;
         }
-        button.mtg-btn-checkin:hover { background:#2e5a0d; }
+        button.mtg-btn-checkin:hover { background:var(--c-brand-hover); }
         button.mtg-btn-checkin:disabled { opacity:.5; cursor:not-allowed; }
 
-        #mtg-checkin-msg { display:none; font-size:12px; color:#2e7d32; margin-top:10px; padding:8px 10px; background:#e8f5e9; border-radius:6px; }
-        #mtg-checkin-error { display:none; font-size:12px; color:#c62828; margin-top:10px; padding:8px 10px; background:#fdecea; border-radius:6px; }
+        #mtg-checkin-msg { display:none; font-size:12px; color:var(--c-success); margin-top:10px; padding:8px 10px; background:#e8f5e9; border-radius:6px; }
+        #mtg-checkin-error { display:none; font-size:12px; color:var(--c-danger); margin-top:10px; padding:8px 10px; background:#fdecea; border-radius:6px; }
     </style>
 
     <a href="meeting.php" class="mtg-back">&larr; Back to meetings</a>
@@ -119,8 +135,8 @@ if ($viewingId) {
     <?php if (!$checkInOpen): ?>
         <div class="mtg-checkin-wrap">
             <div class="mtg-card">
-                <p style="font-size:14px; font-weight:600; margin:0 0 6px; color:#2c2c2a;">Check-in closed</p>
-                <p style="font-size:13px; color:#6b7280; margin:0;">This meeting is done.</p>
+                <p style="font-size:14px; font-weight:600; margin:0 0 6px; color:var(--c-text);">Check-in closed</p>
+                <p style="font-size:13px; color:var(--c-muted); margin:0;">This meeting is done.</p>
             </div>
         </div>
     <?php endif; ?>
@@ -130,8 +146,8 @@ if ($viewingId) {
             <p class="mtg-checkin-label">Check in a member</p>
 
             <div class="mtg-search-wrap">
-                <span class="mtg-search-icon">&#128269;</span>
-                <input type="text" id="member-search" placeholder="Search by name or membership ID" autocomplete="off" />
+                <span class="mtg-search-icon" aria-hidden="true">&#128269;</span>
+                <input type="text" id="member-search" placeholder="Search by name or membership ID" aria-label="Search by name or membership ID" autocomplete="off" />
                 <div id="mtg-suggestions"></div>
             </div>
 
@@ -140,7 +156,7 @@ if ($viewingId) {
                     <div class="mtg-avatar" id="popup-avatar"></div>
                     <div style="min-width:0;">
                         <p id="popup-name" style="font-weight:600; font-size:13px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></p>
-                        <p id="popup-id" style="font-size:11px; color:#6b7280; margin:2px 0 0;"></p>
+                        <p id="popup-id" style="font-size:11px; color:var(--c-muted); margin:2px 0 0;"></p>
                     </div>
                 </div>
                 <button id="checkin-btn" type="button" class="mtg-btn-checkin">&#10003; Check-in</button>
@@ -155,7 +171,7 @@ if ($viewingId) {
         <div class="mtg-card mtg-attendance-card">
             <p class="mtg-checkin-label">Checked in <span id="attendance-count">(0)</span></p>
             <ul id="attendance-list" class="mtg-attendance-list"></ul>
-            <p id="attendance-empty" style="font-size:13px; color:#6b7280; margin:0;">No one has checked in yet.</p>
+            <p id="attendance-empty" style="font-size:13px; color:var(--c-muted); margin:0;">No one has checked in yet.</p>
         </div>
     </div>
     </div>
@@ -245,7 +261,7 @@ if ($viewingId) {
                         const row = document.createElement('div');
                         row.className = 'sug-row';
                         row.innerHTML = '<p style="font-size:13px;font-weight:600;margin:0;">' + m.name +
-                            '</p><p style="font-size:12px;color:#6b7280;margin:2px 0 0;">' + m.membership_id + '</p>';
+                            '</p><p style="font-size:12px;color:#5a645a;margin:2px 0 0;">' + m.membership_id + '</p>';
                         row.addEventListener('click', () => {
                             input.value = m.name;
                             suggestions.style.display = 'none';
@@ -400,6 +416,21 @@ $today = date('Y-m-d');
 renderHeader('Meetings');
 ?>
 <style>
+    /* SHARED COLOR THEME (ilipat sa global stylesheet kung maaari) */
+    :root {
+        --c-brand:        #3B6D11;
+        --c-brand-hover:  #2e5a0d;
+        --c-brand-soft:   #EAF3DE;
+        --c-brand-ink:    #27500A;
+        --c-ink:          #1b3a24;
+        --c-text:         #2c2c2a;
+        --c-muted:        #5a645a;
+        --c-success:      #2e7d32;
+        --c-danger:       #a6322f;
+        --c-danger-solid: #b02a37;
+        --c-field-border: #7a857a;
+    }
+
     /* ===== Page header: same as Members page ===== */
     .mtg-page-head {
         display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
@@ -414,7 +445,7 @@ renderHeader('Meetings');
         gap:6px !important;
         width:auto !important;
         flex:none !important;
-        background:#3B6D11 !important;
+        background:var(--c-brand) !important;
         color:#fff !important;
         border:none !important;
         padding:10px 18px !important;
@@ -425,50 +456,51 @@ renderHeader('Meetings');
         cursor:pointer;
         white-space:nowrap;
     }
-    .mtg-page-head .mtg-btn-create:hover { background:#2e5a0d !important; }
+    .mtg-page-head .mtg-btn-create:hover { background:var(--c-brand-hover) !important; }
 
     /* "Save meeting" button inside the modal keeps its original style */
     .mtg-modal button.mtg-btn-create {
         display:inline-flex !important; width:auto !important; align-items:center; gap:6px;
-        background:#3B6D11; color:#fff; border:none; border-radius:6px !important;
+        background:var(--c-brand); color:#fff; border:none; border-radius:6px !important;
         padding:11px 18px !important; font-size:13px !important; font-weight:600; cursor:pointer;
         text-transform:none !important; letter-spacing:normal !important;
     }
-    .mtg-modal button.mtg-btn-create:hover { background:#2e5a0d; }
+    .mtg-modal button.mtg-btn-create:hover { background:var(--c-brand-hover); }
 
     .mtg-layout { display:grid; grid-template-columns: 1fr 1fr; gap:24px; align-items:start; }
     @media (max-width:880px) { .mtg-layout { grid-template-columns:1fr; } }
 
     .mtg-search-wrap { position:relative; margin-bottom:20px; max-width:480px; }
     @media (max-width:880px) { .mtg-search-wrap { max-width:none; } }
-    .mtg-search-wrap input[type="text"] { width:100%; padding:11px 12px 11px 36px; border:1px solid #d8d2c4; border-radius:8px; font-size:14px; }
-    .mtg-search-wrap input:focus { outline:2px solid #3B6D11; outline-offset:1px; }
-    .mtg-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#9ca3af; font-size:14px; }
+    .mtg-search-wrap input[type="text"] { width:100%; padding:11px 12px 11px 36px; border:1px solid var(--c-field-border); border-radius:8px; font-size:14px; }
+    .mtg-search-wrap input::placeholder { color:#6b756b; opacity:1; }
+    .mtg-search-wrap input:focus { outline:2px solid var(--c-brand); outline-offset:1px; }
+    .mtg-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--c-muted); font-size:14px; }
 
     .mtg-section-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-    .mtg-section-label { font-size:15px; font-weight:600; color:#2c2c2a; margin:0; }
-    .mtg-viewall { font-size:13px; color:#3B6D11; text-decoration:none; font-weight:600; }
+    .mtg-section-label { font-size:15px; font-weight:600; color:var(--c-text); margin:0; }
+    .mtg-viewall { font-size:13px; color:var(--c-brand); text-decoration:none; font-weight:600; }
     .mtg-viewall:hover { text-decoration:underline; }
 
     .mtg-event-card { display:flex; align-items:center; gap:14px; background:#fff; border:1px solid #e2e0d5; border-radius:10px; padding:14px 16px; margin-bottom:12px; }
     .mtg-event-info { flex:1; min-width:0; }
-    .mtg-event-title { font-size:14px; font-weight:600; color:#2c2c2a; margin:0; }
-    .mtg-event-meta { font-size:12px; color:#6b7280; margin:3px 0 0; display:flex; flex-wrap:wrap; gap:10px; }
-    .mtg-event-meta strong { color:#2c2c2a; font-weight:600; }
+    .mtg-event-title { font-size:14px; font-weight:600; color:var(--c-text); margin:0; }
+    .mtg-event-meta { font-size:12px; color:var(--c-muted); margin:3px 0 0; display:flex; flex-wrap:wrap; gap:10px; }
+    .mtg-event-meta strong { color:var(--c-text); font-weight:600; }
     .mtg-event-meta span:not(:last-child)::after { content:'•'; margin-left:10px; color:#d3d1c7; }
     button.mtg-btn-open {
         display:inline-flex !important; width:auto !important; max-width:none !important;
-        align-items:center; gap:6px; background:#3B6D11; color:#fff; border:none !important;
+        align-items:center; gap:6px; background:var(--c-brand); color:#fff; border:none !important;
         border-radius:6px !important; padding:8px 16px !important; font-size:13px !important; font-weight:600;
         cursor:pointer; text-decoration:none; flex-shrink:0; text-transform:none !important; letter-spacing:normal !important;
         box-shadow:none !important; line-height:normal;
     }
-    button.mtg-btn-open:hover { background:#2e5a0d; color:#fff; text-decoration:none; }
+    button.mtg-btn-open:hover { background:var(--c-brand-hover); color:#fff; text-decoration:none; }
 
     button.mtg-btn-view {
         display:inline-flex !important; width:auto !important; max-width:none !important;
-        align-items:center; gap:6px; background:transparent !important; color:#3B6D11;
-        border:1px solid #3B6D11 !important; border-radius:6px !important; padding:8px 14px !important;
+        align-items:center; gap:6px; background:transparent !important; color:var(--c-brand);
+        border:1px solid var(--c-brand) !important; border-radius:6px !important; padding:8px 14px !important;
         font-size:13px !important; font-weight:600; cursor:pointer; text-transform:none !important;
         letter-spacing:normal !important; box-shadow:none !important; flex-shrink:0; line-height:normal;
     }
@@ -477,12 +509,12 @@ renderHeader('Meetings');
     /* Shown in place of the Check-in button once a meeting date has passed */
     .mtg-ended-label {
         display:inline-flex; align-items:center; gap:4px; padding:7px 14px; font-size:12px; font-weight:600;
-        color:#6b7280; background:#f1f0ea; border-radius:6px; flex-shrink:0; cursor:default;
+        color:#555; background:#f1f0ea; border-radius:6px; flex-shrink:0; cursor:default;
     }
 
     #il-suggestions {
         display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff;
-        border:1px solid #d8d2c4; border-radius:8px; overflow:hidden; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.06);
+        border:1px solid var(--c-field-border); border-radius:8px; overflow:hidden; z-index:5; box-shadow:0 4px 12px rgba(0,0,0,0.06);
     }
     #il-suggestions .sug-row { padding:9px 10px; cursor:pointer; border-bottom:1px solid #eee; }
     #il-suggestions .sug-row:last-child { border-bottom:none; }
@@ -491,81 +523,84 @@ renderHeader('Meetings');
         display:none; align-items:center; justify-content:space-between;
         background:#f3f6f1; border:1px solid #cfe0c6; border-radius:8px; padding:10px 12px; margin-top:10px; gap:8px;
     }
-    .mtg-avatar { width:30px; height:30px; border-radius:50%; background:#3B6D11; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:12px; flex-shrink:0; }
+    .mtg-avatar { width:30px; height:30px; border-radius:50%; background:var(--c-brand); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:12px; flex-shrink:0; }
     button.mtg-btn-checkin {
         display:inline-flex !important; width:auto !important; align-items:center; gap:6px;
-        background:#3B6D11; color:#fff; border:none; border-radius:6px !important;
+        background:var(--c-brand); color:#fff; border:none; border-radius:6px !important;
         padding:8px 14px !important; font-size:12px !important; font-weight:600; cursor:pointer;
         text-transform:none !important; letter-spacing:normal !important; box-shadow:none !important; flex-shrink:0;
     }
-    button.mtg-btn-checkin:hover { background:#2e5a0d; }
+    button.mtg-btn-checkin:hover { background:var(--c-brand-hover); }
     button.mtg-btn-checkin:disabled { opacity:.5; cursor:not-allowed; }
-    #il-checkin-msg { display:none; font-size:12px; color:#2e7d32; margin-top:10px; padding:8px 10px; background:#e8f5e9; border-radius:6px; }
-    #il-checkin-error { display:none; font-size:12px; color:#c62828; margin-top:10px; padding:8px 10px; background:#fdecea; border-radius:6px; }
+    #il-checkin-msg { display:none; font-size:12px; color:var(--c-success); margin-top:10px; padding:8px 10px; background:#e8f5e9; border-radius:6px; }
+    #il-checkin-error { display:none; font-size:12px; color:var(--c-danger); margin-top:10px; padding:8px 10px; background:#fdecea; border-radius:6px; }
 
     .mtg-attendance-list { list-style:none; margin:0; padding:0; }
     .mtg-attendance-list li { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0ea; }
     .mtg-attendance-list li:last-child { border-bottom:none; }
     .mtg-attendance-list .mtg-avatar { width:28px; height:28px; font-size:11px; }
-    .mtg-attendance-list .att-name { font-size:13px; font-weight:600; color:#2c2c2a; margin:0; }
-    .mtg-attendance-list .att-id { font-size:11px; color:#6b7280; margin:0; }
+    .mtg-attendance-list .att-name { font-size:13px; font-weight:600; color:var(--c-text); margin:0; }
+    .mtg-attendance-list .att-id { font-size:11px; color:var(--c-muted); margin:0; }
 
     .mtg-calendar { background:#fff; border:1px solid #e2e0d5; border-radius:10px; overflow:hidden; }
-    .mtg-cal-header { background:#fff; border-bottom:1px solid #eee; color:#2c2c2a; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; }
+    .mtg-cal-header { background:#fff; border-bottom:1px solid #eee; color:var(--c-text); display:flex; align-items:center; justify-content:space-between; padding:14px 16px; }
     .mtg-cal-header .month { font-size:14px; font-weight:700; }
-    .mtg-cal-header a { color:#9ca3af; text-decoration:none; font-size:16px; padding:2px 8px; border-radius:4px; }
-    .mtg-cal-header a:hover { color:#3B6D11; background:#f3f6f1; }
+    .mtg-cal-header a { color:var(--c-muted); text-decoration:none; font-size:16px; padding:2px 8px; border-radius:4px; }
+    .mtg-cal-header a:hover { color:var(--c-brand); background:#f3f6f1; }
+    .mtg-cal-header a:focus-visible { outline:2px solid var(--c-brand); outline-offset:2px; }
     .mtg-cal-body { padding:14px 16px; }
     .mtg-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
-    .mtg-cal-dow { text-align:center; font-size:11px; color:#9ca3af; padding-bottom:6px; }
-    .mtg-cal-day { min-height:64px; background:#fff; display:flex; flex-direction:column; align-items:center; border-radius:6px; padding:4px 2px; font-size:12px; color:#2c2c2a; }
+    .mtg-cal-dow { text-align:center; font-size:11px; color:var(--c-muted); padding-bottom:6px; }
+    .mtg-cal-day { min-height:64px; background:#fff; display:flex; flex-direction:column; align-items:center; border-radius:6px; padding:4px 2px; font-size:12px; color:var(--c-text); }
     .mtg-cal-day.faded { color:#d3d1c7; }
     .mtg-cal-day .num { width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:12px; }
-    .mtg-cal-day .num.today-num { background:#3B6D11; color:#fff; font-weight:600; }
+    .mtg-cal-day .num.today-num { background:var(--c-brand); color:#fff; font-weight:600; }
     .mtg-cal-day .title-pill {
         display:block; width:100%; margin-top:3px; font-size:9px; line-height:1.3; color:#27500a;
         background:#c0dd97; border-radius:3px; padding:1px 3px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
     }
-    .mtg-cal-day .title-more { font-size:9px; color:#6b7280; margin-top:1px; }
-    .mtg-cal-legend { display:flex; align-items:center; gap:6px; font-size:12px; color:#6b7280; margin-top:12px; padding-top:12px; border-top:1px solid #f0f0ea; }
-    .mtg-cal-legend .dot { width:6px; height:6px; border-radius:50%; background:#3B6D11; }
+    .mtg-cal-day .title-more { font-size:9px; color:var(--c-muted); margin-top:1px; }
+    .mtg-cal-legend { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--c-muted); margin-top:12px; padding-top:12px; border-top:1px solid #f0f0ea; }
+    .mtg-cal-legend .dot { width:6px; height:6px; border-radius:50%; background:var(--c-brand); }
 
     .mtg-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); align-items:flex-start; justify-content:center; z-index:50; overflow-y:auto; padding:40px 20px; }
     .mtg-modal { background:#fff; border-radius:10px; padding:24px; width:100%; max-width:420px; margin:auto; }
-    .mtg-modal h2 { margin:0 0 16px; font-size:17px; color:#2c2c2a; }
+    .mtg-modal h2 { margin:0 0 16px; font-size:17px; color:var(--c-text); }
 
     .mtg-checkin-modal { position:relative; }
     button.mtg-inline-close {
         position:absolute !important; top:14px !important; right:14px !important;
         display:inline-flex !important; width:24px !important; height:24px !important; max-width:none !important;
         align-items:center; justify-content:center; background:none !important; border:none !important;
-        border-radius:50% !important; font-size:20px !important; line-height:1; color:#9ca3af; cursor:pointer;
+        border-radius:50% !important; font-size:20px !important; line-height:1; color:var(--c-muted); cursor:pointer;
         padding:0 !important; text-transform:none !important; letter-spacing:normal !important; box-shadow:none !important;
     }
-    button.mtg-inline-close:hover { color:#2c2c2a; background:#f3f6f1 !important; }
+    button.mtg-inline-close:hover { color:var(--c-text); background:#f3f6f1 !important; }
 
     .mtg-title-center { text-align:center; padding-bottom:16px; margin-bottom:12px; border-bottom:1px solid #f0f0ea; }
-    .mtg-title-center h1 { margin:0; font-size:19px; color:#2c2c2a; }
+    .mtg-title-center h1 { margin:0; font-size:19px; color:var(--c-text); }
 
     .mtg-detail-list { list-style:none; margin:0; padding:0; }
-    .mtg-detail-list li { display:flex; padding:9px 0; font-size:13px; color:#2c2c2a; border-bottom:1px solid #f0f0ea; }
+    .mtg-detail-list li { display:flex; padding:9px 0; font-size:13px; color:var(--c-text); border-bottom:1px solid #f0f0ea; }
     .mtg-detail-list li:last-child { border-bottom:none; }
-    .mtg-detail-list .label { width:100px; flex-shrink:0; color:#6b7280; }
+    .mtg-detail-list .label { width:100px; flex-shrink:0; color:var(--c-muted); }
     .mtg-detail-list .value { flex:1; }
 
-    .mtg-desc { margin-top:12px; padding-top:12px; border-top:1px solid #eee; font-size:13px; color:#6b7280; line-height:1.6; }
-    .mtg-checkin-label { font-size:14px; font-weight:600; margin:0 0 12px; color:#2c2c2a; }
+    .mtg-desc { margin-top:12px; padding-top:12px; border-top:1px solid #eee; font-size:13px; color:var(--c-muted); line-height:1.6; }
+    .mtg-checkin-label { font-size:14px; font-weight:600; margin:0 0 12px; color:var(--c-text); }
     .mtg-field { margin-bottom:14px; }
-    .mtg-field label { display:block; font-size:13px; margin-bottom:6px; color:#2c2c2a; }
-    .mtg-field input, .mtg-field textarea { width:100%; padding:9px 11px; border:1px solid #d8d2c4; border-radius:6px; font-size:14px; font-family:inherit; }
-    .mtg-field input:focus, .mtg-field textarea:focus { outline:2px solid #3B6D11; outline-offset:1px; }
+    .mtg-field label { display:block; font-size:13px; margin-bottom:6px; color:var(--c-text); }
+    .mtg-field input, .mtg-field textarea { width:100%; padding:9px 11px; border:1px solid var(--c-field-border); border-radius:6px; font-size:14px; font-family:inherit; }
+    .mtg-field input:focus, .mtg-field textarea:focus { outline:2px solid var(--c-brand); outline-offset:1px; }
     button.mtg-btn-secondary {
         display:inline-flex !important; width:auto !important; align-items:center; justify-content:center;
-        background:transparent !important; color:#6b7280; border:1px solid #d8d2c4; border-radius:6px !important;
+        background:transparent !important; color:#444; border:1px solid var(--c-field-border); border-radius:6px !important;
         padding:9px 16px !important; font-size:13px !important; font-weight:500; cursor:pointer;
         text-transform:none !important; letter-spacing:normal !important; box-shadow:none !important;
     }
     button.mtg-btn-secondary:hover { background:#f3f6f1 !important; }
+
+    button:focus-visible, a:focus-visible { outline:2px solid var(--c-brand); outline-offset:2px; }
 
     /* Green flash for a newly appeared meeting (auto-update) */
     @keyframes mtgFlash {
@@ -586,8 +621,8 @@ renderHeader('Meetings');
 <div class="mtg-layout">
     <div>
         <form method="get" class="mtg-search-wrap" id="mtg-search-form">
-            <span class="mtg-search-icon">&#128269;</span>
-            <input type="text" name="q" placeholder="Search by title or date..." value="<?= htmlspecialchars($query) ?>" autocomplete="off" />
+            <span class="mtg-search-icon" aria-hidden="true">&#128269;</span>
+            <input type="text" name="q" placeholder="Search by title or date..." aria-label="Search by title or date" value="<?= htmlspecialchars($query) ?>" autocomplete="off" />
         </form>
         <script>
         // Live search: auto-submit shortly after the user stops typing (Enter still works).
@@ -618,9 +653,9 @@ renderHeader('Meetings');
 
         <div id="mtgListLive">
         <?php if ($searchError): ?>
-            <p style="font-size:13px; color:#c62828;">Search error: <?= htmlspecialchars($searchError) ?></p>
+            <p style="font-size:13px; color:var(--c-danger);">Search error: <?= htmlspecialchars($searchError) ?></p>
         <?php elseif (empty($meetings)): ?>
-            <p style="font-size:13px; color:#6b7280;">No meetings found.</p>
+            <p style="font-size:13px; color:var(--c-muted);">No meetings found.</p>
         <?php else: ?>
             <?php foreach ($meetings as $m): ?>
                 <div class="mtg-event-card" id="mtg-row-<?= (int)$m['id'] ?>"
@@ -668,8 +703,8 @@ renderHeader('Meetings');
                 <p class="mtg-checkin-label" style="margin-top:20px;">Check in a member</p>
 
                 <div class="mtg-search-wrap">
-                    <span class="mtg-search-icon">&#128269;</span>
-                    <input type="text" id="il-member-search" placeholder="Search by name or membership ID" autocomplete="off" />
+                    <span class="mtg-search-icon" aria-hidden="true">&#128269;</span>
+                    <input type="text" id="il-member-search" placeholder="Search by name or membership ID" aria-label="Search by name or membership ID" autocomplete="off" />
                     <div id="il-suggestions"></div>
                 </div>
 
@@ -678,7 +713,7 @@ renderHeader('Meetings');
                         <div class="mtg-avatar" id="il-popup-avatar"></div>
                         <div style="min-width:0;">
                             <p id="il-popup-name" style="font-weight:600; font-size:13px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></p>
-                            <p id="il-popup-id" style="font-size:11px; color:#6b7280; margin:2px 0 0;"></p>
+                            <p id="il-popup-id" style="font-size:11px; color:var(--c-muted); margin:2px 0 0;"></p>
                         </div>
                     </div>
                     <button id="il-checkin-btn" type="button" class="mtg-btn-checkin">&#10003; Check-in</button>
@@ -698,15 +733,15 @@ renderHeader('Meetings');
             </div>
             <p class="mtg-checkin-label">Checked in <span id="va-count">(0)</span></p>
             <ul id="va-list" class="mtg-attendance-list"></ul>
-            <p id="va-empty" style="font-size:13px; color:#6b7280; margin:0;">No one has checked in yet.</p>
+            <p id="va-empty" style="font-size:13px; color:var(--c-muted); margin:0;">No one has checked in yet.</p>
         </div>
     </div>
 
     <div class="mtg-calendar" id="mtgCalLive">
         <div class="mtg-cal-header">
-            <a href="?m=<?= $prevMonth ?>&y=<?= $prevYear ?>">&lsaquo;</a>
+            <a href="?m=<?= $prevMonth ?>&y=<?= $prevYear ?>" aria-label="Previous month">&lsaquo;</a>
             <span class="month"><?= $monthLabel ?></span>
-            <a href="?m=<?= $nextMonth ?>&y=<?= $nextYear ?>">&rsaquo;</a>
+            <a href="?m=<?= $nextMonth ?>&y=<?= $nextYear ?>" aria-label="Next month">&rsaquo;</a>
         </div>
         <div class="mtg-cal-body">
             <div class="mtg-cal-grid">
@@ -881,7 +916,7 @@ ilInput.addEventListener('input', () => {
                     const row = document.createElement('div');
                     row.className = 'sug-row';
                     row.innerHTML = '<p style="font-size:13px;font-weight:600;margin:0;">' + m.name +
-                        '</p><p style="font-size:12px;color:#6b7280;margin:2px 0 0;">' + m.membership_id + '</p>';
+                        '</p><p style="font-size:12px;color:#5a645a;margin:2px 0 0;">' + m.membership_id + '</p>';
                     row.addEventListener('click', () => {
                         ilInput.value = m.name;
                         ilSuggestions.style.display = 'none';
@@ -1027,7 +1062,7 @@ scheduleLive();
 <div id="create-modal" class="mtg-modal-overlay">
     <div class="mtg-modal">
         <h2>Create meeting</h2>
-        <?php if ($createError): ?><p style="color:#c62828; font-size:13px;"><?= htmlspecialchars($createError) ?></p><?php endif; ?>
+        <?php if ($createError): ?><p style="color:var(--c-danger); font-size:13px;"><?= htmlspecialchars($createError) ?></p><?php endif; ?>
         <form method="post">
             <input type="hidden" name="action" value="create_meeting" />
             <div class="mtg-field"><label>Title</label><input type="text" name="title" required /></div>

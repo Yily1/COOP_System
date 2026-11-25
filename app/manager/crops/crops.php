@@ -51,6 +51,20 @@ function cmInitials($lastName, $firstName) {
     return strtoupper(mb_substr($l, 0, 1) . mb_substr($f, 0, 1));
 }
 
+/**
+ * Iisang listahan ng avatar color para sa lahat ng page. Puting text ang nakalagay
+ * sa ibabaw nito, at lahat ay pasado sa 4.5:1. Pareho ang kulay ng isang member
+ * saan mang page (batay sa membership ID).
+ * TODO: ilipat sa config/functions.php; may function_exists guard na kaya
+ * walang conflict kapag nailipat na.
+ */
+if (!function_exists('avatarColor')) {
+    function avatarColor($key) {
+        static $palette = ['#274b81', '#2e7d32', '#8a5a0b', '#6b3fa0', '#993c1d', '#0F6E56'];
+        return $palette[abs(crc32((string) $key)) % count($palette)];
+    }
+}
+
 renderHeader('Crops Management');
 ?>
 
@@ -60,21 +74,27 @@ renderHeader('Crops Management');
 
 <style>
 :root {
-    --cm-ink: #2B3A2A;
-    --cm-ink-soft: #5B6B57;
+    /* Ang mga halaga ay tugma sa shared theme (--c-*). Lahat ng text ay 4.5:1+ sa background nito. */
+    --cm-ink: #1b3a24;           /* headings, numbers, body text */
+    --cm-ink-soft: #5a645a;      /* secondary text (5.8:1 sa paper) */
     --cm-paper: #FAF7EF;
     --cm-card: #FFFFFF;
-    --cm-line: #E4DCC8;
-    --cm-forest: #33502F;
-    --cm-forest-dark: #223A20;
-    --cm-gold: #C1892B;
+    --cm-line: #E4DCC8;          /* decorative divider lang */
+    --cm-field-border: #7a857a;  /* border ng inputs (3.6:1+, kailangan ng 3:1) */
+    --cm-forest: #3B6D11;        /* brand: primary buttons */
+    --cm-forest-dark: #2e5a0d;
+    --cm-brand-soft: #EAF3DE;
+    --cm-brand-ink: #27500A;     /* text sa ibabaw ng brand-soft (8.2:1) */
     --cm-gold-soft: #F4E4C1;
-    --cm-danger: #B54A3C;
+    --cm-gold: #633806;          /* TEXT sa ibabaw ng gold-soft (8:1) */
+    --cm-danger: #a6322f;
     --cm-danger-soft: #F6E1DC;
-    --cm-success: #3E7A4B;
+    --cm-success: #1f5c24;       /* TEXT sa ibabaw ng success-soft (6.7:1) */
     --cm-success-soft: #E1EFDE;
-    --cm-info: #3B6E91;
+    --cm-info: #274b81;
     --cm-info-soft: #DCEAF2;
+    --cm-placeholder: #667066;
+    --cm-focus-ring: rgba(59, 109, 17, 0.18);
     --cm-radius: 10px;
     --cm-shadow: 0 12px 28px rgba(43, 58, 42, 0.14);
 }
@@ -100,7 +120,7 @@ renderHeader('Crops Management');
 .cm-page h2 {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-weight: 600;
-    color: #2c2c2a;
+    color: var(--cm-ink);
     text-transform: none;
     letter-spacing: normal;
     margin: 0;
@@ -174,6 +194,13 @@ renderHeader('Crops Management');
 
 .cm-btn-full { width: 100%; justify-content: center; padding: 11px; }
 
+/* Keyboard focus: nakikita sa lahat ng button */
+.cm-btn:focus-visible,
+.cm-icon-btn:focus-visible {
+    outline: 2px solid var(--cm-forest);
+    outline-offset: 2px;
+}
+
 /* Print at Add planting: kapareho ng laki ng Print at + Add payment sa Payments */
 .cm-header-actions .cm-btn {
     padding: 10px 18px;
@@ -196,7 +223,7 @@ renderHeader('Crops Management');
 .cm-metric-value { font-family: 'Fraunces', serif; font-size: 30px; font-weight: 600; margin: 0; }
 
 .cm-metric-card.cm-tone-forest { background: var(--cm-forest); }
-.cm-metric-card.cm-tone-forest .cm-metric-label { color: #EFE9D8; }
+.cm-metric-card.cm-tone-forest .cm-metric-label { color: #fff; }
 .cm-metric-card.cm-tone-forest .cm-metric-value { color: #fff; }
 
 .cm-metric-card.cm-tone-gold { background: var(--cm-gold-soft); }
@@ -248,7 +275,7 @@ renderHeader('Crops Management');
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: var(--cm-danger);
+    background: var(--cm-forest); /* fallback lang; ang totoong kulay ay galing sa avatarColor() */
     color: #fff;
     display: flex;
     align-items: center;
@@ -275,7 +302,7 @@ renderHeader('Crops Management');
 .cm-status-badge.cm-harvested{ background: var(--cm-success-soft); color: var(--cm-success); }
 
 @keyframes cmFlashRow {
-    from { background: #e3f4e1; }
+    from { background: var(--cm-success-soft); }
     to   { background: transparent; }
 }
 .cm-page tr.cm-flash td { animation: cmFlashRow 2.2s ease-out; }
@@ -358,17 +385,19 @@ renderHeader('Crops Management');
     font-family: inherit;
     font-size: 14px;
     padding: 9px 11px;
-    border: 1.5px solid var(--cm-line);
+    border: 1.5px solid var(--cm-field-border);
     border-radius: 8px;
     background: var(--cm-paper);
     color: var(--cm-ink);
     box-shadow: none;
     box-sizing: border-box;
 }
+.cm-modal-card input::placeholder { color: var(--cm-placeholder); opacity: 1; }
 .cm-modal-card input:focus,
 .cm-modal-card select:focus {
     outline: none;
     border-color: var(--cm-forest);
+    box-shadow: 0 0 0 3px var(--cm-focus-ring);
     background: #fff;
 }
 
@@ -376,12 +405,12 @@ renderHeader('Crops Management');
 
 .cm-crop-info {
     display: none;
-    background: #F1F6EA;
+    background: var(--cm-brand-soft);
     border-radius: 8px;
     padding: 8px 12px;
     margin-top: 6px;
     font-size: 12.5px;
-    color: #3B6D11;
+    color: var(--cm-brand-ink);
     line-height: 1.5;
 }
 .cm-crop-info.cm-show { display: block; }
@@ -623,7 +652,7 @@ renderHeader('Crops Management');
                         <tr data-crop-id="<?php echo (int) $c['id']; ?>">
                             <td>
                                 <div class="cm-member-cell">
-                                    <div class="cm-avatar"><?php echo htmlspecialchars(cmInitials($c['last_name'], $c['first_name'])); ?></div>
+                                    <div class="cm-avatar" style="background: <?php echo avatarColor($c['membership_id']); ?>;"><?php echo htmlspecialchars(cmInitials($c['last_name'], $c['first_name'])); ?></div>
                                     <div>
                                         <p class="cm-member-name"><?php echo htmlspecialchars($memberName); ?></p>
                                         <p class="cm-member-id"><?php echo htmlspecialchars($c['membership_id']); ?></p>

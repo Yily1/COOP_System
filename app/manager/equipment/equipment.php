@@ -33,18 +33,27 @@ renderHeader('Equipment Rental');
 
 <style>
 :root {
+    /* Shared theme (pareho sa ibang pages) */
+    --c-brand:        #3B6D11;
+    --c-brand-hover:  #2e5a0d;
+    --c-field-border: #7a857a;
+
     --eq-ink: #2B3A2A;
     --eq-ink-soft: #5B6B57;
     --eq-paper: #FAF7EF;
     --eq-card: #FFFFFF;
-    --eq-line: #E4DCC8;
+    --eq-line: #E4DCC8;                 /* decorative dividers only */
+    --eq-field-border: #7a857a;         /* inputs / selects (3:1+) */
     --eq-forest: #33502F;
     --eq-forest-dark: #223A20;
-    --eq-gold: #C1892B;
+    --eq-gold: #C1892B;                 /* decorative only (icons, borders) */
+    --eq-gold-bright: #E3B55A;          /* solid gold card background */
+    --eq-gold-ink: #7a5200;             /* gold used as TEXT (5.5:1 on gold-soft) */
     --eq-gold-soft: #F4E4C1;
-    --eq-danger: #B54A3C;
+    --eq-danger: #A23F31;
+    --eq-danger-hover: #832f24;
     --eq-danger-soft: #F6E1DC;
-    --eq-success: #3E7A4B;
+    --eq-success: #2F6B3C;
     --eq-success-soft: #E1EFDE;
     --eq-radius: 10px;
     --eq-shadow: 0 12px 28px rgba(43, 58, 42, 0.14);
@@ -80,6 +89,18 @@ renderHeader('Equipment Rental');
 .eq-muted { color: var(--eq-ink-soft); font-size: 14px; margin: 4px 0 0; }
 .eq-text-center { text-align: center; }
 .eq-text-right { text-align: right; }
+
+/* Keyboard focus: pareho sa lahat ng pages */
+.eq-page button:focus-visible,
+.eq-page select:focus-visible,
+.eq-modal button:focus-visible,
+.eq-modal input:focus-visible,
+.eq-modal select:focus-visible,
+.eq-photo-drop:focus-within {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+}
+.eq-modal-card input::placeholder { color: #6b756b; opacity: 1; }
 
 /* =========================
    HEADER
@@ -131,7 +152,7 @@ renderHeader('Equipment Rental');
 .eq-btn:active { transform: scale(0.97); }
 
 .eq-btn-outline {
-    border-color: var(--eq-line);
+    border-color: var(--eq-field-border);
     color: var(--eq-ink);
     background: var(--eq-card);
 }
@@ -144,14 +165,14 @@ renderHeader('Equipment Rental');
 }
 .eq-btn-primary:hover { background: var(--eq-forest-dark); }
 
-/* Bright green button (same as the "Add product" button) */
+/* Brand green button (same as the "Add product" button) */
 .eq-btn-green {
-    background: #3B6D11;
-    border-color: #3B6D11;
+    background: var(--c-brand);
+    border-color: var(--c-brand);
     color: #fff;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
-.eq-btn-green:hover { background: #2e5a0d; border-color: #2e5a0d; }
+.eq-btn-green:hover { background: var(--c-brand-hover); border-color: var(--c-brand-hover); }
 
 .eq-btn-full { width: 100%; justify-content: center; padding: 11px; }
 .eq-btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -164,7 +185,7 @@ renderHeader('Equipment Rental');
 .eq-btn-link {
     width: auto !important;
     background: var(--eq-card);
-    border: 1px solid var(--eq-line);
+    border: 1px solid var(--eq-field-border);
     border-radius: 20px;
     box-shadow: none;
     padding: 4px 10px;
@@ -232,8 +253,8 @@ renderHeader('Equipment Rental');
 .eq-summary-grid .eq-metric-card:nth-child(5n+1) .eq-metric-label { color: #EFE9D8; }
 .eq-summary-grid .eq-metric-card:nth-child(5n+1) .eq-metric-value { color: #fff; }
 
-.eq-summary-grid .eq-metric-card:nth-child(5n+2) { background: var(--eq-gold); }
-.eq-summary-grid .eq-metric-card:nth-child(5n+2) .eq-metric-label { color: #4A340E; }
+.eq-summary-grid .eq-metric-card:nth-child(5n+2) { background: var(--eq-gold-bright); }
+.eq-summary-grid .eq-metric-card:nth-child(5n+2) .eq-metric-label { color: #3A2708; }
 .eq-summary-grid .eq-metric-card:nth-child(5n+2) .eq-metric-value { color: #3A2708; }
 
 .eq-summary-grid .eq-metric-card:nth-child(5n+3) { background: var(--eq-success-soft); }
@@ -246,7 +267,7 @@ renderHeader('Equipment Rental');
 
 .eq-summary-grid .eq-metric-card:nth-child(5n+5) { background: var(--eq-gold-soft); }
 .eq-summary-grid .eq-metric-card:nth-child(5n+5) .eq-metric-label,
-.eq-summary-grid .eq-metric-card:nth-child(5n+5) .eq-metric-value { color: var(--eq-gold); }
+.eq-summary-grid .eq-metric-card:nth-child(5n+5) .eq-metric-value { color: var(--eq-gold-ink); }
 
 /* =========================
    EQUIPMENT CARDS
@@ -324,7 +345,7 @@ renderHeader('Equipment Rental');
     cursor: pointer;
     font-family: inherit;
 }
-.eq-status-btn { border: 1px solid var(--eq-line); transition: border-color 0.12s ease; }
+.eq-status-btn { border: 1px solid var(--eq-field-border); transition: border-color 0.12s ease; }
 .eq-status-readonly { border: 1px solid var(--eq-line); cursor: default; }
 .eq-status-btn:hover { border-color: var(--eq-forest); }
 .eq-status-btn:hover .eq-status-label { text-decoration: none; }
@@ -367,7 +388,7 @@ renderHeader('Equipment Rental');
     text-transform: none !important;
     letter-spacing: normal;
     padding: 7px 10px;
-    border: 1.5px solid var(--eq-line);
+    border: 1.5px solid var(--eq-field-border);
     border-radius: var(--eq-radius);
     background-color: var(--eq-card);
     color: var(--eq-ink);
@@ -448,7 +469,7 @@ renderHeader('Equipment Rental');
 }
 .eq-cal-booking-equipment {
     font-size: 9.5px;
-    color: var(--eq-ink-soft);
+    color: #4a5a46;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -560,7 +581,7 @@ renderHeader('Equipment Rental');
     font-family: inherit;
     font-size: 14px;
     padding: 9px 11px;
-    border: 1.5px solid var(--eq-line);
+    border: 1.5px solid var(--eq-field-border);
     border-radius: 8px;
     background: var(--eq-paper);
     color: var(--eq-ink);
@@ -570,7 +591,8 @@ renderHeader('Equipment Rental');
 .eq-modal-card input:focus,
 .eq-modal-card select:focus {
     outline: none;
-    border-color: var(--eq-forest);
+    border-color: var(--c-brand);
+    box-shadow: 0 0 0 3px rgba(59, 109, 17, 0.18);
     background: #fff;
 }
 
@@ -579,7 +601,7 @@ renderHeader('Equipment Rental');
    ========================= */
 
 .eq-photo-drop {
-    border: 1.5px dashed var(--eq-line);
+    border: 1.5px dashed var(--eq-field-border);
     border-radius: 8px;
     padding: 18px 12px;
     text-align: center;
@@ -679,7 +701,7 @@ renderHeader('Equipment Rental');
     padding: 3px 10px;
     border-radius: 20px;
 }
-.eq-status-badge.eq-rented { background: var(--eq-gold-soft); color: var(--eq-gold); }
+.eq-status-badge.eq-rented { background: var(--eq-gold-soft); color: var(--eq-gold-ink); }
 .eq-status-badge.eq-approved { background: #cce5ff; color: #004085; }
 .eq-status-badge.eq-overdue { background: var(--eq-danger-soft); color: var(--eq-danger); }
 .eq-status-badge.eq-returned { background: var(--eq-success-soft); color: var(--eq-success); }
@@ -689,7 +711,7 @@ renderHeader('Equipment Rental');
    ========================= */
 
 @keyframes eqFlashCard {
-    from { background: #e3f4e1; border-color: #3E7A4B; }
+    from { background: #e3f4e1; border-color: #2F6B3C; }
     to   { background: var(--eq-card); border-color: var(--eq-line); }
 }
 @keyframes eqFlashRow {
@@ -723,7 +745,7 @@ renderHeader('Equipment Rental');
     border-color: var(--eq-danger);
     color: #fff;
 }
-.eq-btn-danger:hover { background: #983c30; }
+.eq-btn-danger:hover { background: var(--eq-danger-hover); }
 
 /* =========================
    RESPONSIVE
@@ -802,7 +824,7 @@ renderHeader('Equipment Rental');
                     <?php if ($hasPhoto): ?>
                         <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="<?php echo htmlspecialchars($eq['name']); ?>">
                     <?php else: ?>
-                        <span class="material-icons"><?php echo $icon; ?></span>
+                        <span class="material-icons" aria-hidden="true"><?php echo $icon; ?></span>
                     <?php endif; ?>
                 </div>
 
@@ -1090,7 +1112,7 @@ renderHeader('Equipment Rental');
                 <img id="add-photo-preview-img" src="" alt="Preview">
             </div>
             <label class="eq-photo-drop" id="add-photo-drop">
-                <span class="material-icons">add_a_photo</span>
+                <span class="material-icons" aria-hidden="true">add_a_photo</span>
                 <p id="add-photo-drop-text">Click to upload a photo</p>
                 <input type="file" id="add-photo-input" name="photo" accept="image/*">
             </label>
@@ -1147,7 +1169,7 @@ renderHeader('Equipment Rental');
                 <img id="edit-photo-preview-img" src="" alt="Preview">
             </div>
             <label class="eq-photo-drop" id="edit-photo-drop">
-                <span class="material-icons">add_a_photo</span>
+                <span class="material-icons" aria-hidden="true">add_a_photo</span>
                 <p id="edit-photo-drop-text">Click to change photo</p>
                 <input type="file" id="edit-photo-input" name="photo" accept="image/*">
             </label>

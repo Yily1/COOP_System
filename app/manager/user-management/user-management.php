@@ -9,7 +9,8 @@ $pageTitle = 'Members';
 
 // Deterministic avatar color per user, based on id so it stays the
 // same across page loads instead of being random each time.
-$umAvatarColors = ['#0C447C', '#3B6D11', '#712B13', '#534AB7', '#993556', '#854F0B'];
+// Isang shared na listahan (pareho sa Member management); lahat pasado sa puting text.
+$umAvatarColors = ['#274b81', '#2e7d32', '#8a5a0b', '#6b3fa0', '#993c1d', '#0F6E56'];
 function umAvatarColor($seed, $colors) {
     $hash = crc32((string)$seed);
     return $colors[$hash % count($colors)];
@@ -38,6 +39,30 @@ renderHeader($pageTitle);
 ?>
 
 <style>
+    /* ============================================================
+       SHARED COLOR THEME
+       (Kapag may global stylesheet na, ilipat ang :root block na ito doon
+        at tanggalin dito. Pareho ang block sa 3 pages.)
+       ============================================================ */
+    :root {
+        --c-brand:        #3B6D11;
+        --c-brand-hover:  #2e5a0d;
+        --c-brand-soft:   #EAF3DE;
+        --c-brand-ink:    #27500A;
+        --c-ink:          #1b3a24;
+        --c-text:         #2c3e2c;
+        --c-muted:        #5a645a;
+        --c-success:      #2e7d32;
+        --c-danger:       #a6322f;
+        --c-danger-solid: #b02a37;
+        --c-warn-bg:      #FAEEDA;
+        --c-warn-ink:     #633806;
+        --c-info:         #274b81;
+        --c-surface:      #fff;
+        --c-divider:      #e8ede0;
+        --c-field-border: #7a857a;
+    }
+
     .um-header {
         display: flex;
         justify-content: space-between;
@@ -55,14 +80,14 @@ renderHeader($pageTitle);
         flex-wrap: wrap;
     }
 
-    /* Bright green, same as the "Add product" button */
+    /* Brand green, same as the "Add product" button */
     #openCreateBtn {
         display: inline-flex !important;
         align-items: center !important;
         gap: 6px !important;
         width: auto !important;
         flex: none !important;
-        background: #3B6D11 !important;
+        background: var(--c-brand) !important;
         color: #fff !important;
         border: none !important;
         padding: 10px 18px !important;
@@ -73,10 +98,17 @@ renderHeader($pageTitle);
         cursor: pointer;
         white-space: nowrap;
     }
-    #openCreateBtn:hover { background: #2e5a0d !important; }
+    #openCreateBtn:hover { background: var(--c-brand-hover) !important; }
+    #openCreateBtn:focus-visible,
+    .um-modal-box button:focus-visible,
+    #umTable a:focus-visible {
+        outline: 2px solid var(--c-brand);
+        outline-offset: 2px;
+    }
 
     .um-toolbar {
         margin-bottom: 14px;
+        color: var(--c-muted);
     }
     .um-toolbar p { margin: 0; }
 
@@ -92,7 +124,7 @@ renderHeader($pageTitle);
         top: 50%;
         transform: translateY(-50%);
         font-size: 18px;
-        color: #888;
+        color: var(--c-muted);
         pointer-events: none;
     }
     #umSearchInput {
@@ -100,17 +132,19 @@ renderHeader($pageTitle);
         box-sizing: border-box !important;
         padding: 9px 14px 9px 38px !important;
         border-radius: 24px !important;
-        border: 1px solid #ccc !important;
+        border: 1px solid var(--c-field-border) !important;
         background: #f7f8fa !important;
         font-size: 13px;
         box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
         transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
+    #umSearchInput::placeholder,
+    .um-modal-box .form-group input::placeholder { color: #6b756b; opacity: 1; }
     #umSearchInput:focus {
         outline: none !important;
-        border-color: #1976d2 !important;
+        border-color: var(--c-brand) !important;
         background: #fff !important;
-        box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.12) !important;
+        box-shadow: 0 0 0 3px rgba(59, 109, 17, 0.18) !important;
     }
 
     /* ===== Card-style table: bordered, rounded, subtle shadow ===== */
@@ -129,11 +163,12 @@ renderHeader($pageTitle);
     #umTable th {
         padding: 12px 14px;
         font-size: 13px;
-        color: #555;
+        color: var(--c-muted);
     }
     #umTable td {
         padding: 12px 14px;
         font-size: 13px;
+        color: var(--c-text);
     }
     #umTable tbody tr {
         border-top: 1px solid #eee;
@@ -166,7 +201,7 @@ renderHeader($pageTitle);
 
     .um-modal-box h2 {
         background: none !important;
-        color: #1a1a1a !important;
+        color: var(--c-ink) !important;
         margin: 0 0 16px 0 !important;
         padding: 0 40px 0 0 !important;
         font-size: 20px !important;
@@ -187,19 +222,23 @@ renderHeader($pageTitle);
         padding: 0 !important;
         margin: 0 !important;
         background: #fff !important;
-        border: 1px solid #cfd8e3 !important;
+        border: 1px solid var(--c-field-border) !important;
         border-radius: 50% !important;
         font-size: 16px !important;
         line-height: 1 !important;
         cursor: pointer !important;
-        color: #274b81 !important;
+        color: var(--c-info) !important;
         box-shadow: none !important;
         z-index: 10;
         user-select: none;
     }
     .um-modal-close:hover {
         background: #eef3fb !important;
-        border-color: #274b81 !important;
+        border-color: var(--c-info) !important;
+    }
+    .um-modal-close:focus-visible {
+        outline: 2px solid var(--c-brand);
+        outline-offset: 2px;
     }
 
     .um-modal-message {
@@ -225,11 +264,20 @@ renderHeader($pageTitle);
         font-size: 13px !important;
         width: 100%;
         box-sizing: border-box;
+        border: 1px solid var(--c-field-border);
+        border-radius: 6px;
+    }
+    .um-modal-box .form-group input:not([type="checkbox"]):focus,
+    .um-modal-box .form-group select:focus {
+        outline: none;
+        border-color: var(--c-brand);
+        box-shadow: 0 0 0 3px rgba(59, 109, 17, 0.18);
     }
     .um-modal-box .form-group small {
         display: block;
         font-size: 11px;
         margin-top: 2px;
+        color: var(--c-muted);
     }
     .um-modal-box .um-info-compact {
         margin: 0 0 12px 0 !important;
@@ -267,11 +315,11 @@ renderHeader($pageTitle);
         box-shadow: 0 -8px 8px -4px #fff;
     }
 
-    /* Bright green Create account / Update user buttons
+    /* Brand green Create account / Update user buttons
        (same as the "Add product" button). Scoped to the 2-column forms,
        so the red Delete User button is not affected. */
     .um-modal-box form.um-form-grid button[type="submit"] {
-        background: #3B6D11 !important;
+        background: var(--c-brand) !important;
         color: #fff !important;
         border: none !important;
         border-radius: 6px !important;
@@ -280,8 +328,16 @@ renderHeader($pageTitle);
         box-shadow: 0 -8px 8px -4px #fff, 0 2px 4px rgba(0, 0, 0, 0.2) !important;
     }
     .um-modal-box form.um-form-grid button[type="submit"]:hover {
-        background: #2e5a0d !important;
+        background: var(--c-brand-hover) !important;
     }
+
+    /* Delete User modal buttons */
+    .um-btn-danger { background: var(--c-danger-solid) !important; color: #fff !important; }
+    .um-btn-danger:hover { background: #8f1f2b !important; }
+    .um-btn-neutral { background: #5c6670 !important; color: #fff !important; margin-top: 8px; }
+
+    /* Muted placeholders sa table ("Staff", "-") */
+    .um-muted { color: var(--c-muted); }
 
     @media (max-width: 560px) {
         .um-form-grid { grid-template-columns: 1fr; }
@@ -292,8 +348,8 @@ renderHeader($pageTitle);
     <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
     <div class="um-header-actions">
         <div id="um-search-wrap">
-            <span class="material-icons">search</span>
-            <input type="text" id="umSearchInput" placeholder="Search name, username or ID" autocomplete="off">
+            <span class="material-icons" aria-hidden="true">search</span>
+            <input type="text" id="umSearchInput" placeholder="Search name, username or ID" aria-label="Search name, username or ID" autocomplete="off">
         </div>
         <button type="button" id="openCreateBtn" onclick="openCreateModal()">
             <span class="material-icons" style="font-size: 18px;">person_add</span>
@@ -330,7 +386,7 @@ renderHeader($pageTitle);
             $canChangeThisUserRole = canChangeRole($currentRole, $currentUserId, $user['id']);
         ?>
         <tr data-search="<?php echo htmlspecialchars($rowSearchText); ?>">
-            <td><?php echo $user['membership_id'] ? htmlspecialchars($user['membership_id']) : '<span style="color:#999;">Staff</span>'; ?></td>
+            <td><?php echo $user['membership_id'] ? htmlspecialchars($user['membership_id']) : '<span class="um-muted">Staff</span>'; ?></td>
             <td>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <div style="width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; background: <?php echo umAvatarColor($user['id'], $umAvatarColors); ?>;">
@@ -339,7 +395,7 @@ renderHeader($pageTitle);
                     <p style="margin: 0; font-weight: 600;"><?php echo htmlspecialchars($rowName); ?></p>
                 </div>
             </td>
-            <td><?php echo $rowUsername !== '' ? htmlspecialchars($rowUsername) : '<span style="color:#999;">-</span>'; ?></td>
+            <td><?php echo $rowUsername !== '' ? htmlspecialchars($rowUsername) : '<span class="um-muted">-</span>'; ?></td>
             <td><?php echo htmlspecialchars($user['email']); ?></td>
             <td>
                 <span class="badge badge-<?php echo $user['role']; ?>">
@@ -347,7 +403,7 @@ renderHeader($pageTitle);
                 </span>
             </td>
             <td>
-                <span class="badge" style="background: <?php echo $user['account_status'] === 'Active' ? '#28a745' : '#6c757d'; ?>;">
+                <span class="badge" style="background: <?php echo $user['account_status'] === 'Active' ? '#2e7d32' : '#5c6670'; ?>; color: #fff;">
                     <?php echo htmlspecialchars($user['account_status']); ?>
                 </span>
             </td>
@@ -361,7 +417,7 @@ renderHeader($pageTitle);
                 <?php if ($canEditThisUser): ?>
                     <a href="#"
                          onclick="openEditUserModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($rowUsername), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['account_status']), ENT_QUOTES); ?>, <?php echo $canChangeThisUserRole ? 'true' : 'false'; ?>); return false;"
-                         style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#274b81 !important; text-decoration:none !important; margin-right:4px !important; cursor:pointer;">
+                         style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:var(--c-success) !important; text-decoration:none !important; margin-right:4px !important; cursor:pointer;">
                         <span class="material-icons" style="font-size:14px !important;">edit</span>Edit
                     </a>
                 <?php endif; ?>
@@ -369,12 +425,12 @@ renderHeader($pageTitle);
                 <?php if (canDeleteUser($currentRole, $currentUserId, $user['role'], $user['id'])): ?>
                     <a href="#"
                          onclick="openDeleteUserModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($rowUsername !== '' ? $rowUsername : $user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role']), ENT_QUOTES); ?>); return false;"
-                         style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#a6322f !important; text-decoration:none !important; cursor:pointer;">
+                         style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:var(--c-danger) !important; text-decoration:none !important; cursor:pointer;">
                         <span class="material-icons" style="font-size:14px !important;">delete</span>Delete
                     </a>
                 <?php elseif ($user['id'] == $currentUserId): ?>
                     <span title="You cannot delete your own account"
-                          style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#999 !important;">
+                          style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#767676 !important;">
                         <span class="material-icons" style="font-size:14px !important;">delete</span>Delete
                     </span>
                 <?php endif; ?>
@@ -384,12 +440,12 @@ renderHeader($pageTitle);
     </tbody>
 </table>
 
-<p id="umNoResults" style="display:none; text-align: center; padding: 40px; color: #6c757d;">
+<p id="umNoResults" style="display:none; text-align: center; padding: 40px; color: var(--c-muted);">
     No accounts match your search.
 </p>
 
 <?php if (empty($users)): ?>
-    <p style="text-align: center; padding: 40px; color: #6c757d;">
+    <p style="text-align: center; padding: 40px; color: var(--c-muted);">
         No accounts to display based on your role permissions.
     </p>
 <?php endif; ?>
@@ -421,7 +477,7 @@ renderHeader($pageTitle);
 
             <div class="form-group">
                 <label>Role:</label>
-                <input type="text" value="User" disabled style="background: #f0f0f0; color: #888;">
+                <input type="text" value="User" disabled style="background: #f0f0f0; color: #666;">
             </div>
 
             <div class="form-group">
@@ -430,7 +486,7 @@ renderHeader($pageTitle);
                        placeholder="e.g. juan.delacruz" pattern="[a-zA-Z0-9_.]{3,50}"
                        title="3-50 characters. Letters, numbers, underscore, or period only."
                        autocomplete="off">
-                <small style="color: #666;">3-50 chars: letters, numbers, _ or .</small>
+                <small>3-50 chars: letters, numbers, _ or .</small>
             </div>
 
             <div class="form-group">
@@ -462,7 +518,7 @@ renderHeader($pageTitle);
                            style="width: auto; margin-right: 8px;">
                     <span>Send email verification</span>
                 </label>
-                <small style="color: #666; margin-left: 26px;">
+                <small style="margin-left: 26px;">
                     If unchecked, verified immediately.
                 </small>
             </div>
@@ -490,7 +546,7 @@ renderHeader($pageTitle);
                        pattern="[a-zA-Z0-9_.]{3,50}"
                        title="3-50 characters. Letters, numbers, underscore, or period only."
                        autocomplete="off">
-                <small style="color: #666;">3-50 chars: letters, numbers, _ or .</small>
+                <small>3-50 chars: letters, numbers, _ or .</small>
             </div>
 
             <div class="form-group">
@@ -515,7 +571,7 @@ renderHeader($pageTitle);
                     <option value="manager">Manager</option>
                     <option value="admin">Admin</option>
                 </select>
-                <small id="eu_role_hint" style="color: #666; display: none;">Only admins can change roles, and not their own.</small>
+                <small id="eu_role_hint" style="display: none;">Only admins can change roles, and not their own.</small>
             </div>
 
             <div class="form-group">
@@ -549,8 +605,8 @@ renderHeader($pageTitle);
         <div id="deleteUserModalMessage" class="um-modal-message"></div>
 
         <form id="deleteUserForm">
-            <button type="submit" style="background:#dc3545 !important;">Delete User</button>
-            <button type="button" onclick="closeDeleteUserModal()" style="background:#6c757d !important; margin-top:8px;">Cancel</button>
+            <button type="submit" class="um-btn-danger">Delete User</button>
+            <button type="button" class="um-btn-neutral" onclick="closeDeleteUserModal()">Cancel</button>
         </form>
     </div>
 </div>

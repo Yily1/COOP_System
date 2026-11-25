@@ -76,6 +76,7 @@ $equipmentRates = rentalEquipmentRates($pdo);
 // PAYMENT TYPE METADATA (label + badge colors)
 // Add new types here and they'll flow through totals, filters,
 // the add-payment form, and the table badges automatically.
+// (Lahat ng kombinasyon ng bg/text ay pasado sa 4.5:1.)
 // ============================================================
 function paymentTypeMeta($type) {
     $map = [
@@ -206,7 +207,27 @@ renderHeader('Payments');
 ?>
 
 <style>
-/* Summary cards: flat colors, same style as the Equipment rental page */
+/* ============================================================
+   SHARED COLOR THEME
+   (Ilipat sa global stylesheet kung maaari; pareho sa lahat ng pages.)
+   ============================================================ */
+:root {
+    --c-brand:        #3B6D11;
+    --c-brand-hover:  #2e5a0d;
+    --c-brand-soft:   #EAF3DE;
+    --c-brand-ink:    #27500A;
+    --c-ink:          #1b3a24;
+    --c-text:         #2c3e2c;
+    --c-muted:        #5a645a;
+    --c-success:      #2e7d32;
+    --c-danger:       #a6322f;
+    --c-danger-solid: #b02a37;
+    --c-info:         #274b81;
+    --c-field-border: #7a857a;
+}
+
+/* Summary cards: flat colors, same style as the Equipment rental page.
+   Lahat ng label/value ay 4.5:1 pataas sa kani-kanilang background. */
 /* All 7 cards sit side by side in one row; they share the width equally.
    On smaller screens they wrap into 4 and then 2 per row. */
 .pay-summary-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
@@ -224,15 +245,14 @@ renderHeader('Payments');
     font-variant-numeric: lining-nums tabular-nums;
     white-space: nowrap;   /* never wrap the amount to a 2nd line */
 }
-.pay-card-amber  { background: #C1892B; }
+.pay-card-amber  { background: #E3B55A; }
 .pay-card-amber  .pay-card-label, .pay-card-amber  .pay-card-value { color: #3E2A07; }
 .pay-card-green  { background: #E1EFDE; }
-.pay-card-green  .pay-card-label { color: #3F7D52; }
-.pay-card-green  .pay-card-value { color: #2F6B43; }
+.pay-card-green  .pay-card-label, .pay-card-green  .pay-card-value { color: #2F6B3C; }
 .pay-card-red    { background: #F6E1DC; }
-.pay-card-red    .pay-card-label, .pay-card-red    .pay-card-value { color: #B54A3C; }
+.pay-card-red    .pay-card-label, .pay-card-red    .pay-card-value { color: #9a3a2d; }
 .pay-card-sand   { background: #F6E4C3; }
-.pay-card-sand   .pay-card-label, .pay-card-sand   .pay-card-value { color: #C1892B; }
+.pay-card-sand   .pay-card-label, .pay-card-sand   .pay-card-value { color: #7a5200; }
 .pay-card-blue   { background: #DDEAF6; }
 .pay-card-blue   .pay-card-label, .pay-card-blue   .pay-card-value { color: #185FA5; }
 .pay-card-purple { background: #EAE6FB; }
@@ -240,16 +260,32 @@ renderHeader('Payments');
 .pay-card-teal   { background: #DDF1EE; }
 .pay-card-teal   .pay-card-label, .pay-card-teal   .pay-card-value { color: #0F6E56; }
 
-/* Bright green buttons (same as the "Add product" button) */
+/* Brand green buttons (same as the "Add product" button) */
 #openModalBtn:hover,
 #submitBtn:hover,
-#printConfirmBtn:hover { background: #2e5a0d !important; }
+#printConfirmBtn:hover { background: var(--c-brand-hover) !important; }
+
+/* Keyboard focus: pareho sa lahat ng pages */
+.pay-screen-only button:focus-visible,
+.pay-screen-only a:focus-visible,
+.pay-screen-only input:focus-visible,
+.pay-screen-only select:focus-visible,
+#paymentModalBackdrop button:focus-visible,
+#paymentModalBackdrop input:focus-visible,
+#paymentModalBackdrop select:focus-visible,
+#printModalBackdrop button:focus-visible,
+#printModalBackdrop select:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+}
+.pay-screen-only input::placeholder,
+#paymentModalBackdrop input::placeholder { color: #6b756b; opacity: 1; }
 
 /* Print button: outlined green so "+ Add payment" stays the main action */
 .pay-print-btn {
     background: #fff !important;
-    color: #3B6D11 !important;
-    border: 1px solid #3B6D11 !important;
+    color: var(--c-brand) !important;
+    border: 1px solid var(--c-brand) !important;
     padding: 10px 18px !important;
     border-radius: 6px !important;
     cursor: pointer;
@@ -277,7 +313,7 @@ renderHeader('Payments');
     position: relative; background: #fff; border-radius: 10px; padding: 16px;
     max-width: 90vw; max-height: 90vh; box-sizing: border-box; display: flex; flex-direction: column;
 }
-#proofModalBox h3 { margin: 0 36px 10px 0; font-size: 16px; font-weight: 500; color: #1b3a24; }
+#proofModalBox h3 { margin: 0 36px 10px 0; font-size: 16px; font-weight: 500; color: var(--c-ink); }
 #proofModalImg { display: block; max-width: 100%; max-height: calc(90vh - 90px); margin: 0 auto; border-radius: 6px; object-fit: contain; }
 #closeProofModalBtn {
     position: absolute !important; top: 12px !important; right: 12px !important;
@@ -290,8 +326,8 @@ renderHeader('Payments');
 /* Rental split preview inside the Add payment modal */
 #splitPreview { background: #F4F9EC; border: 1px solid #C0DD97; border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-size: 13px; display: none; }
 #splitPreview .sp-row { display: flex; justify-content: space-between; padding: 2px 0; color: #444; }
-#splitPreview .sp-total { border-top: 1px solid #C0DD97; margin-top: 4px; padding-top: 5px; font-weight: 600; color: #27500A; }
-#splitPreview .sp-note { font-size: 12px; color: #667066; margin-top: 6px; }
+#splitPreview .sp-total { border-top: 1px solid #C0DD97; margin-top: 4px; padding-top: 5px; font-weight: 600; color: var(--c-brand-ink); }
+#splitPreview .sp-note { font-size: 12px; color: var(--c-muted); margin-top: 6px; }
 
 /* ============================================================
    PRINT REPORT
@@ -445,7 +481,7 @@ renderHeader('Payments');
         Print
     </button>
     <button id="openModalBtn"
-            style="background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; border: none !important; padding: 10px 18px !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important; display: inline-block !important; width: auto !important; max-width: 200px !important; flex: 0 0 auto !important; white-space: nowrap !important; position: static !important; top: auto !important; left: auto !important; right: auto !important; float: none !important; margin-left: auto !important;">
+            style="background: var(--c-brand) !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; border: none !important; padding: 10px 18px !important; border-radius: 6px !important; cursor: pointer; font-size: 14px !important; display: inline-block !important; width: auto !important; max-width: 200px !important; flex: 0 0 auto !important; white-space: nowrap !important; position: static !important; top: auto !important; left: auto !important; right: auto !important; float: none !important; margin-left: auto !important;">
         + Add payment
     </button>
 </div>
@@ -488,10 +524,10 @@ renderHeader('Payments');
 <h2 class="pay-screen-only" style="margin: 0 0 12px 0;">Payment history</h2>
 
 <div class="pay-screen-only" style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
-    <input type="text" id="memberSearchInput" placeholder="Search by name or membership ID"
-           style="padding: 8px; border-radius: 6px; border: 1px solid #ccc; width: 240px; max-width: 240px; flex: 0 0 auto; box-sizing: border-box;">
+    <input type="text" id="memberSearchInput" placeholder="Search by name or membership ID" aria-label="Search by name or membership ID"
+           style="padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); width: 240px; max-width: 240px; flex: 0 0 auto; box-sizing: border-box;">
 
-    <select id="paymentTypeSelect" style="padding: 8px; border-radius: 6px; border: 1px solid #ccc; width: 160px !important; max-width: 160px !important; flex: 0 0 auto !important;">
+    <select id="paymentTypeSelect" aria-label="Filter by payment type" style="padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); width: 160px !important; max-width: 160px !important; flex: 0 0 auto !important;">
         <option value="">All types</option>
         <option value="registration" <?php echo ($filterType === 'registration') ? 'selected' : ''; ?>>Registration</option>
         <option value="investment" <?php echo ($filterType === 'investment') ? 'selected' : ''; ?>>Investment</option>
@@ -500,7 +536,7 @@ renderHeader('Payments');
         <option value="product" <?php echo ($filterType === 'product') ? 'selected' : ''; ?>>Products</option>
     </select>
 
-    <select id="payerFilterSelect" style="padding: 8px; border-radius: 6px; border: 1px solid #ccc; width: 160px !important; max-width: 160px !important; flex: 0 0 auto !important;">
+    <select id="payerFilterSelect" aria-label="Filter by payer" style="padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); width: 160px !important; max-width: 160px !important; flex: 0 0 auto !important;">
         <option value="">All payers</option>
         <option value="member" <?php echo ($filterPayer === 'member') ? 'selected' : ''; ?>>Members</option>
         <option value="non_member" <?php echo ($filterPayer === 'non_member') ? 'selected' : ''; ?>>Non-members</option>
@@ -525,7 +561,7 @@ renderHeader('Payments');
     <tbody id="paymentsTableBody">
         <?php if (empty($payments)): ?>
             <tr id="emptyRow">
-                <td colspan="9" style="padding: 20px; text-align: center; color: #666;">No payment records.</td>
+                <td colspan="9" style="padding: 20px; text-align: center; color: var(--c-muted);">No payment records.</td>
             </tr>
         <?php else: ?>
             <?php foreach ($payments as $payment): ?>
@@ -534,7 +570,7 @@ renderHeader('Payments');
                     $isNonMember = empty($payment['member_id']);
                     if ($isNonMember) {
                         $displayName = $payment['payer_name'] ?: '-';
-                        $avatar = ['bg' => '#888780', 'text' => '#FFFFFF'];
+                        $avatar = ['bg' => '#5F5E5A', 'text' => '#FFFFFF'];
                         $initials = payerInitials($displayName);
                         $searchText = strtolower($displayName . ' non-member');
                     } else {
@@ -560,7 +596,7 @@ renderHeader('Payments');
                                 <?php if ($isNonMember): ?>
                                     <span style="display: inline-block; font-size: 10px; font-weight: 600; background: #F1EFE8; color: #5F5E5A; border-radius: 4px; padding: 1px 6px;">Non-member</span>
                                 <?php else: ?>
-                                    <p style="margin: 0; font-size: 12px; color: #888;"><?php echo htmlspecialchars($payment['membership_id']); ?></p>
+                                    <p style="margin: 0; font-size: 12px; color: var(--c-muted);"><?php echo htmlspecialchars($payment['membership_id']); ?></p>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -570,12 +606,12 @@ renderHeader('Payments');
                             <?php echo htmlspecialchars($meta['label']); ?>
                         </span>
                         <?php if ($payment['payment_type'] === 'product' && !empty($payment['product_name'])): ?>
-                            <div style="font-size: 11px; color: #666; margin-top: 3px;">
+                            <div style="font-size: 11px; color: var(--c-muted); margin-top: 3px;">
                                 <?php echo htmlspecialchars($payment['product_name']); ?>
                             </div>
                         <?php endif; ?>
                         <?php if ($payment['payment_type'] === 'rental' && !empty($payment['equipment'])): ?>
-                            <div style="font-size: 11px; color: #666; margin-top: 3px;">
+                            <div style="font-size: 11px; color: var(--c-muted); margin-top: 3px;">
                                 <?php
                                     echo htmlspecialchars(rentalEquipmentLabel($payment['equipment']));
                                     if (!empty($payment['quantity'])) {
@@ -589,35 +625,35 @@ renderHeader('Payments');
                     <td style="padding: 10px 12px;"><?php echo date('M d, Y', strtotime($payment['payment_date'])); ?></td>
                     <td style="padding: 10px 12px;">
                         <?php if ($payment['status'] === 'pending'): ?>
-                            <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: #fff3cd; color: #856404;">Pending</span>
+                            <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: #fff3cd; color: #7a5a00;">Pending</span>
                         <?php else: ?>
                             <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: #d4edda; color: #155724;">Confirmed</span>
                         <?php endif; ?>
                     </td>
-                    <td style="padding: 10px 12px; color: #666;"><?php echo htmlspecialchars($payment['notes'] ?? '-'); ?></td>
+                    <td style="padding: 10px 12px; color: var(--c-muted);"><?php echo htmlspecialchars($payment['notes'] ?? '-'); ?></td>
                     <td style="padding: 10px 12px;">
                         <?php if ($proofUrl !== ''): ?>
                             <a href="<?php echo htmlspecialchars($proofUrl); ?>" class="viewProofLink" data-src="<?php echo htmlspecialchars($proofUrl); ?>"
-                               style="color: #1976d2; text-decoration: underline; white-space: nowrap; cursor: pointer;">View image</a>
+                               style="color: var(--c-info); text-decoration: underline; white-space: nowrap; cursor: pointer;">View image</a>
                         <?php else: ?>
-                            <span style="color: #ccc;">-</span>
+                            <span style="color: var(--c-muted);">-</span>
                         <?php endif; ?>
                     </td>
-                    <td style="padding: 10px 12px; color: #666;"><?php echo htmlspecialchars($payment['recorded_by_email'] ?? '-'); ?></td>
+                    <td style="padding: 10px 12px; color: var(--c-muted);"><?php echo htmlspecialchars($payment['recorded_by_email'] ?? '-'); ?></td>
                     <td style="padding: 10px 12px;">
                         <?php if ($payment['status'] === 'pending'): ?>
                             <div style="display: flex; gap: 6px;">
                                 <button class="confirmBtn" data-id="<?php echo $payment['id']; ?>"
-                                        style="display: inline-flex !important; align-items: center; justify-content: center; width: auto !important; max-width: none !important; flex: 0 0 auto !important; font-size: 12px; padding: 6px 10px; margin: 0 !important; background: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">
+                                        style="display: inline-flex !important; align-items: center; justify-content: center; width: auto !important; max-width: none !important; flex: 0 0 auto !important; font-size: 12px; padding: 6px 10px; margin: 0 !important; background: var(--c-success); color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">
                                     Confirm
                                 </button>
                                 <button class="rejectBtn" data-id="<?php echo $payment['id']; ?>"
-                                        style="display: inline-flex !important; align-items: center; justify-content: center; width: auto !important; max-width: none !important; flex: 0 0 auto !important; font-size: 12px; padding: 6px 10px; margin: 0 !important; background: #dc3545; color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">
+                                        style="display: inline-flex !important; align-items: center; justify-content: center; width: auto !important; max-width: none !important; flex: 0 0 auto !important; font-size: 12px; padding: 6px 10px; margin: 0 !important; background: var(--c-danger-solid); color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">
                                     Reject
                                 </button>
                             </div>
                         <?php else: ?>
-                            <span style="color: #ccc;">-</span>
+                            <span style="color: var(--c-muted);">-</span>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -670,11 +706,11 @@ renderHeader('Payments');
 <div id="printModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box;">
     <div style="background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 380px; box-sizing: border-box; position: relative;">
         <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Print payments</h2>
-        <button id="closePrintModalBtn" type="button"
+        <button id="closePrintModalBtn" type="button" aria-label="Close"
                 style="position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important; font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important; max-width: 28px !important; flex: 0 0 auto !important; color: #333 !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;">&times;</button>
 
         <label for="printTypeSelect" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payment type</label>
-        <select id="printTypeSelect" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+        <select id="printTypeSelect" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;">
             <option value="">All types</option>
             <option value="registration">Registration</option>
             <option value="investment">Investment</option>
@@ -682,13 +718,13 @@ renderHeader('Payments');
             <option value="loan_repayment">Loan Repayment</option>
             <option value="product">Products</option>
         </select>
-        <div id="printCountNote" style="font-size: 12px; color: #667066; margin: 6px 0 18px;"></div>
+        <div id="printCountNote" style="font-size: 12px; color: var(--c-muted); margin: 6px 0 18px;"></div>
 
         <div style="display: flex; gap: 8px; justify-content: flex-end;">
-            <button type="button" id="cancelPrintBtn" style="padding: 10px 18px !important; border-radius: 6px; border: 1px solid #ccc; background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
+            <button type="button" id="cancelPrintBtn" style="padding: 10px 18px !important; border-radius: 6px; border: 1px solid var(--c-field-border); background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
                 Cancel
             </button>
-            <button type="button" id="printConfirmBtn" style="padding: 10px 18px !important; border-radius: 6px; border: none; background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
+            <button type="button" id="printConfirmBtn" style="padding: 10px 18px !important; border-radius: 6px; border: none; background: var(--c-brand) !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
                 Print
             </button>
         </div>
@@ -708,7 +744,7 @@ renderHeader('Payments');
 <div id="paymentModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box;">
     <div style="background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 420px; box-sizing: border-box; position: relative; max-height: 92vh; overflow-y: auto;">
         <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Add payment</h2>
-        <button id="closeModalBtn"
+        <button id="closeModalBtn" aria-label="Close"
                 style="position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important; font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important; max-width: 28px !important; flex: 0 0 auto !important; color: #333 !important; line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;">&times;</button>
 
         <div id="modalErrors" style="display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px;"></div>
@@ -717,7 +753,7 @@ renderHeader('Payments');
             <div style="margin-bottom: 14px;">
                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payer</label>
                 <input type="hidden" name="payer_type" id="payerTypeInput" value="member">
-                <div style="display: flex; border: 1px solid #3B6D11; border-radius: 8px; overflow: hidden;">
+                <div style="display: flex; border: 1px solid var(--c-brand); border-radius: 8px; overflow: hidden;">
                     <button type="button" id="tabMember"
                             style="flex: 1 1 50% !important; width: auto !important; max-width: none !important; padding: 8px !important; margin: 0 !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; font-size: 14px; font-weight: 600; text-transform: none !important; letter-spacing: normal; cursor: pointer;">Member</button>
                     <button type="button" id="tabNonMember"
@@ -731,35 +767,35 @@ renderHeader('Payments');
                 <input type="hidden" name="member_id" id="memberIdInput" value="">
                 <div style="position: relative;">
                     <input type="text" id="memberSearchBox" autocomplete="off" placeholder="Type membership ID or name"
-                           style="width: 100%; padding: 8px 32px 8px 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                           style="width: 100%; padding: 8px 32px 8px 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;">
                     <span id="memberClear" role="button" tabindex="0" aria-label="Clear selected member"
-                          style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 18px; line-height: 1; color: #3B6D11;">&times;</span>
+                          style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 18px; line-height: 1; color: var(--c-brand);">&times;</span>
                 </div>
-                <div id="memberResults" style="display: none; border: 1px solid #ddd; border-radius: 6px; margin-top: 4px; max-height: 180px; overflow-y: auto; background: #fff;"></div>
+                <div id="memberResults" style="display: none; border: 1px solid var(--c-field-border); border-radius: 6px; margin-top: 4px; max-height: 180px; overflow-y: auto; background: #fff;"></div>
             </div>
 
             <div id="nonMemberBox" style="display: none; margin-bottom: 14px;">
                 <label for="payerNameInput" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payer name</label>
                 <input type="text" name="payer_name" id="payerNameInput" maxlength="150" placeholder="e.g. Maria Santos"
-                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payment type</label>
-                <select name="payment_type" id="paymentTypeInput" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;"></select>
+                <select name="payment_type" id="paymentTypeInput" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;"></select>
                 
             </div>
 
             <div id="productFields" style="display: none; margin-bottom: 14px;">
                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Product</label>
                 <input type="text" name="product_name" id="productNameInput" maxlength="150" placeholder="e.g. Pork meat"
-                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;">
             </div>
 
             <!-- Rental only: which equipment, and how many hectares / sacks -->
             <div id="rentalFields" style="display: none; margin-bottom: 14px;">
                 <label for="equipmentInput" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Equipment</label>
-                <select name="equipment" id="equipmentInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                <select name="equipment" id="equipmentInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;">
                     <option value="">-- Select equipment --</option>
                     <?php foreach (rentalEquipmentOptions() as $key => $label): ?>
                         <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($label); ?></option>
@@ -769,7 +805,7 @@ renderHeader('Payments');
                 <div id="qtyBox" style="display: none; margin-top: 12px;">
                     <label for="quantityInput" id="qtyLabel" style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Hectares</label>
                     <input type="number" name="quantity" id="quantityInput" min="0" step="0.5"
-                           style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                           style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;">
                 </div>
 
                 <div id="splitPreview"></div>
@@ -778,26 +814,26 @@ renderHeader('Payments');
             <div style="margin-bottom: 14px;">
                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Amount (₱)</label>
                 <input type="number" name="amount" id="amountInput" step="0.01" min="0" required
-                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 14px;">
                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Payment date</label>
                 <input type="date" name="payment_date" required value="<?php echo date('Y-m-d'); ?>"
-                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px;">Notes (optional)</label>
                 <input type="text" name="notes" placeholder="e.g. cash, GCash ref #123"
-                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box;">
+                       style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box;">
             </div>
 
             <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                <button type="button" id="cancelBtn" style="padding: 10px 18px !important; border-radius: 6px; border: 1px solid #ccc; background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
+                <button type="button" id="cancelBtn" style="padding: 10px 18px !important; border-radius: 6px; border: 1px solid var(--c-field-border); background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
                     Cancel
                 </button>
-                <button type="submit" id="submitBtn" style="padding: 10px 18px !important; border-radius: 6px; border: none; background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
+                <button type="submit" id="submitBtn" style="padding: 10px 18px !important; border-radius: 6px; border: none; background: var(--c-brand) !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; font-weight: 600 !important; color: #fff !important; cursor: pointer; font-size: 14px; width: auto !important; flex: 0 0 auto !important;">
                     Save payment
                 </button>
             </div>
@@ -1005,7 +1041,7 @@ renderHeader('Payments');
         memberResults.style.display = 'block';
         if (!found.length) {
             const none = document.createElement('div');
-            none.style.cssText = 'padding: 9px 10px; font-size: 13px; color: #667066;';
+            none.style.cssText = 'padding: 9px 10px; font-size: 13px; color: #5a645a;';
             none.textContent = 'No member found';
             memberResults.appendChild(none);
             return;
@@ -1016,7 +1052,7 @@ renderHeader('Payments');
             const nameSpan = document.createElement('span');
             nameSpan.textContent = m.name;
             const idSpan = document.createElement('span');
-            idSpan.style.color = '#667066';
+            idSpan.style.color = '#5a645a';
             idSpan.textContent = m.membership_id || '';
             row.appendChild(nameSpan);
             row.appendChild(idSpan);
@@ -1168,19 +1204,19 @@ renderHeader('Payments');
         const meta = TYPE_META[payment.payment_type] || { label: payment.payment_type, bg: '#eee', text: '#555' };
         const isNonMember = !payment.member_id;
         const displayName = isNonMember ? (payment.payer_name || '-') : (payment.last_name + ', ' + payment.first_name);
-        const avatar = isNonMember ? { bg: '#888780', text: '#FFFFFF' } : avatarColorFor(payment.membership_id);
+        const avatar = isNonMember ? { bg: '#5F5E5A', text: '#FFFFFF' } : avatarColorFor(payment.membership_id);
         const initials = isNonMember ? payerInitials(displayName) : initialsFor(payment.last_name, payment.first_name);
         const subLine = isNonMember
             ? '<span style="display: inline-block; font-size: 10px; font-weight: 600; background: #F1EFE8; color: #5F5E5A; border-radius: 4px; padding: 1px 6px;">Non-member</span>'
-            : `<p style="margin: 0; font-size: 12px; color: #888;">${escapeHtml(payment.membership_id)}</p>`;
+            : `<p style="margin: 0; font-size: 12px; color: #5a645a;">${escapeHtml(payment.membership_id)}</p>`;
         
         const productLine = (payment.payment_type === 'product' && payment.product_name)
-            ? `<div style="font-size: 11px; color: #666; margin-top: 3px;">${escapeHtml(payment.product_name)}</div>`
+            ? `<div style="font-size: 11px; color: #5a645a; margin-top: 3px;">${escapeHtml(payment.product_name)}</div>`
             : '';
         let equipLine = '';
         if (payment.payment_type === 'rental' && payment.equipment) {
             const qty = parseFloat(payment.quantity);
-            equipLine = `<div style="font-size: 11px; color: #666; margin-top: 3px;">${escapeHtml(EQUIP_LABELS[payment.equipment] || payment.equipment)}${qty > 0 ? ' \u00b7 ' + escapeHtml(String(qty)) + ' ' + equipUnit(payment.equipment) : ''}</div>`;
+            equipLine = `<div style="font-size: 11px; color: #5a645a; margin-top: 3px;">${escapeHtml(EQUIP_LABELS[payment.equipment] || payment.equipment)}${qty > 0 ? ' \u00b7 ' + escapeHtml(String(qty)) + ' ' + equipUnit(payment.equipment) : ''}</div>`;
         }
         const tr = document.createElement('tr');
         tr.style.borderTop = '1px solid #eee';
@@ -1207,10 +1243,10 @@ renderHeader('Payments');
             <td style="padding: 10px 12px;">
                 <span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: #d4edda; color: #155724;">Confirmed</span>
             </td>
-            <td style="padding: 10px 12px; color: #666;">${escapeHtml(payment.notes || '-')}</td>
-            <td style="padding: 10px 12px;"><span style="color: #ccc;">-</span></td>
-            <td style="padding: 10px 12px; color: #666;">${escapeHtml(payment.recorded_by_email || '-')}</td>
-            <td style="padding: 10px 12px;"><span style="color: #ccc;">-</span></td>
+            <td style="padding: 10px 12px; color: #5a645a;">${escapeHtml(payment.notes || '-')}</td>
+            <td style="padding: 10px 12px;"><span style="color: #5a645a;">-</span></td>
+            <td style="padding: 10px 12px; color: #5a645a;">${escapeHtml(payment.recorded_by_email || '-')}</td>
+            <td style="padding: 10px 12px;"><span style="color: #5a645a;">-</span></td>
         `;
         return tr;
     }
@@ -1303,7 +1339,7 @@ renderHeader('Payments');
                     statusCell.innerHTML = '<span style="padding: 2px 10px; border-radius: 4px; font-size: 12px; background: #d4edda; color: #155724;">Confirmed</span>';
                     // Action is now the 9th column (Proof was added before "Recorded by").
                     const actionCell = row.children[8];
-                    actionCell.innerHTML = '<span style="color: #ccc;">-</span>';
+                    actionCell.innerHTML = '<span style="color: #5a645a;">-</span>';
                     // Reload so the summary cards include the newly confirmed payment
                     setTimeout(function() { window.location.reload(); }, 600);
                 } else {

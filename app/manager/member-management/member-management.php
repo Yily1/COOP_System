@@ -77,6 +77,30 @@ renderHeader('Member Management');
 ?>
 
 <style>
+/* ============================================================
+   SHARED COLOR THEME
+   (Kapag may global stylesheet na, ilipat ang :root block na ito doon
+    at tanggalin dito. Pareho ang block sa 3 pages.)
+   ============================================================ */
+:root {
+    --c-brand:        #3B6D11;
+    --c-brand-hover:  #2e5a0d;
+    --c-brand-soft:   #EAF3DE;
+    --c-brand-ink:    #27500A;
+    --c-ink:          #1b3a24;
+    --c-text:         #2c3e2c;
+    --c-muted:        #5a645a;
+    --c-success:      #2e7d32;
+    --c-danger:       #a6322f;
+    --c-danger-solid: #b02a37;
+    --c-warn-bg:      #FAEEDA;
+    --c-warn-ink:     #633806;
+    --c-info:         #274b81;
+    --c-surface:      #fff;
+    --c-divider:      #e8ede0;
+    --c-field-border: #7a857a;
+}
+
 .mm-header {
     display: flex;
     justify-content: space-between;
@@ -101,13 +125,13 @@ renderHeader('Member Management');
     position: absolute;
     left: 12px;
     font-size: 18px;
-    color: #999;
+    color: var(--c-muted);
     pointer-events: none;
 }
 .mm-search-wrap input[type="text"] {
     padding: 9px 14px 9px 38px;
     border-radius: 999px;
-    border: 1px solid #cfd8e3;
+    border: 1px solid var(--c-field-border);
     box-sizing: border-box;
     font-size: 13px;
     width: 240px;
@@ -115,13 +139,31 @@ renderHeader('Member Management');
 .mm-type-select {
     padding: 9px 12px;
     border-radius: 999px;
-    border: 1px solid #cfd8e3;
+    border: 1px solid var(--c-field-border);
     box-sizing: border-box;
     font-size: 13px;
 }
-/* Bright green, same as the "Add product" button */
+/* Placeholder at focus: pareho sa lahat ng fields */
+.mm-search-wrap input::placeholder,
+.mm-field input::placeholder { color: #6b756b; opacity: 1; }
+.mm-search-wrap input[type="text"]:focus,
+.mm-field input:focus,
+.mm-field select:focus {
+    outline: none;
+    border-color: var(--c-brand);
+    box-shadow: 0 0 0 3px rgba(59, 109, 17, 0.18);
+}
+.mm-modal-box button:focus-visible,
+.mm-add-btn:focus-visible,
+.mm-print-btn:focus-visible,
+.mm-actions a:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+}
+
+/* Brand green, same as the "Add product" button */
 .mm-add-btn {
-    background: #3B6D11 !important;
+    background: var(--c-brand) !important;
     color: #fff !important;
     border: none !important;
     padding: 10px 18px !important;
@@ -138,13 +180,13 @@ renderHeader('Member Management');
     flex: 0 0 auto !important;
     white-space: nowrap !important;
 }
-.mm-add-btn:hover { background: #2e5a0d !important; }
+.mm-add-btn:hover { background: var(--c-brand-hover) !important; }
 
 /* Print button: outlined green so "Add member" stays the main action */
 .mm-print-btn {
     background: #fff !important;
-    color: #3B6D11 !important;
-    border: 1px solid #3B6D11 !important;
+    color: var(--c-brand) !important;
+    border: 1px solid var(--c-brand) !important;
     padding: 10px 18px !important;
     border-radius: 6px !important;
     cursor: pointer;
@@ -161,7 +203,7 @@ renderHeader('Member Management');
 .mm-print-btn:hover { background: #f1f6ea !important; }
 
 .mm-summary-text {
-    color: #667066;
+    color: var(--c-muted);
     margin: 0 0 16px;
     font-size: 14px;
 }
@@ -174,26 +216,26 @@ renderHeader('Member Management');
 }
 .mm-table-wrap {
     overflow: hidden;
-    border: 1px solid #e4e2d8;
+    border: 1px solid var(--c-divider);
     border-radius: 14px;
 }
 .mm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .mm-table th {
     text-align: left; padding: 12px 14px; background: #fff;
-    border-bottom: 1px solid #e4e2d8;
-    color: #555; font-size: 13px;
+    border-bottom: 1px solid var(--c-divider);
+    color: var(--c-muted); font-size: 13px;
 }
-.mm-table td { padding: 12px 14px; border-bottom: 1px solid #eee; vertical-align: middle; }
+.mm-table td { padding: 12px 14px; border-bottom: 1px solid #eee; vertical-align: middle; color: var(--c-text); }
 .mm-table tbody tr:last-child td { border-bottom: none; }
 .mm-table tr.mm-hidden { display: none; }
 
 .mm-badge { font-size: 11px; padding: 2px 9px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
-.mm-badge.linked { background: #e8f5e9; color: #2e7d32; }
-.mm-badge.not-linked { background: #eee; color: #777; }
+.mm-badge.linked { background: #e8f5e9; color: var(--c-success); }
+.mm-badge.not-linked { background: #eee; color: #555; }
 
 .mm-actions { font-size: 13px; white-space: nowrap; }
 
-.mm-empty { text-align: center; padding: 40px; color: #6c757d; }
+.mm-empty { text-align: center; padding: 40px; color: var(--c-muted); }
 
 /* ===== Member modal (Add / Edit / View) =====
    The backdrop never scrolls. The modal box is capped to the screen
@@ -219,8 +261,8 @@ renderHeader('Member Management');
     max-width: 28px !important; flex: 0 0 auto !important; color: #333 !important;
     line-height: 1 !important; display: inline-flex !important; align-items: center; justify-content: center;
 }
-.mm-modal-box h2 { margin: 0 0 4px; font-size: 19px; padding-right: 30px; flex: 0 0 auto; }
-.mm-modal-subtext { margin: 0 0 14px; font-size: 13px; color: #667066; flex: 0 0 auto; }
+.mm-modal-box h2 { margin: 0 0 4px; font-size: 19px; padding-right: 30px; flex: 0 0 auto; color: var(--c-ink); }
+.mm-modal-subtext { margin: 0 0 14px; font-size: 13px; color: var(--c-muted); flex: 0 0 auto; }
 .mm-modal-box h3 { font-size: 14px; color: #444; margin: 18px 0 10px; }
 .mm-modal-box h3:first-of-type { margin-top: 0; }
 
@@ -245,7 +287,7 @@ renderHeader('Member Management');
 .mm-field input[type="text"],
 .mm-field input[type="date"],
 .mm-field select {
-    width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 14px;
+    width: 100%; padding: 7px 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box; font-size: 14px;
 }
 .mm-field input:disabled, .mm-field select:disabled {
     background: #f5f5f5; color: #666;
@@ -263,7 +305,7 @@ renderHeader('Member Management');
 }
 .mm-badge-view .mm-crop-card img {
     width: 84px; height: 84px; border-radius: 14px; object-fit: cover;
-    border: 1px solid #e4e2d8; flex-shrink: 0;
+    border: 1px solid var(--c-divider); flex-shrink: 0;
 }
 .mm-badge-view .mm-crop-card span {
     font-size: 13px; font-weight: 500; color: #333; line-height: 1.3;
@@ -282,19 +324,21 @@ renderHeader('Member Management');
     border-top: 1px solid #eee;
 }
 .mm-btn-secondary {
-    padding: 10px 18px !important; border-radius: 6px !important; border: 1px solid #ccc !important;
+    padding: 10px 18px !important; border-radius: 6px !important; border: 1px solid var(--c-field-border) !important;
     background: #fff !important; color: #333 !important; cursor: pointer; font-size: 14px !important;
     width: auto !important; flex: 0 0 auto !important;
 }
-/* Bright green, same as the "Add product" button
+/* Brand green, same as the "Add product" button
    (Register Member / Update Member; the Delete button overrides the color inline) */
 .mm-btn-primary {
     padding: 10px 18px !important; border-radius: 6px !important; border: none !important;
-    background: #3B6D11 !important; color: #fff !important; cursor: pointer; font-size: 14px !important;
+    background: var(--c-brand) !important; color: #fff !important; cursor: pointer; font-size: 14px !important;
     font-weight: 600 !important; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
     width: auto !important; flex: 0 0 auto !important;
 }
-.mm-btn-primary:hover { background: #2e5a0d !important; }
+.mm-btn-primary:hover { background: var(--c-brand-hover) !important; }
+.mm-btn-danger { background: var(--c-danger-solid) !important; }
+.mm-btn-danger:hover { background: #8f1f2b !important; }
 
 /* ===== Delete confirmation modal ===== */
 .mm-confirm-box {
@@ -442,8 +486,8 @@ renderHeader('Member Management');
     <h1 style="margin: 0;">List of Registered Members</h1>
     <div class="mm-header-actions">
         <div class="mm-search-wrap">
-            <span class="material-icons">search</span>
-            <input type="text" id="mmSearchInput" placeholder="Search by name or membership ID">
+            <span class="material-icons" aria-hidden="true">search</span>
+            <input type="text" id="mmSearchInput" placeholder="Search by name or membership ID" aria-label="Search by name or membership ID">
         </div>
         <button type="button" class="mm-print-btn" id="mmPrintBtn">
             <span class="material-icons" style="font-size: 18px;">print</span>
@@ -480,7 +524,9 @@ renderHeader('Member Management');
                 data-type="<?php echo htmlspecialchars($m['membership_type']); ?>">
                 <td><?php echo htmlspecialchars($m['membership_id']); ?></td>
                 <?php
-                $avatarColors = ['#274b81', '#2e7d32', '#a06b16', '#7f4ab7', '#993c1d'];
+                // Isang shared na listahan ng avatar colors (pareho sa User management);
+                // lahat ay pasado sa puting text.
+                $avatarColors = ['#274b81', '#2e7d32', '#8a5a0b', '#6b3fa0', '#993c1d', '#0F6E56'];
                 $avatarColor = $avatarColors[$m['id'] % count($avatarColors)];
                 $initials = strtoupper(mb_substr($m['first_name'], 0, 1) . mb_substr($m['last_name'], 0, 1));
                 ?>
@@ -503,21 +549,21 @@ renderHeader('Member Management');
                 <td style="text-align:right;">
                     <div class="mm-actions">
                         <a class="mm-view-link" data-action="view"
-                           style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#274b81 !important; text-decoration:none !important; margin-left:4px !important; cursor:pointer;">
+                           style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:var(--c-info) !important; text-decoration:none !important; margin-left:4px !important; cursor:pointer;">
                             <span class="material-icons" style="font-size:14px !important;">visibility</span>View
                         </a>
                         <a class="mm-edit-link" data-action="edit"
-                           style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#2e7d32 !important; text-decoration:none !important; margin-left:4px !important; cursor:pointer;">
+                           style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:var(--c-success) !important; text-decoration:none !important; margin-left:4px !important; cursor:pointer;">
                             <span class="material-icons" style="font-size:14px !important;">edit</span>Edit
                         </a>
                         <?php if ($m['user_id']): ?>
                         <span class="mm-action-disabled" title="Has a linked account - cannot be deleted"
-                              style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#999 !important; margin-left:4px !important;">
+                              style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#767676 !important; margin-left:4px !important;">
                             <span class="material-icons" style="font-size:14px !important;">delete</span>Delete
                         </span>
                         <?php else: ?>
                         <a class="mm-delete-link" data-action="delete"
-                           style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:#dc3545 !important; text-decoration:none !important; margin-left:4px !important; cursor:pointer;">
+                           style="display:inline-flex !important; align-items:center !important; gap:5px !important; padding:5px 9px !important; font-size:12px !important; border-radius:5px !important; background:#fff !important; border:1px solid #ddd !important; color:var(--c-danger) !important; text-decoration:none !important; margin-left:4px !important; cursor:pointer;">
                             <span class="material-icons" style="font-size:14px !important;">delete</span>Delete
                         </a>
                         <?php endif; ?>
@@ -539,7 +585,7 @@ renderHeader('Member Management');
      ============================================================ -->
 <div class="mm-modal-backdrop" id="mmModalBackdrop">
     <div class="mm-modal-box">
-        <button type="button" class="mm-modal-close" id="mmModalClose">&times;</button>
+        <button type="button" class="mm-modal-close" id="mmModalClose" aria-label="Close">&times;</button>
         <h2 id="mmModalTitle">Add Member</h2>
         <p class="mm-modal-subtext" id="mmModalSubtext">Create a new cooperative member profile. Membership ID is auto-generated.</p>
 
@@ -673,7 +719,7 @@ renderHeader('Member Management');
         <div id="mmDeleteErrors" style="display:none; background:#f8d7da; color:#721c24; padding:10px 14px; border-radius:6px; margin-bottom:14px; font-size:13px;"></div>
         <div class="mm-modal-footer">
             <button type="button" class="mm-btn-secondary" id="mmDeleteCancelBtn">Cancel</button>
-            <button type="button" class="mm-btn-primary" id="mmDeleteConfirmBtn" style="background:#dc3545 !important;">Delete</button>
+            <button type="button" class="mm-btn-primary mm-btn-danger" id="mmDeleteConfirmBtn">Delete</button>
         </div>
     </div>
 </div>
@@ -828,7 +874,7 @@ usort($printMembers, fn($a, $b) => strcmp($a['membership_id'], $b['membership_id
             othersText.split(',').map(s => s.trim()).filter(Boolean).forEach(o => items.push(o));
         }
         if (items.length === 0) {
-            return '<p style="color:#888; font-size:13px; margin:0;">None specified.</p>';
+            return '<p style="color:#5a645a; font-size:13px; margin:0;">None specified.</p>';
         }
         return items.map(item => {
             const src = imageMap[item] || imageMap['__default__'];

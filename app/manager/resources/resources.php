@@ -19,6 +19,20 @@ $memberOptions = array_map(function ($m) {
     ];
 }, $eligibleMembers);
 
+/**
+ * Iisang listahan ng avatar color para sa lahat ng page. Puting text ang nakalagay
+ * sa ibabaw nito, at lahat ay pasado sa 4.5:1. Pareho ang kulay ng isang member
+ * saan mang page (batay sa membership ID).
+ * TODO: ilipat sa config/functions.php; may function_exists guard na kaya
+ * walang conflict kapag nailipat na.
+ */
+if (!function_exists('avatarColor')) {
+    function avatarColor($key) {
+        static $palette = ['#274b81', '#2e7d32', '#8a5a0b', '#6b3fa0', '#993c1d', '#0F6E56'];
+        return $palette[abs(crc32((string) $key)) % count($palette)];
+    }
+}
+
 renderHeader('Resource Distribution');
 ?>
 
@@ -28,16 +42,21 @@ renderHeader('Resource Distribution');
 
 <style>
 :root {
-    --rd-ink: #2B3A2A;
-    --rd-ink-soft: #5B6B57;
+    /* Ang mga halaga ay tugma sa shared theme (--c-*). Lahat ng text ay 4.5:1+ sa background nito. */
+    --rd-ink: #1b3a24;           /* headings, numbers, body text */
+    --rd-ink-soft: #5a645a;      /* secondary text (5.8:1 sa paper) */
     --rd-paper: #FAF7EF;
     --rd-card: #FFFFFF;
-    --rd-line: #E4DCC8;
-    --rd-forest: #33502F;
-    --rd-forest-dark: #223A20;
-    --rd-danger: #B54A3C;
-    --rd-success: #3E7A4B;
+    --rd-line: #E4DCC8;          /* decorative divider lang */
+    --rd-field-border: #7a857a;  /* border ng inputs (3.6:1+, kailangan ng 3:1) */
+    --rd-forest: #3B6D11;        /* brand: primary buttons */
+    --rd-forest-dark: #2e5a0d;
+    --rd-danger: #a6322f;
+    --rd-danger-soft: #F6E1DC;
+    --rd-success: #1f5c24;       /* TEXT sa ibabaw ng success-soft (6.7:1) */
     --rd-success-soft: #E1EFDE;
+    --rd-placeholder: #667066;
+    --rd-focus-ring: rgba(59, 109, 17, 0.18);
     --rd-radius: 10px;
     --rd-shadow: 0 12px 28px rgba(43, 58, 42, 0.14);
 }
@@ -57,7 +76,7 @@ renderHeader('Resource Distribution');
 .rd-page h1, .rd-page h2 {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-weight: 600;
-    color: #2c2c2a;
+    color: var(--rd-ink);
     text-transform: none;
     letter-spacing: normal;
     margin: 0;
@@ -95,16 +114,25 @@ renderHeader('Resource Distribution');
     letter-spacing: normal;
     padding: 9px 16px;
     border-radius: var(--rd-radius);
-    border: 1.5px solid #3B6D11;
-    background: #3B6D11;
+    border: 1.5px solid var(--rd-forest);
+    background: var(--rd-forest);
     color: #fff;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     transition: background 0.12s ease;
 }
 .rd-btn .material-icons { font-size: 17px; }
-.rd-btn:hover { background: #2e5a0d; border-color: #2e5a0d; }
+.rd-btn:hover { background: var(--rd-forest-dark); border-color: var(--rd-forest-dark); }
 .rd-btn-full { width: 100% !important; flex: none; justify-content: center; padding: 11px; }
+
+/* Keyboard focus: nakikita sa lahat ng button */
+.rd-btn:focus-visible,
+.rd-action-btn:focus-visible,
+.rd-icon-btn:focus-visible,
+.rd-search-clear:focus-visible {
+    outline: 2px solid var(--rd-forest);
+    outline-offset: 2px;
+}
 
 .rd-section {
     background: var(--rd-card);
@@ -137,7 +165,7 @@ renderHeader('Resource Distribution');
 .rd-page tbody tr:last-child td { border-bottom: none; }
 
 @keyframes rdFlashRow {
-    from { background: #e3f4e1; }
+    from { background: var(--rd-success-soft); }
     to   { background: transparent; }
 }
 .rd-page tr.rd-flash td { animation: rdFlashRow 2.2s ease-out; }
@@ -147,7 +175,7 @@ renderHeader('Resource Distribution');
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: var(--rd-danger);
+    background: var(--rd-forest); /* fallback lang; ang totoong kulay ay galing sa avatarColor() */
     color: #fff;
     display: flex;
     align-items: center;
@@ -167,7 +195,7 @@ renderHeader('Resource Distribution');
     border-radius: 20px;
 }
 .rd-status-badge.rd-released { background: var(--rd-success-soft); color: var(--rd-success); }
-.rd-status-badge.rd-not-released { background: #F6E1DC; color: var(--rd-danger); }
+.rd-status-badge.rd-not-released { background: var(--rd-danger-soft); color: var(--rd-danger); }
 
 .rd-action-btn {
     width: auto !important;
@@ -242,15 +270,22 @@ renderHeader('Resource Distribution');
     font-family: inherit;
     font-size: 14px;
     padding: 9px 11px;
-    border: 1.5px solid var(--rd-line);
+    border: 1.5px solid var(--rd-field-border);
     border-radius: 8px;
     background: var(--rd-paper);
     color: var(--rd-ink);
     resize: vertical;
 }
+.rd-modal-card input::placeholder,
+.rd-modal-card textarea::placeholder { color: var(--rd-placeholder); opacity: 1; }
 .rd-modal-card input:focus,
 .rd-modal-card select:focus,
-.rd-modal-card textarea:focus { outline: none; border-color: var(--rd-forest); background: #fff; }
+.rd-modal-card textarea:focus {
+    outline: none;
+    border-color: var(--rd-forest);
+    box-shadow: 0 0 0 3px var(--rd-focus-ring);
+    background: #fff;
+}
 
 .rd-row { display: flex; gap: 10px; margin-top: 12px; }
 .rd-row > div { flex: 1 1 0; min-width: 0; }
@@ -367,7 +402,7 @@ renderHeader('Resource Distribution');
     border-radius: 8px;
     margin-bottom: 12px;
 }
-.rd-error-box.rd-show { display: block; background: #F6E1DC; color: var(--rd-danger); }
+.rd-error-box.rd-show { display: block; background: var(--rd-danger-soft); color: var(--rd-danger); }
 .rd-success-box.rd-show { display: block; background: var(--rd-success-soft); color: var(--rd-success); }
 
 @media (max-width: 560px) {
@@ -422,7 +457,7 @@ renderHeader('Resource Distribution');
                         <tr data-dist-id="<?php echo (int) $d['id']; ?>">
                             <td>
                                 <div class="rd-member-cell">
-                                    <div class="rd-avatar"><?php echo htmlspecialchars($initials); ?></div>
+                                    <div class="rd-avatar" style="background: <?php echo avatarColor($d['membership_id']); ?>;"><?php echo htmlspecialchars($initials); ?></div>
                                     <div>
                                         <p class="rd-member-name"><?php echo htmlspecialchars($memberName); ?></p>
                                         <p class="rd-member-id"><?php echo htmlspecialchars($d['membership_id']); ?></p>

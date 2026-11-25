@@ -43,6 +43,20 @@ function lnInitials($lastName, $firstName) {
 }
 
 /**
+ * Iisang listahan ng avatar color para sa lahat ng page. Puting text ang nakalagay
+ * sa ibabaw nito, at lahat ay pasado sa 4.5:1. Pareho ang kulay ng isang member
+ * saan mang page (batay sa membership ID).
+ * TODO: ilipat sa config/functions.php; may function_exists guard na kaya
+ * walang conflict kapag nailipat na.
+ */
+if (!function_exists('avatarColor')) {
+    function avatarColor($key) {
+        static $palette = ['#274b81', '#2e7d32', '#8a5a0b', '#6b3fa0', '#993c1d', '#0F6E56'];
+        return $palette[abs(crc32((string) $key)) % count($palette)];
+    }
+}
+
+/**
  * Pill-style status badge (same look as the Crops page badges).
  * Pass $paidOff = true for a released loan with no balance left.
  */
@@ -69,21 +83,27 @@ renderHeader('Loans');
 
 <style>
 :root {
-    --ln-ink: #2B3A2A;
-    --ln-ink-soft: #5B6B57;
+    /* Ang mga halaga ay tugma sa shared theme (--c-*). Lahat ng text ay 4.5:1+ sa background nito. */
+    --ln-ink: #1b3a24;           /* headings, numbers, body text */
+    --ln-ink-soft: #5a645a;      /* secondary text (5.8:1 sa paper) */
     --ln-paper: #FAF7EF;
     --ln-card: #FFFFFF;
-    --ln-line: #E4DCC8;
-    --ln-forest: #33502F;
-    --ln-forest-dark: #223A20;
-    --ln-gold: #C1892B;
+    --ln-line: #E4DCC8;          /* decorative divider lang */
+    --ln-field-border: #7a857a;  /* border ng inputs (3.6:1+, kailangan ng 3:1) */
+    --ln-forest: #3B6D11;        /* brand: primary buttons */
+    --ln-forest-dark: #2e5a0d;
     --ln-gold-soft: #F4E4C1;
-    --ln-danger: #B54A3C;
+    --ln-gold: #633806;          /* TEXT sa ibabaw ng gold-soft (8:1) */
+    --ln-danger: #a6322f;        /* danger text */
+    --ln-danger-solid: #b02a37;  /* danger button bg */
+    --ln-danger-solid-hover: #8f2230;
     --ln-danger-soft: #F6E1DC;
-    --ln-success: #3E7A4B;
+    --ln-success: #1f5c24;       /* TEXT sa ibabaw ng success-soft (6.7:1) */
     --ln-success-soft: #E1EFDE;
-    --ln-info: #3B6E91;
+    --ln-info: #274b81;
     --ln-info-soft: #DCEAF2;
+    --ln-placeholder: #667066;
+    --ln-focus-ring: rgba(59, 109, 17, 0.18);
     --ln-radius: 10px;
     --ln-shadow: 0 12px 28px rgba(43, 58, 42, 0.14);
 }
@@ -109,7 +129,7 @@ renderHeader('Loans');
 .ln-page h2 {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-weight: 600;
-    color: #2c2c2a;
+    color: var(--ln-ink);
     text-transform: none;
     letter-spacing: normal;
     margin: 0;
@@ -196,11 +216,11 @@ renderHeader('Loans');
 .ln-btn-full { width: 100%; justify-content: center; padding: 11px; }
 
 .ln-btn-danger {
-    background: var(--ln-danger);
-    border-color: var(--ln-danger);
+    background: var(--ln-danger-solid);
+    border-color: var(--ln-danger-solid);
     color: #fff;
 }
-.ln-btn-danger:hover { background: #983c30; }
+.ln-btn-danger:hover { background: var(--ln-danger-solid-hover); }
 
 /* Small pill buttons in the Action column
    (!important because the site-wide style.css styles every <button>) */
@@ -232,6 +252,14 @@ renderHeader('Loans');
 .ln-btn-link-info { color: var(--ln-info); }
 .ln-btn-link-info:hover { border-color: var(--ln-info); }
 
+/* Keyboard focus: nakikita sa lahat ng button */
+.ln-btn:focus-visible,
+.ln-btn-link:focus-visible,
+.ln-icon-btn:focus-visible {
+    outline: 2px solid var(--ln-forest);
+    outline-offset: 2px;
+}
+
 /* SUMMARY CARDS */
 .ln-summary-grid {
     display: flex;
@@ -252,7 +280,7 @@ renderHeader('Loans');
 .ln-metric-card.ln-tone-success .ln-metric-sub { color: var(--ln-success); }
 
 .ln-metric-card.ln-tone-forest { background: var(--ln-forest); }
-.ln-metric-card.ln-tone-forest .ln-metric-label { color: #EFE9D8; }
+.ln-metric-card.ln-tone-forest .ln-metric-label { color: #fff; }
 .ln-metric-card.ln-tone-forest .ln-metric-value { color: #fff; }
 
 .ln-metric-card.ln-tone-info { background: var(--ln-info-soft); }
@@ -316,7 +344,7 @@ renderHeader('Loans');
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: var(--ln-danger);
+    background: var(--ln-forest); /* fallback lang; ang totoong kulay ay galing sa avatarColor() */
     color: #fff;
     display: flex;
     align-items: center;
@@ -347,7 +375,7 @@ renderHeader('Loans');
 
 /* LIVE UPDATE FLASH (new or changed row) */
 @keyframes lnFlashRow {
-    from { background: #e3f4e1; }
+    from { background: var(--ln-success-soft); }
     to   { background: transparent; }
 }
 .ln-page tr.ln-flash td { animation: lnFlashRow 2.2s ease-out; }
@@ -466,16 +494,18 @@ renderHeader('Loans');
     font-family: inherit;
     font-size: 14px;
     padding: 9px 11px;
-    border: 1.5px solid var(--ln-line);
+    border: 1.5px solid var(--ln-field-border);
     border-radius: 8px;
     background: var(--ln-paper);
     color: var(--ln-ink);
     box-shadow: none;
     box-sizing: border-box;
 }
+.ln-modal-card .ln-input::placeholder { color: var(--ln-placeholder); opacity: 1; }
 .ln-modal-card .ln-input:focus {
     outline: none;
     border-color: var(--ln-forest);
+    box-shadow: 0 0 0 3px var(--ln-focus-ring);
     background: #fff;
 }
 .ln-hint { font-size: 12px; color: var(--ln-ink-soft); margin: 4px 0 0; }
@@ -630,7 +660,7 @@ renderHeader('Loans');
                         <tr data-loan-id="<?php echo (int) $loan['id']; ?>">
                             <td>
                                 <div class="ln-member-cell">
-                                    <div class="ln-avatar"><?php echo htmlspecialchars(lnInitials($loan['last_name'], $loan['first_name'])); ?></div>
+                                    <div class="ln-avatar" style="background: <?php echo avatarColor($loan['membership_id']); ?>;"><?php echo htmlspecialchars(lnInitials($loan['last_name'], $loan['first_name'])); ?></div>
                                     <div>
                                         <p class="ln-member-name"><?php echo htmlspecialchars($memberName); ?></p>
                                         <p class="ln-member-id"><?php echo htmlspecialchars($loan['membership_id']); ?></p>

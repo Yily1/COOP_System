@@ -87,6 +87,20 @@ renderHeader('Products');
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* SHARED COLOR THEME (ilipat sa global stylesheet kung maaari) */
+:root {
+    --c-brand:        #3B6D11;
+    --c-brand-hover:  #2e5a0d;
+    --c-brand-soft:   #EAF3DE;
+    --c-ink:          #1b3a24;
+    --c-text:         #2c2c2a;
+    --c-muted:        #5a645a;
+    --c-success:      #2e7d32;
+    --c-danger:       #a6322f;
+    --c-danger-solid: #b02a37;
+    --c-field-border: #7a857a;
+}
+
 .svc-page-head, .svc-stat-grid {
     font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
 }
@@ -101,7 +115,7 @@ renderHeader('Products');
 .svc-head-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; flex: 0 0 auto; }
 
 .svc-add-btn {
-    background: #3B6D11 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+    background: var(--c-brand) !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
     font-weight: 600 !important; color: #fff !important; border: none !important;
     padding: 11px 22px !important; border-radius: 10px !important; cursor: pointer;
     font-size: 14px !important; font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
@@ -111,7 +125,14 @@ renderHeader('Products');
     float: none !important; margin: 0 !important;
     text-transform: none !important; letter-spacing: normal !important;
 }
-.svc-add-btn:hover { background: #2e5a0d !important; }
+.svc-add-btn:hover { background: var(--c-brand-hover) !important; }
+
+/* Keyboard focus + placeholder: pareho sa lahat ng pages */
+.svc-add-btn:focus-visible, .svc-btn:focus-visible, .svc-mini-btn:focus-visible,
+.svc-form-input:focus-visible, .svc-photo-drop:focus-visible, .svc-close-btn:focus-visible {
+    outline: 2px solid var(--c-brand); outline-offset: 2px;
+}
+.svc-form-input::placeholder { color: #6b756b; opacity: 1; }
 
 .svc-stat-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
 .svc-stat-card {
@@ -129,26 +150,26 @@ renderHeader('Products');
 .svc-stat-total { background: #33502F; }
 .svc-stat-total p { color: #fff; }
 .svc-stat-available { background: #E1EFDE; }
-.svc-stat-available .svc-stat-label { color: #3F7D52; }
-.svc-stat-available .svc-stat-value { color: #2F6B43; }
+.svc-stat-available .svc-stat-label { color: #2F6B3C; }
+.svc-stat-available .svc-stat-value { color: #2F6B3C; }
 .svc-stat-outofstock { background: #F6E1DC; }
-.svc-stat-outofstock p { color: #B54A3C; }
-.svc-stat-pending { background: #C1892B; }
+.svc-stat-outofstock p { color: #9a3a2d; }
+.svc-stat-pending { background: #E3B55A; }
 .svc-stat-pending p { color: #3E2A07; }
 
 .svc-section-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 28px 0 14px; }
 .svc-section-head:first-of-type { margin-top: 0; }
-.svc-section-head h2 { font-size: 17px; margin: 0; color: #2c2c2a; }
+.svc-section-head h2 { font-size: 17px; margin: 0; color: var(--c-text); }
 
 .svc-btn {
     display: inline-flex !important; align-items: center; gap: 6px; width: auto !important; flex: 0 0 auto !important;
     border-radius: 6px !important; padding: 9px 16px !important; font-size: 13px !important; font-weight: 600 !important;
     cursor: pointer !important; border: none !important; text-transform: none !important; letter-spacing: normal !important;
 }
-.svc-btn-primary { background: #3B6D11 !important; color: #fff !important; }
-.svc-btn-primary:hover { background: #2e5a0d !important; }
-.svc-btn-danger { background: #c62828 !important; color: #fff !important; }
-.svc-btn-danger:hover { background: #a31f1f !important; }
+.svc-btn-primary { background: var(--c-brand) !important; color: #fff !important; }
+.svc-btn-primary:hover { background: var(--c-brand-hover) !important; }
+.svc-btn-danger { background: var(--c-danger-solid) !important; color: #fff !important; }
+.svc-btn-danger:hover { background: #8f1f2b !important; }
 
 .svc-product-grid {
     display: grid;
@@ -161,37 +182,37 @@ renderHeader('Products');
     display: flex; flex-direction: column;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.svc-product-card:hover { border-color: #3B6D11; box-shadow: 0 2px 8px rgba(59, 109, 17, 0.12); }
+.svc-product-card:hover { border-color: var(--c-brand); box-shadow: 0 2px 8px rgba(59, 109, 17, 0.12); }
 .svc-product-photo {
-    height: 140px; background: #f3f1e8; display: flex; align-items: center; justify-content: center; color: #b4b2a6;
+    height: 140px; background: #f3f1e8; display: flex; align-items: center; justify-content: center; color: #767676;
 }
 .svc-product-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .svc-product-photo .material-icons { font-size: 38px; }
 .svc-product-body { padding: 14px 14px 12px; flex: 1; }
 .svc-product-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin: 0 0 3px; }
-.svc-product-name { font-weight: 600; font-size: 15px; margin: 0; color: #2c2c2a; overflow-wrap: anywhere; }
-.svc-product-cat { font-size: 12px; color: #6b7280; margin: 0 0 12px; }
+.svc-product-name { font-weight: 600; font-size: 15px; margin: 0; color: var(--c-text); overflow-wrap: anywhere; }
+.svc-product-cat { font-size: 12px; color: var(--c-muted); margin: 0 0 12px; }
 .svc-product-price-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.svc-product-price { font-size: 17px; font-weight: 600; color: #2c2c2a; }
-.svc-product-stock { font-size: 12px; color: #6b7280; }
-.svc-product-stock.is-out { color: #c62828; }
+.svc-product-price { font-size: 17px; font-weight: 600; color: var(--c-text); }
+.svc-product-stock { font-size: 12px; color: var(--c-muted); }
+.svc-product-stock.is-out { color: var(--c-danger); }
 .svc-product-footer { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid #f0f0ea; }
 
 .svc-status-pill { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; white-space: nowrap; flex: none; }
-.svc-status-available { background: #e8f5e9; color: #2e7d32; }
-.svc-status-out { background: #fdecea; color: #c62828; }
-.svc-status-other { background: #eee; color: #666; }
+.svc-status-available { background: #e8f5e9; color: #2a6b2e; }
+.svc-status-out { background: #fdecea; color: var(--c-danger); }
+.svc-status-other { background: #eee; color: #555; }
 
 .svc-action-cell { display: flex; gap: 6px; flex-wrap: nowrap; }
 .svc-mini-btn {
     display: inline-flex !important; align-items: center; justify-content: center; gap: 4px;
-    background: #fff !important; color: #444 !important; border: 1px solid #d8d2c4 !important; border-radius: 6px !important;
+    background: #fff !important; color: #444 !important; border: 1px solid var(--c-field-border) !important; border-radius: 6px !important;
     padding: 5px 10px !important; font-size: 12px !important; font-weight: 600 !important; cursor: pointer !important;
     width: auto !important; white-space: nowrap !important;
 }
-.svc-mini-btn-reject { color: #c62828 !important; }
-.svc-mini-btn-approve { background: #3B6D11 !important; color: #fff !important; border-color: #3B6D11 !important; }
-.svc-mini-btn-approve:hover { background: #2e5a0d !important; }
+.svc-mini-btn-reject { color: var(--c-danger) !important; }
+.svc-mini-btn-approve { background: var(--c-brand) !important; color: #fff !important; border-color: var(--c-brand) !important; }
+.svc-mini-btn-approve:hover { background: var(--c-brand-hover) !important; }
 
 .svc-table-wrap { overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; background: #fff; }
 .svc-table { width: 100%; border-collapse: collapse; }
@@ -201,9 +222,9 @@ renderHeader('Products');
 .svc-member-cell { display: flex; align-items: center; gap: 10px; }
 .svc-avatar { width: 32px; height: 32px; min-width: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
 .svc-member-name { margin: 0; font-weight: 600; }
-.svc-member-id { margin: 0; font-size: 12px; color: #888; }
-.svc-muted { color: #666; }
-.svc-empty { padding: 20px; text-align: center; color: #6b7280; font-size: 13px; }
+.svc-member-id { margin: 0; font-size: 12px; color: var(--c-muted); }
+.svc-muted { color: var(--c-muted); }
+.svc-empty { padding: 20px; text-align: center; color: var(--c-muted); font-size: 13px; }
 
 @keyframes svcFlashCard {
     from { background: #e3f4e1; border-color: #2e7d32; }
@@ -222,26 +243,27 @@ renderHeader('Products');
 }
 .svc-modal-box { background: #fff; border-radius: 8px; padding: 24px; width: 100%; max-width: 420px; box-sizing: border-box; position: relative; max-height: 90vh; overflow-y: auto; }
 .svc-form-label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
-.svc-form-input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; margin-bottom: 14px; font-size: 14px; font-family: inherit; }
-.svc-form-input.svc-input-locked { background: #EDEDEA; color: #6b6b66; border-color: #DAD8CF; cursor: not-allowed; }
+.svc-form-input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--c-field-border); box-sizing: border-box; margin-bottom: 14px; font-size: 14px; font-family: inherit; }
+.svc-form-input:focus { outline: none; border-color: var(--c-brand); box-shadow: 0 0 0 3px rgba(59, 109, 17, 0.18); }
+.svc-form-input.svc-input-locked { background: #EDEDEA; color: #5f5f5a; border-color: #DAD8CF; cursor: not-allowed; }
 #svcModalErrors, #svcRequestModalErrors, #svcApproveErrors, #svcRejectErrors { display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
 .svc-close-btn {
     position: absolute !important; top: 16px !important; right: 16px !important; background: none !important; border: none !important;
     font-size: 20px !important; cursor: pointer; padding: 4px !important; width: 28px !important; height: 28px !important;
     color: #333 !important; line-height: 1 !important;
 }
-.svc-modal-summary { font-size: 13px; color: #667066; text-align: center; margin: -8px 0 16px; }
+.svc-modal-summary { font-size: 13px; color: var(--c-muted); text-align: center; margin: -8px 0 16px; }
 
 .svc-photo-preview { display: none; width: 100%; height: 120px; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
 .svc-photo-preview.svc-show { display: block; }
 .svc-photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .svc-photo-drop {
-    border: 1.5px dashed #c9c5b4; border-radius: 8px; padding: 14px 12px; text-align: center; cursor: pointer;
+    border: 1.5px dashed var(--c-field-border); border-radius: 8px; padding: 14px 12px; text-align: center; cursor: pointer;
     background: #faf9f4; margin-bottom: 14px;
 }
-.svc-photo-drop:hover { border-color: #3B6D11; }
-.svc-photo-drop .material-icons { color: #6b7280; font-size: 22px; }
-.svc-photo-drop p { font-size: 12.5px; color: #6b7280; margin: 4px 0 0; word-break: break-all; }
+.svc-photo-drop:hover { border-color: var(--c-brand); }
+.svc-photo-drop .material-icons { color: var(--c-muted); font-size: 22px; }
+.svc-photo-drop p { font-size: 12.5px; color: var(--c-muted); margin: 4px 0 0; word-break: break-all; }
 
 @media (max-width: 700px) {
     .svc-table thead { display: none; }
@@ -251,7 +273,7 @@ renderHeader('Products');
     .svc-table td { border-top: none !important; border-bottom: none !important; padding: 4px 14px; }
     .svc-table td::before {
         content: attr(data-label); display: block; font-size: 11px; font-weight: 600;
-        color: #6b7280; text-transform: uppercase; margin-bottom: 2px;
+        color: var(--c-muted); text-transform: uppercase; margin-bottom: 2px;
     }
 }
 
@@ -321,7 +343,7 @@ renderHeader('Products');
                     <?php if ($hasPhoto): ?>
                         <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="<?php echo htmlspecialchars($p['name']); ?>">
                     <?php else: ?>
-                        <span class="material-icons">inventory_2</span>
+                        <span class="material-icons" aria-hidden="true">inventory_2</span>
                     <?php endif; ?>
                 </div>
                 <div class="svc-product-body">
@@ -461,7 +483,7 @@ renderHeader('Products');
 <div id="svcModalBackdrop">
     <div class="svc-modal-box">
         <h2 id="svcModalTitle" style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Add product</h2>
-        <button type="button" id="closeSvcModalBtn" class="svc-close-btn">&times;</button>
+        <button type="button" id="closeSvcModalBtn" class="svc-close-btn" aria-label="Close">&times;</button>
         <div id="svcModalErrors"></div>
         <form id="svcProductForm" enctype="multipart/form-data">
             <input type="hidden" name="id" id="svcProductId">
@@ -471,7 +493,7 @@ renderHeader('Products');
                 <img id="svcPhotoPreviewImg" src="" alt="Preview">
             </div>
             <div class="svc-photo-drop" id="svcPhotoDrop" role="button" tabindex="0">
-                <span class="material-icons">add_a_photo</span>
+                <span class="material-icons" aria-hidden="true">add_a_photo</span>
                 <p id="svcPhotoDropText">Click to upload a photo</p>
             </div>
             <input type="file" name="photo" id="svcPhotoInput" accept="image/png,image/jpeg,image/webp" style="display:none;">
@@ -517,7 +539,7 @@ renderHeader('Products');
 <div id="svcApproveModalBackdrop">
     <div class="svc-modal-box">
         <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Approve request</h2>
-        <button type="button" id="closeSvcApproveModalBtn" class="svc-close-btn">&times;</button>
+        <button type="button" id="closeSvcApproveModalBtn" class="svc-close-btn" aria-label="Close">&times;</button>
         <div class="svc-modal-summary" id="svcApproveSummary"></div>
         <div id="svcApproveErrors"></div>
         <form id="svcApproveForm">
@@ -526,9 +548,9 @@ renderHeader('Products');
 
             <label class="svc-form-label" id="svcApprovePriceLabel" for="svcApprovePrice">Price per unit (₱)</label>
             <input type="number" name="unit_price" id="svcApprovePrice" class="svc-form-input" step="0.01" min="0.01" placeholder="e.g. 280" style="margin-bottom:8px;" required>
-            <div id="svcApprovePriceNote" style="display:none; font-size:11.5px; color:#6b7a6b; margin:-2px 0 10px;">Naka-set na ang presyo sa product list.</div>
-            <div id="svcApproveTotal" style="display:none; background:#f1f6ea; color:#3B6D11; border-radius:6px; padding:8px 10px; margin-bottom:14px; font-size:13px;">
-                <div id="svcApproveFormula" style="font-size:12px; color:#5a7a45;"></div>
+            <div id="svcApprovePriceNote" style="display:none; font-size:11.5px; color:var(--c-muted); margin:-2px 0 10px;">Naka-set na ang presyo sa product list.</div>
+            <div id="svcApproveTotal" style="display:none; background:#f1f6ea; color:var(--c-brand); border-radius:6px; padding:8px 10px; margin-bottom:14px; font-size:13px;">
+                <div id="svcApproveFormula" style="font-size:12px; color:#456b2f;"></div>
                 Amount to pay: <strong id="svcApproveTotalValue">₱0.00</strong>
             </div>
             <button type="submit" class="svc-btn svc-btn-primary" id="svcApproveSubmit" style="width:100%; justify-content:center;">Approve</button>
@@ -539,7 +561,7 @@ renderHeader('Products');
 <div id="svcRejectModalBackdrop">
     <div class="svc-modal-box">
         <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Reject request</h2>
-        <button type="button" id="closeSvcRejectModalBtn" class="svc-close-btn">&times;</button>
+        <button type="button" id="closeSvcRejectModalBtn" class="svc-close-btn" aria-label="Close">&times;</button>
         <div class="svc-modal-summary" id="svcRejectSummary"></div>
         <div id="svcRejectErrors"></div>
         <form id="svcRejectForm">
@@ -557,7 +579,7 @@ renderHeader('Products');
 <div id="svcRequestModalBackdrop">
     <div class="svc-modal-box">
         <h2 style="margin: 0 0 16px 0; font-size: 18px; text-align: center;">Update Request</h2>
-        <button type="button" id="closeSvcRequestModalBtn" class="svc-close-btn">&times;</button>
+        <button type="button" id="closeSvcRequestModalBtn" class="svc-close-btn" aria-label="Close">&times;</button>
         <div class="svc-modal-summary" id="svcRequestSummary"></div>
         <div id="svcRequestModalErrors"></div>
         <form id="svcRequestForm">
