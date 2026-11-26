@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../../../config/config.php';
 require_once __DIR__ . '/../../../../config/functions.php';
 require_once __DIR__ . '/../../../../config/payment-functions.php';
+require_once __DIR__ . '/meeting-validate.php';
 header('Content-Type: application/json');
 
 apiRequireRole('manager');
@@ -20,10 +21,10 @@ function respond(int $status, array $body): void {
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
-    $meetingId = (int)($_GET['meeting_id'] ?? 0);
-    if (!$meetingId) {
+    if (!mt_valid_id($_GET['meeting_id'] ?? '')) {
         respond(422, ['error' => 'meeting_id is required.']);
     }
+    $meetingId = (int)$_GET['meeting_id'];
 
     $stmt = $pdo->prepare(
         "SELECT m.id, m.membership_id,
@@ -38,14 +39,20 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
-    $input      = json_decode(file_get_contents('php://input'), true) ?? [];
-    $meetingId  = (int)($input['meeting_id'] ?? 0);
-    $memberId   = (int)($input['member_id'] ?? 0);
-    $recordedBy = $_SESSION['user_id'] ?? null;
-
-    if (!$meetingId || !$memberId) {
-        respond(422, ['error' => 'Missing meeting or member.']);
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        respond(422, ['error' => 'Invalid request.']);
     }
+
+    // Format checks (meeting_id at member_id)
+    $v = mt_validate_checkin($input);
+    if (!empty($v['errors'])) {
+        respond(422, ['error' => implode(' ', $v['errors']), 'errors' => $v['errors']]);
+    }
+
+    $meetingId  = $v['data']['meeting_id'];
+    $memberId   = $v['data']['member_id'];
+    $recordedBy = $_SESSION['user_id'] ?? null;
 
     try {
         // Check-in is only allowed until the end of the meeting's date.
@@ -58,6 +65,13 @@ if ($method === 'POST') {
         }
         if (!isMeetingCheckInOpen($meeting['meeting_date'])) {
             respond(403, ['error' => 'This meeting has already ended. Check-in is closed.']);
+        }
+
+        // Dapat umiiral ang member
+        $stmt = $pdo->prepare('SELECT id FROM members WHERE id = :id');
+        $stmt->execute([':id' => $memberId]);
+        if (!$stmt->fetch()) {
+            respond(404, ['error' => 'Member not found.']);
         }
 
         $inserted = markAttendance($pdo, $meetingId, $memberId, $recordedBy);

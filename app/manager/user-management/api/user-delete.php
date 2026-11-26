@@ -4,6 +4,7 @@ ob_start(); // buffer output so PHP warnings/notices can't corrupt the JSON
 //   POST ?user_id=ID
 require_once '../../../../config/config.php';
 require_once '../../../../config/functions.php';
+require_once __DIR__ . '/user-validate.php';
 
 // Logging must never break the response: if logActivity() fails (e.g. the
 // action name isn't allowed by the log table), just record it in the PHP error log.
@@ -36,10 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     udRespond(false, 'Invalid request method.');
 }
 
-$userId = (int)($_GET['user_id'] ?? 0);
-if ($userId <= 0) {
+if (!um_valid_id($_GET['user_id'] ?? '')) {
     udRespond(false, 'Invalid user.');
 }
+$userId = (int)$_GET['user_id'];
 
 $stmt = $pdo->prepare('SELECT id, email, role FROM users WHERE id = ?');
 $stmt->execute([$userId]);

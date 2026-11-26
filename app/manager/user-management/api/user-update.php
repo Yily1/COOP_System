@@ -4,6 +4,7 @@ ob_start(); // buffer output so PHP warnings/notices can't corrupt the JSON
 //   POST ?user_id=ID  with: username, email, password (optional), role, account_status
 require_once '../../../../config/config.php';
 require_once '../../../../config/functions.php';
+require_once __DIR__ . '/user-validate.php';
 
 // Logging must never break the response: if logActivity() fails (e.g. the
 // action name isn't allowed by the log table), just record it in the PHP error log.
@@ -18,9 +19,9 @@ function apiSafeLog($pdo, $userId, $email, $action, $status) {
 requireLogin();
 header('Content-Type: application/json');
 
-function uuRespond($success, $message) {
+function uuRespond($success, $message, $extra = []) {
     if (ob_get_length()) { ob_clean(); } // drop any stray output before the JSON
-    echo json_encode(['success' => $success, 'message' => $message]);
+    echo json_encode(array_merge(['success' => $success, 'message' => $message], $extra));
     exit;
 }
 
@@ -36,10 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     uuRespond(false, 'Invalid request method.');
 }
 
-$userId = (int)($_GET['user_id'] ?? 0);
-if ($userId <= 0) {
+if (!um_valid_id($_GET['user_id'] ?? '')) {
     uuRespond(false, 'Invalid user.');
 }
+$userId = (int)$_GET['user_id'];
 
 // Load the target user
 $stmt = $pdo->prepare('SELECT id, username, email, role FROM users WHERE id = ?');
@@ -54,49 +55,35 @@ if (!canEditUser($currentRole, $currentUserId, $target['role'], $target['id'])) 
     uuRespond(false, 'You are not allowed to edit this user.');
 }
 
-$username       = trim($_POST['username'] ?? '');
-$email          = trim($_POST['email'] ?? '');
-$password       = $_POST['password'] ?? '';
-$confirm_password = $_POST['confirm_password'] ?? '';
-$account_status = ($_POST['account_status'] ?? 'Active') === 'Inactive' ? 'Inactive' : 'Active';
+// Format checks (required, username, email, password, status, role)
+$v = um_validate_account($_POST, true);
+$errors = $v['errors'];
+$d = $v['data'];
+
+$username       = $d['username'];
+$email          = $d['email'];
+$password       = $d['password'];
+$account_status = $d['account_status'];
 
 // Role: the select is disabled (not submitted) when the role can't be changed
 $newRole = $target['role'];
-if (isset($_POST['role']) && canChangeRole($currentRole, $currentUserId, $target['id'])) {
-    if (in_array($_POST['role'], ['user', 'manager', 'admin'], true)) {
-        $newRole = $_POST['role'];
-    }
+if ($d['role'] !== null && canChangeRole($currentRole, $currentUserId, $target['id'])) {
+    $newRole = $d['role'];
 }
 
-$errors = [];
-
-if ($username === '') {
-    $errors[] = 'Username is required.';
-} elseif (!preg_match('/^[a-zA-Z0-9_.]{3,50}$/', $username)) {
-    $errors[] = 'Username must be 3-50 characters (letters, numbers, underscore, or period only).';
-} else {
+// Database checks (kapag tama na ang format)
+if (empty($errors)) {
     $chk = $pdo->prepare('SELECT id FROM users WHERE username = ? AND id != ?');
     $chk->execute([$username, $userId]);
     if ($chk->fetch()) $errors[] = 'That username is already taken.';
-}
 
-if ($email === '') {
-    $errors[] = 'Email is required.';
-} elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $errors[] = 'Email address is not valid.';
-} else {
     $chk = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id != ?');
     $chk->execute([$email, $userId]);
     if ($chk->fetch()) $errors[] = 'That email is already in use.';
 }
 
-// A new password must be confirmed
-if ($password !== '' && $password !== $confirm_password) {
-    $errors[] = 'Passwords do not match.';
-}
-
 if (!empty($errors)) {
-    uuRespond(false, implode(' ', $errors));
+    uuRespond(false, implode(' ', $errors), ['errors' => $errors]);
 }
 
 try {

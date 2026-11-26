@@ -5,6 +5,7 @@
  */
 require_once __DIR__ . '/../../../../config/config.php';
 require_once __DIR__ . '/../../../../config/functions.php';
+require_once __DIR__ . '/meeting-validate.php';
 header('Content-Type: application/json');
 
 apiRequireRole('manager');
@@ -16,7 +17,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$q = trim($_GET['q'] ?? '');
+// Format check ng search (letters, numbers, space, . ' - lang; hanggang 100)
+$v = mt_validate_member_search($_GET['q'] ?? '');
+if (!empty($v['errors'])) {
+    http_response_code(422);
+    echo json_encode(['error' => implode(' ', $v['errors']), 'errors' => $v['errors'], 'data' => []]);
+    exit;
+}
+
+$q = $v['data']['q'];
 if ($q === '') {
     echo json_encode(['data' => []]);
     exit;

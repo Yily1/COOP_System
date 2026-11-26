@@ -462,7 +462,7 @@ renderHeader($pageTitle);
 
         <div id="createModalMessage" class="um-modal-message"></div>
 
-        <form id="createAccountForm" class="um-form-grid">
+        <form id="createAccountForm" class="um-form-grid" novalidate>
             <div class="form-group">
                 <label for="create_member_id">Select Member:</label>
                 <select id="create_member_id" name="member_id" required>
@@ -483,15 +483,14 @@ renderHeader($pageTitle);
             <div class="form-group">
                 <label for="create_username">Username:</label>
                 <input type="text" id="create_username" name="username" required
-                       placeholder="e.g. juan.delacruz" pattern="[a-zA-Z0-9_.]{3,50}"
-                       title="3-50 characters. Letters, numbers, underscore, or period only."
+                       placeholder="e.g. juan.delacruz" maxlength="50"
                        autocomplete="off">
                 <small>3-50 chars: letters, numbers, _ or .</small>
             </div>
 
             <div class="form-group">
                 <label for="create_email">Email Address:</label>
-                <input type="email" id="create_email" name="email" required placeholder="user@example.com">
+                <input type="email" id="create_email" name="email" required placeholder="user@example.com" maxlength="100">
             </div>
 
             <div class="form-group">
@@ -539,19 +538,18 @@ renderHeader($pageTitle);
 
         <div id="editUserModalMessage" class="um-modal-message"></div>
 
-        <form id="editUserForm" class="um-form-grid">
+        <form id="editUserForm" class="um-form-grid" novalidate>
             <div class="form-group">
                 <label for="eu_username">Username:</label>
                 <input type="text" id="eu_username" name="username" required
-                       pattern="[a-zA-Z0-9_.]{3,50}"
-                       title="3-50 characters. Letters, numbers, underscore, or period only."
+                       maxlength="50"
                        autocomplete="off">
                 <small>3-50 chars: letters, numbers, _ or .</small>
             </div>
 
             <div class="form-group">
                 <label for="eu_email">Email:</label>
-                <input type="email" id="eu_email" name="email">
+                <input type="email" id="eu_email" name="email" maxlength="100">
             </div>
 
             <div class="form-group">
@@ -614,6 +612,42 @@ renderHeader($pageTitle);
 <script>
 (function() {
     // ============================================================
+    // INPUT RULES: letters/numbers lang sa username, walang space sa email
+    // (Server-side validation pa rin ang final na bantay.)
+    // ============================================================
+    const RE_USERNAME = /[^a-zA-Z0-9_.]/g;   // letters, numbers, _ at .
+    const RE_NOSPACE  = /\s/g;               // bawal ang space
+
+    function bindFilter(id, re) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', function() {
+            const v = el.value.replace(re, '');
+            if (v !== el.value) el.value = v;
+        });
+    }
+    bindFilter('create_username', RE_USERNAME);
+    bindFilter('eu_username', RE_USERNAME);
+    bindFilter('create_email', RE_NOSPACE);
+    bindFilter('eu_email', RE_NOSPACE);
+
+    // ============================================================
+    // MESSAGE BOX: ipinapakita ang listahan ng errors (isang linya bawat error)
+    // ============================================================
+    function escHtml(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function showMsg(box, data) {
+        box.style.display = 'block';
+        box.className = 'um-modal-message ' + (data.success ? 'success' : 'error');
+        if (!data.success && Array.isArray(data.errors) && data.errors.length) {
+            box.innerHTML = data.errors.map(escHtml).join('<br>');
+        } else {
+            box.textContent = data.message;
+        }
+    }
+
+    // ============================================================
     // SEARCH FILTER (client-side, filters by name / membership ID / username / email)
     // ============================================================
     const searchInput = document.getElementById('umSearchInput');
@@ -675,10 +709,7 @@ renderHeader($pageTitle);
             })
             .then(res => res.json())
             .then(data => {
-                const msgBox = document.getElementById('createModalMessage');
-                msgBox.style.display = 'block';
-                msgBox.className = 'um-modal-message ' + (data.success ? 'success' : 'error');
-                msgBox.textContent = data.message;
+                showMsg(document.getElementById('createModalMessage'), data);
 
                 if (data.success) {
                     createForm.reset();
@@ -689,10 +720,7 @@ renderHeader($pageTitle);
                 }
             })
             .catch(function() {
-                const msgBox = document.getElementById('createModalMessage');
-                msgBox.style.display = 'block';
-                msgBox.className = 'um-modal-message error';
-                msgBox.textContent = 'Something went wrong. Please try again.';
+                showMsg(document.getElementById('createModalMessage'), { success: false, message: 'Something went wrong. Please try again.' });
             })
             .finally(function() {
                 submitBtn.disabled = false;
@@ -736,17 +764,6 @@ renderHeader($pageTitle);
         e.preventDefault();
         if (!currentEditUserId) return;
 
-        // If a new password was typed, it must match the confirmation
-        const newPw = document.getElementById('eu_password').value;
-        const confirmPw = document.getElementById('eu_confirm_password').value;
-        if (newPw !== '' && newPw !== confirmPw) {
-            const msgBox = document.getElementById('editUserModalMessage');
-            msgBox.style.display = 'block';
-            msgBox.className = 'um-modal-message error';
-            msgBox.textContent = 'Passwords do not match.';
-            return;
-        }
-
         const form = e.target;
         const submitBtn = form.querySelector('button[type="submit"]');
         const formData = new FormData(form);
@@ -760,10 +777,7 @@ renderHeader($pageTitle);
         })
         .then(res => res.json())
         .then(data => {
-            const msgBox = document.getElementById('editUserModalMessage');
-            msgBox.style.display = 'block';
-            msgBox.className = 'um-modal-message ' + (data.success ? 'success' : 'error');
-            msgBox.textContent = data.message;
+            showMsg(document.getElementById('editUserModalMessage'), data);
 
             if (data.success) {
                 setTimeout(function() {
@@ -773,10 +787,7 @@ renderHeader($pageTitle);
             }
         })
         .catch(function() {
-            const msgBox = document.getElementById('editUserModalMessage');
-            msgBox.style.display = 'block';
-            msgBox.className = 'um-modal-message error';
-            msgBox.textContent = 'Something went wrong. Please try again.';
+            showMsg(document.getElementById('editUserModalMessage'), { success: false, message: 'Something went wrong. Please try again.' });
         })
         .finally(function() {
             submitBtn.disabled = false;
@@ -820,10 +831,7 @@ renderHeader($pageTitle);
         })
         .then(res => res.json())
         .then(data => {
-            const msgBox = document.getElementById('deleteUserModalMessage');
-            msgBox.style.display = 'block';
-            msgBox.className = 'um-modal-message ' + (data.success ? 'success' : 'error');
-            msgBox.textContent = data.message;
+            showMsg(document.getElementById('deleteUserModalMessage'), data);
 
             if (data.success) {
                 setTimeout(function() {
@@ -833,10 +841,7 @@ renderHeader($pageTitle);
             }
         })
         .catch(function() {
-            const msgBox = document.getElementById('deleteUserModalMessage');
-            msgBox.style.display = 'block';
-            msgBox.className = 'um-modal-message error';
-            msgBox.textContent = 'Something went wrong. Please try again.';
+            showMsg(document.getElementById('deleteUserModalMessage'), { success: false, message: 'Something went wrong. Please try again.' });
         })
         .finally(function() {
             submitBtn.disabled = false;

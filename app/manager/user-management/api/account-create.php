@@ -5,6 +5,7 @@ ob_start(); // buffer output so PHP warnings/notices can't corrupt the JSON
 //   POST -> create the account (JSON)
 require_once '../../../../config/config.php';
 require_once '../../../../config/functions.php';
+require_once __DIR__ . '/user-validate.php';
 
 // Logging must never break the response: if logActivity() fails (e.g. the
 // action name isn't allowed by the log table), just record it in the PHP error log.
@@ -41,50 +42,33 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     acRespond(false, 'Invalid request method.');
 }
 
-$member_id        = $_POST['member_id'] ?? '';
-$username         = trim($_POST['username'] ?? '');
-$email            = trim($_POST['email'] ?? '');
-$password         = $_POST['password'] ?? '';
-$confirm_password = $_POST['confirm_password'] ?? '';
-$account_status   = ($_POST['account_status'] ?? 'Active') === 'Inactive' ? 'Inactive' : 'Active';
-$send_email       = isset($_POST['send_verification_email']);
+$send_email = isset($_POST['send_verification_email']);
 
-$errors = [];
+// Format checks (required, username, email, password, status)
+$v = um_validate_account($_POST, false);
+$errors = $v['errors'];
+$d = $v['data'];
 
-if ($username === '') {
-    $errors[] = 'Username is required.';
-} elseif (!preg_match('/^[a-zA-Z0-9_.]{3,50}$/', $username)) {
-    $errors[] = 'Username must be 3-50 characters (letters, numbers, underscore, or period only).';
-}
+$member_id      = $d['member_id'];
+$username       = $d['username'];
+$email          = $d['email'];
+$password       = $d['password'];
+$account_status = $d['account_status'];
 
-if ($email === '') {
-    $errors[] = 'Email is required.';
-} elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $errors[] = 'Email address is not valid.';
-}
-
-if ($password === '') $errors[] = 'Password is required.';
-if ($password !== $confirm_password) $errors[] = 'Passwords do not match.';
-
-// Username must be unique
-if ($username !== '') {
+// Database checks (kapag tama na ang format)
+$selectedMember = null;
+if (empty($errors)) {
+    // Username must be unique
     $chk = $pdo->prepare('SELECT id FROM users WHERE username = ?');
     $chk->execute([$username]);
     if ($chk->fetch()) $errors[] = 'That username is already taken.';
-}
 
-// Email must be unique
-if ($email !== '') {
+    // Email must be unique
     $chk = $pdo->prepare('SELECT id FROM users WHERE email = ?');
     $chk->execute([$email]);
     if ($chk->fetch()) $errors[] = 'That email is already in use.';
-}
 
-// Member must exist and still be unlinked (re-checked server-side)
-$selectedMember = null;
-if ($member_id === '') {
-    $errors[] = 'Please select a member for this account.';
-} else {
+    // Member must exist and still be unlinked (re-checked server-side)
     $chk = $pdo->prepare('SELECT m.* FROM members m LEFT JOIN users u ON u.member_id = m.id WHERE m.id = ? AND u.id IS NULL');
     $chk->execute([$member_id]);
     $selectedMember = $chk->fetch(PDO::FETCH_ASSOC);
@@ -94,7 +78,7 @@ if ($member_id === '') {
 }
 
 if (!empty($errors)) {
-    acRespond(false, implode(' ', $errors));
+    acRespond(false, implode(' ', $errors), ['errors' => $errors]);
 }
 
 try {

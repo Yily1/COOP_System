@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/functions.php';
+require_once __DIR__ . '/api/meeting-validate.php';
 
 requireRole('manager');
 
@@ -147,7 +148,7 @@ if ($viewingId) {
 
             <div class="mtg-search-wrap">
                 <span class="mtg-search-icon" aria-hidden="true">&#128269;</span>
-                <input type="text" id="member-search" placeholder="Search by name or membership ID" aria-label="Search by name or membership ID" autocomplete="off" />
+                <input type="text" id="member-search" placeholder="Search by name or membership ID" aria-label="Search by name or membership ID" autocomplete="off" maxlength="100" />
                 <div id="mtg-suggestions"></div>
             </div>
 
@@ -192,6 +193,12 @@ if ($viewingId) {
     const attendanceEmpty = document.getElementById('attendance-empty');
     let currentMember = null;
     let debounceTimer = null;
+
+    // Sa member search: letters, numbers, space at . ' - lang
+    input.addEventListener('input', () => {
+        const v = input.value.replace(/[^\p{L}\p{N} .'’\-]/gu, '');
+        if (v !== input.value) input.value = v;
+    });
 
     async function apiFetch(url, options) {
         const r = await fetch(url, options);
@@ -317,31 +324,35 @@ if ($viewingId) {
 // LIST VIEW — no ?id in URL
 // ============================================================
 
-$createError = '';
+// Create meeting: format checks galing sa api/meeting-validate.php
+$createErrors = [];
+$old = ['title' => '', 'meeting_date' => '', 'time' => '', 'location' => '', 'description' => ''];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_meeting') {
-    $title       = trim($_POST['title'] ?? '');
-    $date        = trim($_POST['meeting_date'] ?? '');
-    $time        = trim($_POST['time'] ?? '');
-    $location    = trim($_POST['location'] ?? '') ?: null;
-    $description = trim($_POST['description'] ?? '') ?: null;
+    $v = mt_validate_meeting($_POST);
+    $createErrors = $v['errors'];
 
-    if ($title === '' || $date === '' || $time === '') {
-        $createError = 'Title, date, and time are required.';
-    } else {
+    // Ibabalik sa form ang tinype ng user kapag may error
+    foreach ($old as $k => $_) {
+        $old[$k] = trim((string)($_POST[$k] ?? ''));
+    }
+
+    if (empty($createErrors)) {
+        $d = $v['data'];
         $stmt = $pdo->prepare(
             'INSERT INTO meetings (title, meeting_date, `time`, location, description)
              VALUES (:title, :date, :time, :location, :description)'
         );
         $stmt->execute([
-            ':title' => $title, ':date' => $date, ':time' => $time,
-            ':location' => $location, ':description' => $description,
+            ':title' => $d['title'], ':date' => $d['meeting_date'], ':time' => $d['time'],
+            ':location' => $d['location'], ':description' => $d['description'],
         ]);
         header('Location: meeting.php?created=1');
         exit;
     }
 }
 
-$query       = trim($_GET['q'] ?? '');
+$query       = is_string($_GET['q'] ?? '') ? trim($_GET['q'] ?? '') : '';
+$query       = mb_substr($query, 0, 100);
 $showAll     = isset($_GET['all']);
 $searchError = '';
 
@@ -388,8 +399,11 @@ try {
     $searchError = $e->getMessage();
 }
 
+// Calendar month/year: kapag hindi valid ang nasa URL, ibalik sa ngayon
 $year  = isset($_GET['y']) ? (int)$_GET['y'] : (int)date('Y');
 $month = isset($_GET['m']) ? (int)$_GET['m'] : (int)date('n');
+if ($month < 1 || $month > 12) $month = (int)date('n');
+if ($year < 2000 || $year > 2100) $year = (int)date('Y');
 $firstDay = mktime(0, 0, 0, $month, 1, $year);
 $daysInMonth = (int)date('t', $firstDay);
 $startOffset = (int)date('w', $firstDay);
@@ -567,6 +581,9 @@ renderHeader('Meetings');
     .mtg-modal { background:#fff; border-radius:10px; padding:24px; width:100%; max-width:420px; margin:auto; }
     .mtg-modal h2 { margin:0 0 16px; font-size:17px; color:var(--c-text); }
 
+    /* Listahan ng errors sa Create meeting modal */
+    .mtg-form-errors { background:#f8d7da; color:#721c24; padding:10px 14px; border-radius:6px; margin-bottom:14px; font-size:13px; line-height:1.5; }
+
     .mtg-checkin-modal { position:relative; }
     button.mtg-inline-close {
         position:absolute !important; top:14px !important; right:14px !important;
@@ -622,7 +639,7 @@ renderHeader('Meetings');
     <div>
         <form method="get" class="mtg-search-wrap" id="mtg-search-form">
             <span class="mtg-search-icon" aria-hidden="true">&#128269;</span>
-            <input type="text" name="q" placeholder="Search by title or date..." aria-label="Search by title or date" value="<?= htmlspecialchars($query) ?>" autocomplete="off" />
+            <input type="text" name="q" placeholder="Search by title or date..." aria-label="Search by title or date" value="<?= htmlspecialchars($query) ?>" autocomplete="off" maxlength="100" />
         </form>
         <script>
         // Live search: auto-submit shortly after the user stops typing (Enter still works).
@@ -704,7 +721,7 @@ renderHeader('Meetings');
 
                 <div class="mtg-search-wrap">
                     <span class="mtg-search-icon" aria-hidden="true">&#128269;</span>
-                    <input type="text" id="il-member-search" placeholder="Search by name or membership ID" aria-label="Search by name or membership ID" autocomplete="off" />
+                    <input type="text" id="il-member-search" placeholder="Search by name or membership ID" aria-label="Search by name or membership ID" autocomplete="off" maxlength="100" />
                     <div id="il-suggestions"></div>
                 </div>
 
@@ -795,6 +812,12 @@ const ilError = document.getElementById('il-checkin-error');
 let ilMeetingId = null;
 let ilCurrentMember = null;
 let ilDebounce = null;
+
+// Sa member search: letters, numbers, space at . ' - lang
+ilInput.addEventListener('input', () => {
+    const v = ilInput.value.replace(/[^\p{L}\p{N} .'’\-]/gu, '');
+    if (v !== ilInput.value) ilInput.value = v;
+});
 
 async function apiFetch(url, options) {
     const r = await fetch(url, options);
@@ -1059,17 +1082,19 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) live
 scheduleLive();
 </script>
 
-<div id="create-modal" class="mtg-modal-overlay">
+<div id="create-modal" class="mtg-modal-overlay" <?= !empty($createErrors) ? 'style="display:flex;"' : '' ?>>
     <div class="mtg-modal">
         <h2>Create meeting</h2>
-        <?php if ($createError): ?><p style="color:var(--c-danger); font-size:13px;"><?= htmlspecialchars($createError) ?></p><?php endif; ?>
-        <form method="post">
+        <?php if (!empty($createErrors)): ?>
+            <div class="mtg-form-errors"><?= implode('<br>', array_map('htmlspecialchars', $createErrors)) ?></div>
+        <?php endif; ?>
+        <form method="post" novalidate>
             <input type="hidden" name="action" value="create_meeting" />
-            <div class="mtg-field"><label>Title</label><input type="text" name="title" required /></div>
-            <div class="mtg-field"><label>Date</label><input type="date" name="meeting_date" required /></div>
-            <div class="mtg-field"><label>Time</label><input type="time" name="time" required /></div>
-            <div class="mtg-field"><label>Location</label><input type="text" name="location" /></div>
-            <div class="mtg-field"><label>Description</label><textarea name="description" rows="3"></textarea></div>
+            <div class="mtg-field"><label for="create_title">Title</label><input type="text" id="create_title" name="title" maxlength="100" value="<?= htmlspecialchars($old['title']) ?>" /></div>
+            <div class="mtg-field"><label for="create_date">Date</label><input type="date" id="create_date" name="meeting_date" value="<?= htmlspecialchars($old['meeting_date']) ?>" /></div>
+            <div class="mtg-field"><label for="create_time">Time</label><input type="time" id="create_time" name="time" value="<?= htmlspecialchars($old['time']) ?>" /></div>
+            <div class="mtg-field"><label for="create_location">Location</label><input type="text" id="create_location" name="location" maxlength="100" value="<?= htmlspecialchars($old['location']) ?>" /></div>
+            <div class="mtg-field"><label for="create_description">Description</label><textarea id="create_description" name="description" rows="3" maxlength="1000"><?= htmlspecialchars($old['description']) ?></textarea></div>
             <div style="display:flex; gap:8px;">
                 <button type="submit" class="mtg-btn-create">Save meeting</button>
                 <button type="button" class="mtg-btn-secondary" onclick="document.getElementById('create-modal').style.display='none'">Cancel</button>
@@ -1077,5 +1102,24 @@ scheduleLive();
         </form>
     </div>
 </div>
+
+<script>
+// Live input rules sa Create meeting: letters lang sa Title; letters, numbers at bantas sa Location.
+// (Server-side validation pa rin ang final na bantay.)
+(function () {
+    const RE_TITLE = /[^\p{L} .,'’\-&\/()]/gu;
+    const RE_TEXT = /[^\p{L}\p{N} .,'’\-&\/():#]/gu;
+    function bindFilter(id, re) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', function () {
+            const v = el.value.replace(re, '');
+            if (v !== el.value) el.value = v;
+        });
+    }
+    bindFilter('create_title', RE_TITLE);
+    bindFilter('create_location', RE_TEXT);
+})();
+</script>
 
 <?php renderFooter(); ?>
