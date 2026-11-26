@@ -1,46 +1,38 @@
 <?php
 require_once __DIR__ . '/../../../../config/config.php';
 require_once __DIR__ . '/../../../../config/functions.php';
+require_once __DIR__ . '/equipment-validate.php';
 
 header('Content-Type: application/json');
 
 if (!isLoggedIn() || !hasRole('manager')) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Only managers can edit equipment']);
-    exit;
+    eqFail('Only managers can edit equipment', 403);
 }
 
-$equipmentId   = $_POST['equipment_id'] ?? null;
+$equipmentId   = trim($_POST['equipment_id'] ?? '');
 $name          = trim($_POST['name'] ?? '');
-$rateMember    = $_POST['rate_member'] ?? null;
-$rateNonmember = $_POST['rate_nonmember'] ?? null;
+$rateMember    = trim($_POST['rate_member'] ?? '');
+$rateNonmember = trim($_POST['rate_nonmember'] ?? '');
 $unitType      = $_POST['unit_type'] ?? '';
 
 $allowedUnits = ['day', 'hectare', 'sack'];
 
-if (!$equipmentId) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Missing equipment id']);
-    exit;
+// ---- Validation ----
+if ($equipmentId === '' || !ctype_digit($equipmentId)) {
+    eqFail('Missing equipment id');
 }
 
-if ($name === '' || $rateMember === null || $rateMember === '' || $rateNonmember === null || $rateNonmember === '' || $unitType === '') {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Equipment name, both rates, and unit are required']);
-    exit;
+$error = eqCheckName($name, 'Equipment name', true)
+      ?? eqCheckWholeNumber($rateMember, 'Member rate')
+      ?? eqCheckWholeNumber($rateNonmember, 'Non-member rate')
+      ?? eqCheckChoice($unitType, $allowedUnits, 'unit type');
+
+if ($error) {
+    eqFail($error);
 }
 
-if (!is_numeric($rateMember) || $rateMember < 0 || !is_numeric($rateNonmember) || $rateNonmember < 0) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Rates must be valid positive numbers']);
-    exit;
-}
-
-if (!in_array($unitType, $allowedUnits, true)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Invalid unit type']);
-    exit;
-}
+$rateMember    = (int) $rateMember;
+$rateNonmember = (int) $rateNonmember;
 
 // Look up the existing row first, so we know the current photo_path
 // in case no new photo is uploaded (keep it) or one is (delete the old file).
@@ -49,9 +41,7 @@ $existingStmt->execute([$equipmentId]);
 $existing = $existingStmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$existing) {
-    http_response_code(404);
-    echo json_encode(['success' => false, 'message' => 'Equipment not found']);
-    exit;
+    eqFail('Equipment not found', 404);
 }
 
 $photoPath = $existing['photo_path']; // default: keep the current photo
@@ -60,9 +50,7 @@ if (!empty($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE
     $file = $_FILES['photo'];
 
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Photo upload failed']);
-        exit;
+        eqFail('Photo upload failed');
     }
 
     $allowedTypes = [
@@ -74,16 +62,12 @@ if (!empty($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE
     $mimeType = mime_content_type($file['tmp_name']);
 
     if (!isset($allowedTypes[$mimeType])) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Photo must be a JPG, PNG, or WEBP image']);
-        exit;
+        eqFail('Photo must be a JPG, PNG, or WEBP image');
     }
 
     $maxBytes = 5 * 1024 * 1024; // 5 MB
     if ($file['size'] > $maxBytes) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Photo must be smaller than 5MB']);
-        exit;
+        eqFail('Photo must be smaller than 5MB');
     }
 
     $uploadDir = __DIR__ . '/../../../../assets/uploads/equipment/';
@@ -96,9 +80,7 @@ if (!empty($_FILES['photo']) && $_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE
     $destination = $uploadDir . $filename;
 
     if (!move_uploaded_file($file['tmp_name'], $destination)) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Could not save photo']);
-        exit;
+        eqFail('Could not save photo', 500);
     }
 
     // Delete the old photo file (if any) now that the new one is saved,
@@ -126,6 +108,5 @@ try {
         'message' => 'Equipment updated.',
     ]);
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Database error']);
+    eqFail('Database error', 500);
 }

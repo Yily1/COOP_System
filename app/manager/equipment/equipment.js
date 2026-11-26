@@ -15,6 +15,12 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/'/g, '&#39;');
     }
 
+    function showBox(box, message) {
+        if (!box) { alert(message); return; }
+        box.textContent = message;
+        box.classList.add('eq-show');
+    }
+
     var STATUS_LABELS = {
         pending: 'Pending',
         approved: 'Approved',
@@ -25,8 +31,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Bookings with these statuses no longer occupy the equipment,
     // so they are NOT shown on the schedule calendar (no dot, no detail).
-    // Change this list if you want some of them to appear again.
     var HIDDEN_STATUSES = ['returned', 'rejected', 'cancelled'];
+
+    /* ============================================================
+       INPUT RESTRICTIONS
+       Add data-filter="letters|alnum|integer|decimal" to any <input>.
+       One listener on the document, so it also works for pasted text
+       and for inputs inside modals.
+       ============================================================ */
+    var INPUT_FILTERS = {
+        // letters only (plus space . ' -)
+        letters: function (v) { return v.replace(/[^\p{L}\s.'\-]/gu, ''); },
+        // letters + numbers (plus space . ' -)
+        alnum: function (v) { return v.replace(/[^\p{L}0-9\s.'\-]/gu, ''); },
+        // digits only
+        integer: function (v) { return v.replace(/\D/g, ''); },
+        // digits with one dot and up to 2 decimals
+        decimal: function (v) {
+            v = v.replace(/[^\d.]/g, '');
+            var i = v.indexOf('.');
+            if (i !== -1) {
+                v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '').slice(0, 2);
+            }
+            return v;
+        }
+    };
+
+    document.addEventListener('input', function (e) {
+        var el = e.target;
+        var type = el && el.dataset ? el.dataset.filter : null;
+        if (!type || !INPUT_FILTERS[type]) return;
+        var clean = INPUT_FILTERS[type](el.value);
+        if (clean !== el.value) el.value = clean;
+    });
 
     /* ---------- Modal open/close helpers ---------- */
     function openModal(modalEl) {
@@ -52,7 +89,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function confirmDialog(opts, onConfirm) {
         if (!confirmModal) {
-            // Fallback if the modal markup is missing
             if (window.confirm(opts.message || 'Are you sure?')) onConfirm();
             return;
         }
@@ -90,7 +126,12 @@ document.addEventListener('DOMContentLoaded', function () {
     var bookModal = document.getElementById('booking-modal-wrap');
     var closeBookBtn = document.getElementById('close-book');
 
-    if (bookBtn) bookBtn.addEventListener('click', function () { openModal(bookModal); });
+    if (bookBtn) {
+        bookBtn.addEventListener('click', function () {
+            openModal(bookModal);
+            ensureProvincesLoaded();
+        });
+    }
     if (closeBookBtn) closeBookBtn.addEventListener('click', function () { closeModal(bookModal); });
     if (bookModal) {
         bookModal.addEventListener('click', function (e) {
@@ -183,9 +224,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return year + '-' + mm + '-' + dd;
     }
 
-    // Lazily creates (once) and returns the "tap a day to see details"
-    // panel that sits below the calendar grid. Built at runtime so no
-    // markup changes are needed in equipment.php (manager or user).
+    // Lazily creates (once) and returns the "tap a day to see details" panel.
     function getDayDetailPanel() {
         var grid = document.getElementById('cal-grid');
         if (!grid) return null;
@@ -212,8 +251,6 @@ document.addEventListener('DOMContentLoaded', function () {
         var panel = getDayDetailPanel();
         if (!panel) return;
 
-        // Clear the previously-selected cell's highlight (both the
-        // class and the inline outline style it was given below).
         var grid = document.getElementById('cal-grid');
         if (grid) {
             grid.querySelectorAll('.eq-cal-day.eq-selected').forEach(function (el) {
@@ -248,8 +285,7 @@ document.addEventListener('DOMContentLoaded', function () {
         panel.innerHTML = '<strong style="color:#2B3A2A;">' + escapeHtml(dateLabel) + '</strong>' + rows;
     }
 
-    // Guards against a slow older response overwriting a newer month
-    // when the user clicks next/prev quickly.
+    // Guards against a slow older response overwriting a newer month.
     var calRequestId = 0;
 
     function renderCalendar() {
@@ -279,18 +315,14 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then(function (res) { return res.json(); })
             .then(function (data) {
-                if (myRequest !== calRequestId) return; // a newer render took over
+                if (myRequest !== calRequestId) return;
 
                 var bookings = (data.success && data.bookings) ? data.bookings : [];
 
-                // Returned / rejected / cancelled bookings no longer block the
-                // equipment, so they must not mark days as booked.
                 bookings = bookings.filter(function (b) {
                     return HIDDEN_STATUSES.indexOf(String(b.status || '').toLowerCase()) === -1;
                 });
 
-                // Build a map of date -> list of bookings covering that date,
-                // so each day cell only has to look up its own key.
                 var byDate = {};
                 bookings.forEach(function (b) {
                     var start = new Date(b.start_date + 'T00:00:00');
@@ -359,6 +391,134 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    /* ============================================================
+       LOCATION DROPDOWNS (Province -> City/Municipality -> Barangay)
+       Data comes from api/psgc.php (same PSGC proxy idea as the
+       member page, but open to both manager and user roles).
+       The three selects only help the user pick; the value that is
+       sent to the server is the hidden input #location, filled with
+       "Barangay, City/Municipality, Province".
+       ============================================================ */
+    var NCR_VALUE = 'NCR';
+    var NCR_REGION_CODE = '130000000';
+
+    var locProvince = document.getElementById('loc-province');
+    var locCity = document.getElementById('loc-city');
+    var locBarangay = document.getElementById('loc-barangay');
+    var locPurok = document.getElementById('loc-purok');
+    var locHidden = document.getElementById('location');
+    var provincesLoaded = false;
+    var provincesLoading = false;
+
+    // Calls api/psgc.php?type=...&code=... and resolves to [{code, name}, ...]
+    function psgcGet(type, code) {
+        var ajaxBase = typeof EQUIPMENT_AJAX_BASE !== 'undefined' ? EQUIPMENT_AJAX_BASE : '';
+        var url = ajaxBase + 'psgc.php?type=' + encodeURIComponent(type) +
+            (code ? '&code=' + encodeURIComponent(code) : '');
+
+        return fetch(url, { credentials: 'same-origin' })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data.success) throw new Error(data.message || 'PSGC error');
+                return data.data || [];
+            });
+    }
+
+    function setOptions(select, items, placeholder) {
+        if (!select) return;
+        select.innerHTML = '';
+        var first = document.createElement('option');
+        first.value = '';
+        first.textContent = placeholder;
+        select.appendChild(first);
+        items.forEach(function (it) {
+            var opt = document.createElement('option');
+            opt.value = it.code;
+            opt.textContent = it.name;
+            select.appendChild(opt);
+        });
+    }
+
+    function selectedText(select) {
+        if (!select) return '';
+        var opt = select.selectedOptions[0];
+        return opt && opt.value ? opt.textContent : '';
+    }
+
+    function updateLocationValue() {
+        if (!locHidden) return;
+        var purok = locPurok ? locPurok.value.trim().replace(/\s+/g, ' ') : '';
+        var b = selectedText(locBarangay);
+        var c = selectedText(locCity);
+        var p = selectedText(locProvince);
+        // Final format: "Purok, Barangay, City/Municipality, Province"
+        locHidden.value = (purok && b && c && p) ? [purok, b, c, p].join(', ') : '';
+    }
+
+    function locError(message) {
+        var box = document.getElementById('booking-error');
+        if (box) showBox(box, message);
+    }
+
+    function ensureProvincesLoaded() {
+        if (!locProvince || provincesLoaded || provincesLoading) return;
+        provincesLoading = true;
+        psgcGet('provinces_all')
+            .then(function (provinces) {
+                var items = [{ code: NCR_VALUE, name: 'Metro Manila (NCR)' }].concat(provinces);
+                setOptions(locProvince, items, 'Select province');
+                provincesLoaded = true;
+            })
+            .catch(function () {
+                locError('Could not load the location list. Please check your internet and reopen this form.');
+            })
+            .then(function () { provincesLoading = false; });
+    }
+
+    if (locProvince && locCity && locBarangay) {
+        locProvince.addEventListener('change', function () {
+            var code = locProvince.value;
+            setOptions(locCity, [], 'Select city/municipality');
+            setOptions(locBarangay, [], 'Select barangay');
+            locCity.disabled = true;
+            locBarangay.disabled = true;
+            updateLocationValue();
+            if (!code) return;
+
+            var request = code === NCR_VALUE
+                ? psgcGet('cities_by_region', NCR_REGION_CODE)
+                : psgcGet('cities_by_province', code);
+
+            request
+                .then(function (cities) {
+                    if (locProvince.value !== code) return; // user changed it meanwhile
+                    setOptions(locCity, cities, 'Select city/municipality');
+                    locCity.disabled = false;
+                })
+                .catch(function () { locError('Could not load cities/municipalities. Please try again.'); });
+        });
+
+        locCity.addEventListener('change', function () {
+            var code = locCity.value;
+            setOptions(locBarangay, [], 'Select barangay');
+            locBarangay.disabled = true;
+            updateLocationValue();
+            if (!code) return;
+
+            psgcGet('barangays', code)
+                .then(function (barangays) {
+                    if (locCity.value !== code) return;
+                    setOptions(locBarangay, barangays, 'Select barangay');
+                    locBarangay.disabled = false;
+                })
+                .catch(function () { locError('Could not load barangays. Please try again.'); });
+        });
+
+        locBarangay.addEventListener('change', updateLocationValue);
+    }
+
+    if (locPurok) locPurok.addEventListener('input', updateLocationValue);
+
     /* ---------- Live cost calculation in booking form (quantity-based) ---------- */
     var equipmentSelect = document.getElementById('book-equipment');
     var renterTypeSelect = document.getElementById('renter-type');
@@ -369,6 +529,16 @@ document.addEventListener('DOMContentLoaded', function () {
     var qtySummaryLabel = document.getElementById('qty-summary-label');
     var sumDays = document.getElementById('sum-days');
     var sumTotal = document.getElementById('sum-total');
+
+    // End date can never be earlier than the start date
+    if (startDateInput && endDateInput) {
+        startDateInput.addEventListener('change', function () {
+            endDateInput.min = startDateInput.value || '';
+            if (endDateInput.value && endDateInput.value < startDateInput.value) {
+                endDateInput.value = startDateInput.value;
+            }
+        });
+    }
 
     function pluralizeUnit(unit) {
         return unit ? unit + 's' : 'units';
@@ -419,36 +589,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
             var startVal = startDateInput ? startDateInput.value : '';
             var endVal = endDateInput ? endDateInput.value : '';
-            var renterVal = document.getElementById('renter-name')?.value.trim();
+            var renterEl = document.getElementById('renter-name');
+            var renterVal = renterEl ? renterEl.value.trim() : '';
             var qtyVal = quantityInput ? parseFloat(quantityInput.value) : 0;
-            var locationVal = document.getElementById('location')?.value.trim();
+
+            updateLocationValue();
+            var locationVal = locHidden ? locHidden.value.trim() : '';
 
             if (!locationVal) {
-                if (errorBox) {
-                    errorBox.textContent = 'Please enter the farm location.';
-                    errorBox.classList.add('eq-show');
-                }
+                showBox(errorBox, 'Please complete the farm location (province, city/municipality, barangay, and purok).');
                 return;
             }
             if (!startVal || !endVal || new Date(endVal) < new Date(startVal)) {
-                if (errorBox) {
-                    errorBox.textContent = 'Please choose a valid date range.';
-                    errorBox.classList.add('eq-show');
-                }
+                showBox(errorBox, 'Please choose a valid date range.');
                 return;
             }
             if (!renterVal) {
-                if (errorBox) {
-                    errorBox.textContent = 'Please enter the renter name.';
-                    errorBox.classList.add('eq-show');
-                }
+                showBox(errorBox, 'Please enter the renter name.');
+                return;
+            }
+            if (!/^[\p{L}\s.'\-]+$/u.test(renterVal)) {
+                showBox(errorBox, 'Renter name may only contain letters and spaces.');
                 return;
             }
             if (!qtyVal || qtyVal <= 0) {
-                if (errorBox) {
-                    errorBox.textContent = 'Please enter a valid quantity.';
-                    errorBox.classList.add('eq-show');
-                }
+                showBox(errorBox, 'Please enter a valid quantity.');
                 return;
             }
 
@@ -468,17 +633,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         setTimeout(function () { window.location.reload(); }, 900);
                     } else {
-                        if (errorBox) {
-                            errorBox.textContent = data.message || 'Could not submit booking.';
-                            errorBox.classList.add('eq-show');
-                        }
+                        showBox(errorBox, data.message || 'Could not submit booking.');
                     }
                 })
                 .catch(function () {
-                    if (errorBox) {
-                        errorBox.textContent = 'Something went wrong. Please try again.';
-                        errorBox.classList.add('eq-show');
-                    }
+                    showBox(errorBox, 'Something went wrong. Please try again.');
                 });
         });
     }
@@ -509,6 +668,19 @@ document.addEventListener('DOMContentLoaded', function () {
     wirePhotoPreview('add-photo-input', 'add-photo-drop-text', 'add-photo-preview', 'add-photo-preview-img');
     wirePhotoPreview('edit-photo-input', 'edit-photo-drop-text', 'edit-photo-preview', 'edit-photo-preview-img');
 
+    /* ---------- Shared check for the Add / Edit equipment forms ---------- */
+    function checkEquipmentForm(form) {
+        var name = form.elements['name'].value.trim();
+        var member = form.elements['rate_member'].value.trim();
+        var nonmember = form.elements['rate_nonmember'].value.trim();
+
+        if (!name) return 'Equipment name is required.';
+        if (!/^[\p{L}0-9\s.'\-]+$/u.test(name)) return 'Equipment name may only contain letters, numbers, and spaces.';
+        if (!/^\d+$/.test(member)) return 'Member rate must be a whole number (digits only).';
+        if (!/^\d+$/.test(nonmember)) return 'Non-member rate must be a whole number (digits only).';
+        return '';
+    }
+
     /* ---------- Add equipment form submit (AJAX) ---------- */
     var addForm = document.getElementById('add-equipment-form');
     var addErrorBox = document.getElementById('add-equipment-error');
@@ -517,6 +689,9 @@ document.addEventListener('DOMContentLoaded', function () {
         addForm.addEventListener('submit', function (e) {
             e.preventDefault();
             if (addErrorBox) addErrorBox.classList.remove('eq-show');
+
+            var problem = checkEquipmentForm(addForm);
+            if (problem) { showBox(addErrorBox, problem); return; }
 
             var formData = new FormData(addForm);
             var ajaxBase = typeof EQUIPMENT_AJAX_BASE !== 'undefined' ? EQUIPMENT_AJAX_BASE : '';
@@ -530,21 +705,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (data.success) {
                         window.location.reload();
                     } else {
-                        if (addErrorBox) {
-                            addErrorBox.textContent = data.message || 'Could not add equipment.';
-                            addErrorBox.classList.add('eq-show');
-                        } else {
-                            alert(data.message || 'Could not add equipment.');
-                        }
+                        showBox(addErrorBox, data.message || 'Could not add equipment.');
                     }
                 })
                 .catch(function () {
-                    if (addErrorBox) {
-                        addErrorBox.textContent = 'Something went wrong. Please try again.';
-                        addErrorBox.classList.add('eq-show');
-                    } else {
-                        alert('Something went wrong. Please try again.');
-                    }
+                    showBox(addErrorBox, 'Something went wrong. Please try again.');
                 });
         });
     }
@@ -590,6 +755,9 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
             if (editErrorBox) editErrorBox.classList.remove('eq-show');
 
+            var problem = checkEquipmentForm(editForm);
+            if (problem) { showBox(editErrorBox, problem); return; }
+
             var formData = new FormData(editForm);
             var ajaxBase = typeof EQUIPMENT_AJAX_BASE !== 'undefined' ? EQUIPMENT_AJAX_BASE : '';
 
@@ -602,21 +770,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (data.success) {
                         window.location.reload();
                     } else {
-                        if (editErrorBox) {
-                            editErrorBox.textContent = data.message || 'Could not update equipment.';
-                            editErrorBox.classList.add('eq-show');
-                        } else {
-                            alert(data.message || 'Could not update equipment.');
-                        }
+                        showBox(editErrorBox, data.message || 'Could not update equipment.');
                     }
                 })
                 .catch(function () {
-                    if (editErrorBox) {
-                        editErrorBox.textContent = 'Something went wrong. Please try again.';
-                        editErrorBox.classList.add('eq-show');
-                    } else {
-                        alert('Something went wrong. Please try again.');
-                    }
+                    showBox(editErrorBox, 'Something went wrong. Please try again.');
                 });
         });
     }
@@ -657,8 +815,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* ---------- Delegated clicks (manager only) ----------
        One listener on the document, so these buttons keep working
-       after the page's auto-update replaces the cards and table rows.
-       Covers: status toggle, edit, approve, reject, use, mark returned. */
+       after the page's auto-update replaces the cards and table rows. */
     document.addEventListener('click', function (e) {
         var target = e.target;
         if (!target || !target.closest) return;

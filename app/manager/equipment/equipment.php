@@ -33,7 +33,6 @@ renderHeader('Equipment Rental');
 
 <style>
 :root {
-    /* Shared theme (pareho sa ibang pages) */
     --c-brand:        #3B6D11;
     --c-brand-hover:  #2e5a0d;
     --c-field-border: #7a857a;
@@ -42,13 +41,13 @@ renderHeader('Equipment Rental');
     --eq-ink-soft: #5B6B57;
     --eq-paper: #FAF7EF;
     --eq-card: #FFFFFF;
-    --eq-line: #E4DCC8;                 /* decorative dividers only */
-    --eq-field-border: #7a857a;         /* inputs / selects (3:1+) */
+    --eq-line: #E4DCC8;
+    --eq-field-border: #7a857a;
     --eq-forest: #33502F;
     --eq-forest-dark: #223A20;
-    --eq-gold: #C1892B;                 /* decorative only (icons, borders) */
-    --eq-gold-bright: #E3B55A;          /* solid gold card background */
-    --eq-gold-ink: #7a5200;             /* gold used as TEXT (5.5:1 on gold-soft) */
+    --eq-gold: #C1892B;
+    --eq-gold-bright: #E3B55A;
+    --eq-gold-ink: #7a5200;
     --eq-gold-soft: #F4E4C1;
     --eq-danger: #A23F31;
     --eq-danger-hover: #832f24;
@@ -90,7 +89,6 @@ renderHeader('Equipment Rental');
 .eq-text-center { text-align: center; }
 .eq-text-right { text-align: right; }
 
-/* Keyboard focus: pareho sa lahat ng pages */
 .eq-page button:focus-visible,
 .eq-page select:focus-visible,
 .eq-modal button:focus-visible,
@@ -102,10 +100,7 @@ renderHeader('Equipment Rental');
 }
 .eq-modal-card input::placeholder { color: #6b756b; opacity: 1; }
 
-/* =========================
-   HEADER
-   ========================= */
-
+/* HEADER */
 .eq-header {
     display: flex;
     justify-content: space-between;
@@ -114,14 +109,10 @@ renderHeader('Equipment Rental');
     margin-bottom: 24px;
     padding-bottom: 20px;
 }
-
 .eq-header h1 { font-size: 26px; }
 .eq-header > div:first-child { flex: 1; min-width: 0; }
 
-/* =========================
-   BUTTONS
-   ========================= */
-
+/* BUTTONS */
 .eq-btn {
     box-sizing: border-box;
     display: inline-flex;
@@ -146,7 +137,6 @@ renderHeader('Equipment Rental');
     box-shadow: none;
     transition: transform 0.12s ease, background 0.12s ease;
 }
-
 .eq-btn .material-icons { font-size: 17px; }
 .eq-btn:hover { background: var(--eq-gold-soft); }
 .eq-btn:active { transform: scale(0.97); }
@@ -165,7 +155,6 @@ renderHeader('Equipment Rental');
 }
 .eq-btn-primary:hover { background: var(--eq-forest-dark); }
 
-/* Brand green button (same as the "Add product" button) */
 .eq-btn-green {
     background: var(--c-brand);
     border-color: var(--c-brand);
@@ -177,11 +166,8 @@ renderHeader('Equipment Rental');
 .eq-btn-full { width: 100%; justify-content: center; padding: 11px; }
 .eq-btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
 
-/* Small pill-style button for the "Edit" action on each card.
-   !important overrides used here because the site-wide style.css
-   applies `width: 100%` and `text-transform: uppercase` to all
-   <button> elements, which otherwise wins over our unqualified
-   .eq-btn-link rules and stretches/uppercases these pills. */
+/* Small pill-style button (!important because the site-wide style.css
+   applies width:100% and uppercase to every <button>). */
 .eq-btn-link {
     width: auto !important;
     background: var(--eq-card);
@@ -203,29 +189,18 @@ renderHeader('Equipment Rental');
 }
 .eq-btn-link .material-icons { font-size: 14px; }
 .eq-btn-link:hover { border-color: var(--eq-forest); text-decoration: none; }
+.eq-btn-link:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.eq-btn-link:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Reject pill uses the danger palette instead of the default forest green */
-.eq-btn-link-danger {
-    color: var(--eq-danger);
-}
+.eq-btn-link-danger { color: var(--eq-danger); }
 .eq-btn-link-danger:hover { border-color: var(--eq-danger); }
 
-/* =========================
-   SUMMARY CARDS (fixed 160px size, same as Crops / Products)
-   ========================= */
-
+/* SUMMARY CARDS */
 .eq-summary-grid {
     display: flex;
     flex-wrap: wrap;
     gap: 14px;
     margin-bottom: 28px;
 }
-
 .eq-metric-card {
     border: none;
     border-radius: var(--eq-radius);
@@ -234,14 +209,12 @@ renderHeader('Equipment Rental');
     flex: 0 0 160px;
     width: 160px;
 }
-
 .eq-metric-label {
     font-size: 12.5px;
     text-transform: none;
     letter-spacing: normal;
     margin: 0 0 6px;
 }
-
 .eq-metric-value {
     font-family: 'Fraunces', serif;
     font-size: 30px;
@@ -269,17 +242,13 @@ renderHeader('Equipment Rental');
 .eq-summary-grid .eq-metric-card:nth-child(5n+5) .eq-metric-label,
 .eq-summary-grid .eq-metric-card:nth-child(5n+5) .eq-metric-value { color: var(--eq-gold-ink); }
 
-/* =========================
-   EQUIPMENT CARDS
-   ========================= */
-
+/* EQUIPMENT CARDS */
 .eq-equipment-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 14px;
     margin-bottom: 32px;
 }
-
 .eq-card {
     background: var(--eq-card);
     border: 1px solid var(--eq-line);
@@ -289,11 +258,8 @@ renderHeader('Equipment Rental');
     overflow: hidden;
     transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
-
 .eq-card:hover { border-color: var(--eq-forest); box-shadow: var(--eq-shadow); }
-
 .eq-card-body { padding: 16px; }
-
 .eq-photo {
     width: 100%;
     height: 180px;
@@ -303,7 +269,6 @@ renderHeader('Equipment Rental');
     justify-content: center;
     overflow: hidden;
 }
-
 .eq-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .eq-photo .material-icons { color: var(--eq-gold); font-size: 40px; }
 
@@ -319,10 +284,7 @@ renderHeader('Equipment Rental');
 }
 .eq-card-footer > * { width: auto !important; }
 
-/* =========================
-   STATUS
-   ========================= */
-
+/* STATUS */
 .eq-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 .eq-dot-success { background: var(--eq-success); }
 .eq-dot-danger { background: var(--eq-danger); }
@@ -350,10 +312,7 @@ renderHeader('Equipment Rental');
 .eq-status-btn:hover { border-color: var(--eq-forest); }
 .eq-status-btn:hover .eq-status-label { text-decoration: none; }
 
-/* =========================
-   SECTION
-   ========================= */
-
+/* SECTION */
 .eq-section {
     background: var(--eq-card);
     border: 1px solid var(--eq-line);
@@ -361,7 +320,6 @@ renderHeader('Equipment Rental');
     box-shadow: none;
     padding: 22px 22px 8px;
 }
-
 .eq-section-header {
     display: flex;
     justify-content: space-between;
@@ -372,7 +330,6 @@ renderHeader('Equipment Rental');
 }
 .eq-section-header h2 { font-size: 19px; }
 
-/* Title + filter dropdowns beside it */
 .eq-section-title {
     display: flex;
     align-items: center;
@@ -397,17 +354,13 @@ renderHeader('Equipment Rental');
 }
 .eq-filter:focus { outline: none; border-color: var(--eq-forest); }
 
-/* =========================
-   CALENDAR (inside a modal now, not an in-page panel)
-   ========================= */
-
+/* CALENDAR (inside a modal) */
 .eq-cal-nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 14px;
 }
-
 .eq-cal-nav-btn {
     width: auto !important;
     background: none !important;
@@ -432,7 +385,6 @@ renderHeader('Equipment Rental');
     grid-template-columns: repeat(7, 1fr);
     gap: 4px;
 }
-
 .eq-cal-weekdays div {
     text-align: center;
     font-size: 11.5px;
@@ -440,7 +392,6 @@ renderHeader('Equipment Rental');
     font-weight: 600;
     padding-bottom: 6px;
 }
-
 .eq-cal-grid .eq-cal-day {
     min-height: 64px;
     padding: 4px;
@@ -452,13 +403,9 @@ renderHeader('Equipment Rental');
 }
 .eq-cal-grid .eq-cal-day.eq-empty { background: transparent; }
 .eq-cal-grid .eq-cal-day.eq-booked { background: var(--eq-gold-soft); }
-
 .eq-cal-day-num { font-size: 11.5px; }
 
-.eq-cal-booking {
-    margin-top: 2px;
-    line-height: 1.2;
-}
+.eq-cal-booking { margin-top: 2px; line-height: 1.2; }
 .eq-cal-booking-name {
     font-size: 10px;
     font-weight: 600;
@@ -474,7 +421,6 @@ renderHeader('Equipment Rental');
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 .eq-cal-empty-msg {
     text-align: center;
     color: var(--eq-ink-soft);
@@ -487,10 +433,7 @@ renderHeader('Equipment Rental');
     .eq-cal-booking-name, .eq-cal-booking-equipment { font-size: 9px; }
 }
 
-/* =========================
-   MODALS
-   ========================= */
-
+/* MODALS */
 .eq-modal {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     display: none;
@@ -515,7 +458,6 @@ renderHeader('Equipment Rental');
     padding: 22px 24px 24px;
     animation: eq-pop-in 0.16s ease;
 }
-
 .eq-modal-card-wide { max-width: 720px; }
 
 @keyframes eq-pop-in {
@@ -523,8 +465,6 @@ renderHeader('Equipment Rental');
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Fixed flex header: X button keeps a locked 32x32 box so a two-line
-   title never pushes or shrinks it (see .eq-icon-btn below). */
 .eq-modal-header {
     display: flex;
     align-items: center;
@@ -534,9 +474,6 @@ renderHeader('Equipment Rental');
     margin-bottom: 16px;
 }
 .eq-modal-header h2 { flex: 1; min-width: 0; margin: 0; font-size: 18px; line-height: 1.2; }
-
-/* Used only by the Schedule modal's title so "Book/Add/Edit
-   equipment" headers elsewhere stay left-aligned as before. */
 .eq-modal-header h2.eq-modal-title-center { text-align: center; }
 
 .eq-icon-btn {
@@ -560,10 +497,7 @@ renderHeader('Equipment Rental');
 .eq-icon-btn:hover { background: var(--eq-paper); color: var(--eq-ink); }
 .eq-icon-btn:active { transform: scale(0.94); }
 
-/* =========================
-   MODAL FORM
-   ========================= */
-
+/* MODAL FORM */
 .eq-modal-card label {
     display: block;
     font-size: 12.5px;
@@ -595,11 +529,13 @@ renderHeader('Equipment Rental');
     box-shadow: 0 0 0 3px rgba(59, 109, 17, 0.18);
     background: #fff;
 }
+.eq-modal-card select:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* =========================
-   PHOTO UPLOAD
-   ========================= */
+/* Spacing between the 3 location dropdowns */
+.eq-modal-card select.eq-loc { margin-top: 8px; }
+.eq-modal-card select#loc-province { margin-top: 0; }
 
+/* PHOTO UPLOAD */
 .eq-photo-drop {
     border: 1.5px dashed var(--eq-field-border);
     border-radius: 8px;
@@ -625,10 +561,7 @@ renderHeader('Equipment Rental');
 .eq-photo-preview.eq-show { display: block; }
 .eq-photo-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-/* =========================
-   FORM ROW / COST SUMMARY
-   ========================= */
-
+/* FORM ROW / COST SUMMARY */
 .eq-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 .eq-cost-summary {
@@ -653,10 +586,7 @@ renderHeader('Equipment Rental');
     padding-top: 8px;
 }
 
-/* =========================
-   MESSAGES
-   ========================= */
-
+/* MESSAGES */
 .eq-error-box,
 .eq-success-box {
     display: none;
@@ -668,10 +598,7 @@ renderHeader('Equipment Rental');
 .eq-error-box.eq-show { display: block; background: var(--eq-danger-soft); color: var(--eq-danger); }
 .eq-success-box.eq-show { display: block; background: var(--eq-success-soft); color: var(--eq-success); }
 
-/* =========================
-   TABLE
-   ========================= */
-
+/* TABLE */
 .eq-table-wrap { overflow-x: auto; }
 .eq-page table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 
@@ -689,10 +616,7 @@ renderHeader('Equipment Rental');
 .eq-page tbody td { padding: 12px 8px; border-bottom: 1px solid var(--eq-line); }
 .eq-page tbody tr:last-child td { border-bottom: none; }
 
-/* =========================
-   STATUS BADGES
-   ========================= */
-
+/* STATUS BADGES */
 .eq-status-badge {
     display: inline-block;
     font-size: 11.5px;
@@ -706,10 +630,7 @@ renderHeader('Equipment Rental');
 .eq-status-badge.eq-overdue { background: var(--eq-danger-soft); color: var(--eq-danger); }
 .eq-status-badge.eq-returned { background: var(--eq-success-soft); color: var(--eq-success); }
 
-/* =========================
-   LIVE UPDATE FLASH (new or changed item)
-   ========================= */
-
+/* LIVE UPDATE FLASH */
 @keyframes eqFlashCard {
     from { background: #e3f4e1; border-color: #2F6B3C; }
     to   { background: var(--eq-card); border-color: var(--eq-line); }
@@ -721,10 +642,7 @@ renderHeader('Equipment Rental');
 .eq-card.eq-flash { animation: eqFlashCard 2.2s ease-out; }
 .eq-page tr.eq-flash td { animation: eqFlashRow 2.2s ease-out; }
 
-/* =========================
-   CONFIRM DIALOG
-   ========================= */
-
+/* CONFIRM DIALOG */
 .eq-modal-card-sm { max-width: 380px; }
 
 .eq-confirm-text {
@@ -733,13 +651,11 @@ renderHeader('Equipment Rental');
     color: var(--eq-ink-soft);
     margin: 0 0 20px;
 }
-
 .eq-confirm-actions {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
 }
-
 .eq-btn-danger {
     background: var(--eq-danger);
     border-color: var(--eq-danger);
@@ -747,10 +663,7 @@ renderHeader('Equipment Rental');
 }
 .eq-btn-danger:hover { background: var(--eq-danger-hover); }
 
-/* =========================
-   RESPONSIVE
-   ========================= */
-
+/* RESPONSIVE */
 @media (max-width: 560px) {
     .eq-page { padding: 0 0 40px; }
     .eq-header { flex-direction: column; gap: 12px; }
@@ -997,10 +910,22 @@ renderHeader('Equipment Rental');
             </select>
 
             <label id="qty-label">Quantity</label>
-            <input type="number" id="quantity" name="quantity" min="0.5" step="0.5" required>
+            <input type="text" id="quantity" name="quantity" data-filter="decimal" inputmode="decimal" maxlength="8" placeholder="e.g. 2 or 1.5" required>
 
             <label>Farm location</label>
-            <input type="text" id="location" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
+            <select id="loc-province" class="eq-loc" required>
+                <option value="">Select province</option>
+            </select>
+            <select id="loc-city" class="eq-loc" required disabled>
+                <option value="">Select city/municipality</option>
+            </select>
+            <select id="loc-barangay" class="eq-loc" required disabled>
+                <option value="">Select barangay</option>
+            </select>
+            <input type="text" id="loc-purok" data-filter="alnum" maxlength="50"
+                   placeholder="Purok / Sitio (e.g. Purok 5)" style="margin-top:8px;" required>
+            <!-- Filled by equipment.js as "Purok, Barangay, City/Municipality, Province" -->
+            <input type="hidden" id="location" name="location" value="">
 
             <div class="eq-form-row">
                 <div>
@@ -1014,7 +939,7 @@ renderHeader('Equipment Rental');
             </div>
 
             <label>Renter (member name)</label>
-            <input type="text" id="renter-name" name="renter_name"
+            <input type="text" id="renter-name" name="renter_name" data-filter="letters" maxlength="100"
                    value="<?php echo htmlspecialchars(($_SESSION['role'] ?? '') === 'user' ? ($_SESSION['full_name'] ?? '') : ''); ?>"
                    placeholder="Juan Dela Cruz" required>
 
@@ -1114,20 +1039,20 @@ renderHeader('Equipment Rental');
             <label class="eq-photo-drop" id="add-photo-drop">
                 <span class="material-icons" aria-hidden="true">add_a_photo</span>
                 <p id="add-photo-drop-text">Click to upload a photo</p>
-                <input type="file" id="add-photo-input" name="photo" accept="image/*">
+                <input type="file" id="add-photo-input" name="photo" accept="image/jpeg,image/png,image/webp">
             </label>
 
             <label>Equipment name</label>
-            <input type="text" name="name" placeholder="Rice thresher" required>
+            <input type="text" name="name" data-filter="alnum" maxlength="100" placeholder="Rice thresher" required>
 
             <div class="eq-form-row">
                 <div>
                     <label>Member rate (₱)</label>
-                    <input type="number" name="rate_member" placeholder="500" min="0" step="1" required>
+                    <input type="text" name="rate_member" data-filter="integer" inputmode="numeric" maxlength="7" placeholder="500" required>
                 </div>
                 <div>
                     <label>Non-member rate (₱)</label>
-                    <input type="number" name="rate_nonmember" placeholder="600" min="0" step="1" required>
+                    <input type="text" name="rate_nonmember" data-filter="integer" inputmode="numeric" maxlength="7" placeholder="600" required>
                 </div>
             </div>
 
@@ -1171,20 +1096,20 @@ renderHeader('Equipment Rental');
             <label class="eq-photo-drop" id="edit-photo-drop">
                 <span class="material-icons" aria-hidden="true">add_a_photo</span>
                 <p id="edit-photo-drop-text">Click to change photo</p>
-                <input type="file" id="edit-photo-input" name="photo" accept="image/*">
+                <input type="file" id="edit-photo-input" name="photo" accept="image/jpeg,image/png,image/webp">
             </label>
 
             <label>Equipment name</label>
-            <input type="text" name="name" id="edit-name" required>
+            <input type="text" name="name" id="edit-name" data-filter="alnum" maxlength="100" required>
 
             <div class="eq-form-row">
                 <div>
                     <label>Member rate (₱)</label>
-                    <input type="number" name="rate_member" id="edit-rate-member" min="0" step="1" required>
+                    <input type="text" name="rate_member" id="edit-rate-member" data-filter="integer" inputmode="numeric" maxlength="7" required>
                 </div>
                 <div>
                     <label>Non-member rate (₱)</label>
-                    <input type="number" name="rate_nonmember" id="edit-rate-nonmember" min="0" step="1" required>
+                    <input type="text" name="rate_nonmember" id="edit-rate-nonmember" data-filter="integer" inputmode="numeric" maxlength="7" required>
                 </div>
             </div>
 
@@ -1204,13 +1129,13 @@ renderHeader('Equipment Rental');
 
 
 <script>
+    // Also used for api/psgc.php (Province / City / Barangay lists)
     window.EQUIPMENT_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/equipment/api/";
 </script>
 
 <script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js?v=<?php echo filemtime(__DIR__ . '/equipment.js'); ?>"></script>
 
-<!-- Filters for the "Currently rented" table.
-     Rows are looked up on every run, so the filters still work after the table is auto-updated. -->
+<!-- Filters for the "Currently rented" table. -->
 <script>
 (function () {
     var renterSel = document.getElementById('filter-renter');
@@ -1236,7 +1161,6 @@ renderHeader('Equipment Rental');
     if (renterSel) renterSel.addEventListener('change', applyFilters);
     if (equipSel) equipSel.addEventListener('change', applyFilters);
 
-    // Re-apply the filters after every auto-update
     document.addEventListener('eq:refreshed', applyFilters);
 })();
 </script>
@@ -1244,15 +1168,11 @@ renderHeader('Equipment Rental');
 <!-- ============================================================
      AUTO-UPDATE (AJAX POLLING)
      Fetches this same page, then swaps only the parts that changed.
-     Fires the "eq:refreshed" event after a swap.
-     equipment.js can call window.eqLiveRefresh() after approve / reject /
-     use / mark returned instead of reloading the whole page.
      ============================================================ -->
 <script>
 (function () {
     var LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
 
-    // Map of each item (id -> HTML) to detect which ones are new or changed
     function itemMap(root, sel, attr) {
         var m = new Map();
         if (!sel) return m;
@@ -1280,8 +1200,6 @@ renderHeader('Equipment Rental');
     }
 
     async function liveCheck(force) {
-        // Skip while a modal is open or a check is running.
-        // A hidden tab is skipped too, unless the refresh was forced.
         if (busy || anyModalOpen()) return;
         if (document.hidden && !force) return;
         busy = true;
@@ -1291,7 +1209,6 @@ renderHeader('Equipment Rental');
             var doc = new DOMParser().parseFromString(await r.text(), 'text/html');
 
             var fresh = liveParts.map(function (p) { return doc.getElementById(p.id); });
-            // If an expected element is missing (e.g. login page), leave the page alone
             if (fresh.every(Boolean)) {
                 var changed = false;
                 liveParts.forEach(function (p, i) {
@@ -1315,13 +1232,12 @@ renderHeader('Equipment Rental');
             }
             fails = 0;
         } catch (e) {
-            fails++;   // backoff on error
+            fails++;
         } finally {
             busy = false;
         }
     }
 
-    // Called by equipment.js after approve / reject / use / mark returned
     window.eqLiveRefresh = function () { return liveCheck(true); };
 
     function schedule() {

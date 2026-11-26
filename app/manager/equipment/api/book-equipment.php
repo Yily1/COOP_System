@@ -2,49 +2,41 @@
 // Location: app/manager/equipment/api/book-equipment.php
 require_once __DIR__ . '/../../../../config/config.php';
 require_once __DIR__ . '/../../../../config/functions.php';
+require_once __DIR__ . '/equipment-validate.php';
 
 header('Content-Type: application/json');
 
 if (!isLoggedIn() || !(hasRole('manager') || hasRole('user'))) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'You are not allowed to book equipment']);
-    exit;
+    eqFail('You are not allowed to book equipment', 403);
 }
 
 // Managers book directly (already approved; press "Use" when the equipment is taken).
 // Regular users need manager approval first (pending).
 $bookingStatus = hasRole('manager') ? 'approved' : 'pending';
 
-$equipmentId    = $_POST['equipment_id'] ?? null;
-$startDate      = $_POST['start_date'] ?? '';
-$endDate        = $_POST['end_date'] ?? '';
+$equipmentId    = trim($_POST['equipment_id'] ?? '');
+$startDate      = trim($_POST['start_date'] ?? '');
+$endDate        = trim($_POST['end_date'] ?? '');
 $renterName     = trim($_POST['renter_name'] ?? '');
-$quantity       = $_POST['quantity'] ?? null;
+$quantity       = trim($_POST['quantity'] ?? '');
 $membershipType = $_POST['membership_type'] ?? '';
 $location       = trim($_POST['location'] ?? '');
 
-if (!$equipmentId || $startDate === '' || $endDate === '' || $renterName === '' || $quantity === null || $quantity === '' || $location === '') {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'All fields, including farm location, are required']);
-    exit;
-}
+// ---- Validation ----
+$error = eqCheckSelectId($equipmentId, 'equipment')
+      ?? eqCheckChoice($membershipType, ['member', 'nonmember'], 'renter type (member or non-member)')
+      ?? eqCheckQuantity($quantity)
+      ?? eqCheckLocation($location)
+      ?? eqCheckDate($startDate, 'Start date')
+      ?? eqCheckDate($endDate, 'End date')
+      ?? eqCheckName($renterName, 'Renter name');
 
-if (!in_array($membershipType, ['member', 'nonmember'], true)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Please select renter type (member or non-member)']);
-    exit;
-}
-
-if (!is_numeric($quantity) || $quantity <= 0) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Quantity must be a valid positive number']);
-    exit;
+if ($error) {
+    eqFail($error);
 }
 
 if (strtotime($endDate) < strtotime($startDate)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'End date cannot be before start date']);
-    exit;
+    eqFail('End date cannot be before start date');
 }
 
 try {
@@ -53,9 +45,7 @@ try {
     $rateRow = $rateStmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$rateRow) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Equipment not found']);
-        exit;
+        eqFail('Equipment not found');
     }
 
     // Overlap check: block if the same equipment already has an approved,
@@ -70,13 +60,11 @@ try {
     ");
     $overlap->execute([$equipmentId, $endDate, $startDate]);
     if ((int) $overlap->fetchColumn() > 0) {
-        http_response_code(409);
-        echo json_encode(['success' => false, 'message' => 'This equipment is already booked on those dates. Please choose different dates.']);
-        exit;
+        eqFail('This equipment is already booked on those dates. Please choose different dates.', 409);
     }
 
     $rate = $membershipType === 'member' ? $rateRow['rate_member'] : $rateRow['rate_nonmember'];
-    $totalCost = $quantity * $rate;
+    $totalCost = (float) $quantity * $rate;
 
     $insert = $pdo->prepare("
         INSERT INTO equipment_bookings (equipment_id, start_date, end_date, renter_name, membership_type, quantity, location, total_cost, status, recorded_by)
@@ -95,6 +83,5 @@ try {
         'status'     => $bookingStatus,
     ]);
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Database error']);
+    eqFail('Database error', 500);
 }

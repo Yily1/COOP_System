@@ -87,8 +87,7 @@ renderHeader('Equipment Rental');
 .eq-header h1 { font-size: 19px; }
 .eq-header .eq-muted { margin: 2px 0 0; font-size: 13.5px; }
 
-/* Back to dashboard (round arrow, right side of the header row).
-   An <a> link, not a <button>, so the site-wide button rules can't touch it. */
+/* Back to dashboard (round arrow, right side of the header row). */
 .page-back {
     margin-left: auto;
     flex: none;
@@ -105,16 +104,8 @@ renderHeader('Equipment Rental');
     box-shadow: none;
     transition: background 0.12s ease;
 }
-
-.page-back:hover {
-    background: #eef5e4;
-}
-
-.page-back svg {
-    width: 18px;
-    height: 18px;
-    stroke: currentColor;
-}
+.page-back:hover { background: #eef5e4; }
+.page-back svg { width: 18px; height: 18px; stroke: currentColor; }
 
 .eq-btn {
     box-sizing: border-box;
@@ -230,6 +221,11 @@ renderHeader('Equipment Rental');
     border: 1px solid #eceae4; border-radius: 8px; background: #f7f8f5; color: #1b3a24; box-sizing: border-box;
 }
 .eq-modal-card input:focus, .eq-modal-card select:focus { outline: none; border-color: #2e7d32; background: #fff; }
+.eq-modal-card select:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Spacing between the 3 location dropdowns */
+.eq-modal-card select.eq-loc { margin-top: 8px; }
+.eq-modal-card select#loc-province { margin-top: 0; }
 
 .eq-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .eq-cost-summary { background: #f7f8f5; border-radius: 10px; padding: 12px 14px; margin: 16px 0; }
@@ -254,11 +250,8 @@ renderHeader('Equipment Rental');
 .eq-status-badge.eq-overdue { background: #fbe6e6; color: #a6322f; }
 .eq-status-badge.eq-returned { background: #e8f5e9; color: #2e7d32; }
 
-/* Returned bookings stay in the table but look a little faded.
-   The status badge keeps its full color so "Returned" is still clear. */
 .eq-row-returned td:not(.eq-cell-status) { opacity: 0.6; }
 
-/* Green flash for a new or changed item (auto-update) */
 @keyframes eqFlashCard {
     from { background: #e3f4e1; border-color: #2e7d32; }
     to   { background: #fff;    border-color: #eceae4; }
@@ -289,9 +282,7 @@ renderHeader('Equipment Rental');
 .eq-cal-booking-equipment { font-size: 9.5px; color: #667066; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eq-cal-empty-msg { text-align: center; color: #667066; font-size: 13px; padding: 24px 0; }
 
-/* ============================================================
-   MOBILE - HINDI GINALAW, ito ang dating layout
-   ============================================================ */
+/* MOBILE */
 @media (max-width: 700px) {
     .eq-page table thead { display: none; }
     .eq-page table, .eq-page table tbody { display: block; width: 100%; }
@@ -353,6 +344,8 @@ renderHeader('Equipment Rental');
     .eq-modal-card label { font-size: 11.5px; margin: 8px 0 4px; }
     .eq-modal-card label:first-of-type { margin-top: 0; }
     .eq-modal-card input, .eq-modal-card select { font-size: 13px; padding: 7px 9px; }
+    .eq-modal-card select.eq-loc { margin-top: 6px; }
+    .eq-modal-card select#loc-province { margin-top: 0; }
     .eq-success-box, .eq-error-box { font-size: 12px; padding: 7px 10px; margin-bottom: 8px !important; }
     .eq-form-row { gap: 8px; }
     .eq-cost-summary { padding: 9px 11px; margin: 10px 0; }
@@ -361,19 +354,14 @@ renderHeader('Equipment Rental');
     #submit-btn { padding: 9px; font-size: 13px; margin-top: 2px; }
 }
 
-/* ============================================================
-   TABLET (600px pataas)
-   May max-width at nasa gitna ang page (dati ay buong lapad).
-   ============================================================ */
+/* TABLET */
 @media (min-width: 600px) {
     .eq-page { max-width: 720px; margin: 0 auto; }
     .eq-modal-card { max-width: 460px; }
     .eq-modal-card-wide { max-width: 720px; }
 }
 
-/* ============================================================
-   DESKTOP (992px pataas)
-   ============================================================ */
+/* DESKTOP */
 @media (min-width: 992px) {
     .eq-page { max-width: 1040px; }
     .eq-header h1 { font-size: 22px; }
@@ -534,8 +522,7 @@ renderHeader('Equipment Rental');
 
         <form id="booking-form">
             <!-- Portal users are always coop members, so this is fixed
-                 rather than a dropdown (book-equipment.php still requires
-                 membership_type in the POST body). -->
+                 (book-equipment.php still requires membership_type in the POST body). -->
             <input type="hidden" name="membership_type" value="member">
 
             <label>Equipment</label>
@@ -555,10 +542,22 @@ renderHeader('Equipment Rental');
             </select>
 
             <label id="qty-label">Quantity</label>
-            <input type="number" id="quantity" name="quantity" min="0.5" step="0.5" required>
+            <input type="text" id="quantity" name="quantity" data-filter="decimal" inputmode="decimal" maxlength="8" placeholder="e.g. 2 or 1.5" required>
 
             <label>Farm location</label>
-            <input type="text" id="location" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
+            <select id="loc-province" class="eq-loc" required>
+                <option value="">Select province</option>
+            </select>
+            <select id="loc-city" class="eq-loc" required disabled>
+                <option value="">Select city/municipality</option>
+            </select>
+            <select id="loc-barangay" class="eq-loc" required disabled>
+                <option value="">Select barangay</option>
+            </select>
+            <input type="text" id="loc-purok" data-filter="alnum" maxlength="50"
+                   placeholder="Purok / Sitio (e.g. Purok 5)" style="margin-top:8px;" required>
+            <!-- Filled by equipment.js as "Purok, Barangay, City/Municipality, Province" -->
+            <input type="hidden" id="location" name="location" value="">
 
             <div class="eq-form-row">
                 <div>
@@ -619,10 +618,11 @@ renderHeader('Equipment Rental');
 
 
 <script>
+    // Also used for api/psgc.php (Province / City / Barangay lists)
     window.EQUIPMENT_AJAX_BASE = "<?php echo BASE_URL; ?>/app/manager/equipment/api/";
 </script>
 
-<script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js"></script>
+<script src="<?php echo BASE_URL; ?>/app/manager/equipment/equipment.js?v=<?php echo filemtime(__DIR__ . '/../manager/equipment/equipment.js'); ?>"></script>
 
 <!-- Esc closes whichever modal is open (useful on desktop) -->
 <script>
@@ -634,14 +634,12 @@ document.addEventListener('keydown', function (e) {
 
 <!-- ============================================================
      AUTO-UPDATE (AJAX POLLING)
-     Fetches this same page, then swaps only the parts that changed.
      Paused while a modal is open or the tab is hidden.
      ============================================================ -->
 <script>
 (function () {
     var LIVE_CHECK_MS = 3000;   // set to 5000 or 10000 for fewer requests
 
-    // Mapa ng bawat item (id -> HTML) para malaman kung alin ang bago o nagbago
     function itemMap(root, sel, attr) {
         var m = new Map();
         if (!sel) return m;
@@ -669,7 +667,6 @@ document.addEventListener('keydown', function (e) {
     }
 
     async function liveCheck() {
-        // Skip while the tab is hidden, a modal is open, or a check is running
         if (document.hidden || busy || anyModalOpen()) return;
         busy = true;
         try {
@@ -678,7 +675,6 @@ document.addEventListener('keydown', function (e) {
             var doc = new DOMParser().parseFromString(await r.text(), 'text/html');
 
             var fresh = liveParts.map(function (p) { return doc.getElementById(p.id); });
-            // If an expected element is missing (e.g. login page), leave the page alone
             if (fresh.every(Boolean)) {
                 var changed = false;
                 liveParts.forEach(function (p, i) {
@@ -702,7 +698,7 @@ document.addEventListener('keydown', function (e) {
             }
             fails = 0;
         } catch (e) {
-            fails++;   // backoff on error
+            fails++;
         } finally {
             busy = false;
         }
