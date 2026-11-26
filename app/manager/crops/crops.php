@@ -346,6 +346,8 @@ renderHeader('Crops Management');
     padding: 22px 24px 24px;
     animation: cm-pop-in 0.16s ease;
 }
+/* Mas malapad ang Add planting dahil may address dropdowns */
+.cm-modal-card.cm-modal-wide { max-width: 520px; }
 
 @keyframes cm-pop-in {
     from { opacity: 0; transform: translateY(8px) scale(0.98); }
@@ -415,8 +417,26 @@ renderHeader('Crops Management');
     box-shadow: 0 0 0 3px var(--cm-focus-ring);
     background: #fff;
 }
+.cm-modal-card select:disabled { background: #f0eee6; color: #6b756b; }
 
 .cm-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Farm location section */
+.cm-section-label {
+    margin: 16px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--cm-ink);
+}
+.cm-addr-preview {
+    background: var(--cm-brand-soft);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: var(--cm-brand-ink);
+    line-height: 1.4;
+    min-height: 18px;
+}
 
 .cm-crop-info {
     display: none;
@@ -605,13 +625,13 @@ renderHeader('Crops Management');
     .cm-pr-prepared-title { margin: 2px 0 0; font-size: 12px; }
     .cm-pr-prepared-date { margin: 6px 0 0; font-size: 12px; }
 
-    /* Column widths (7 columns) */
-    .cm-pr-table th:nth-child(1) { width: 14%; } /* Membership ID */
-    .cm-pr-table th:nth-child(2) { width: 18%; } /* Name */
-    .cm-pr-table th:nth-child(3) { width: 12%; } /* Crop */
-    .cm-pr-table th:nth-child(4) { width: 16%; } /* Location */
-    .cm-pr-table th:nth-child(5) { width: 10%; } /* Hectare */
-    .cm-pr-table th:nth-child(6) { width: 15%; } /* Date Planted */
+    /* Column widths (7 columns). Mas malapad ang Location dahil buong address na. */
+    .cm-pr-table th:nth-child(1) { width: 12%; } /* Membership ID */
+    .cm-pr-table th:nth-child(2) { width: 16%; } /* Name */
+    .cm-pr-table th:nth-child(3) { width: 10%; } /* Crop */
+    .cm-pr-table th:nth-child(4) { width: 25%; } /* Location */
+    .cm-pr-table th:nth-child(5) { width: 8%; }  /* Hectare */
+    .cm-pr-table th:nth-child(6) { width: 14%; } /* Date Planted */
     .cm-pr-table th:nth-child(7) { width: 15%; } /* Expected Harvest */
 }
 </style>
@@ -762,7 +782,7 @@ renderHeader('Crops Management');
 
 
 <div class="cm-modal" id="mgr-add-modal">
-    <div class="cm-modal-card">
+    <div class="cm-modal-card cm-modal-wide">
         <div class="cm-modal-header">
             <h2>Add planting</h2>
             <button class="cm-icon-btn" id="mgr-add-close" type="button" aria-label="Close">
@@ -795,17 +815,43 @@ renderHeader('Crops Management');
 
             <div class="cm-form-row" style="margin-top:12px;">
                 <div>
-                    <label style="margin-top:0;">Area (ha)</label>
-                    <input type="number" name="area_hectares" placeholder="e.g. 1.5" min="0.01" step="0.01" required>
+                    <label for="mgr-area" style="margin-top:0;">Area (ha)</label>
+                    <input type="text" id="mgr-area" name="area_hectares" placeholder="e.g. 1.5" inputmode="decimal" maxlength="7" required>
                 </div>
                 <div>
-                    <label style="margin-top:0;">Farm location</label>
-                    <input type="text" name="location" placeholder="e.g. Purok 3" required>
+                    <label for="mgr-planting-date" style="margin-top:0;">Planting date</label>
+                    <input type="date" name="planting_date" id="mgr-planting-date" value="<?php echo htmlspecialchars($todayManila); ?>" required>
                 </div>
             </div>
 
-            <label>Planting date</label>
-            <input type="date" name="planting_date" id="mgr-planting-date" value="<?php echo htmlspecialchars($todayManila); ?>" required>
+            <p class="cm-section-label">Farm location</p>
+
+            <div class="cm-form-row" style="margin-top:8px;">
+                <div>
+                    <label for="mgr-region" style="margin-top:0;">Region</label>
+                    <select id="mgr-region"><option value="">-- Select Region --</option></select>
+                </div>
+                <div>
+                    <label for="mgr-province" style="margin-top:0;">Province</label>
+                    <select id="mgr-province"><option value="">-- Select Province --</option></select>
+                </div>
+            </div>
+            <div class="cm-form-row" style="margin-top:12px;">
+                <div>
+                    <label for="mgr-city" style="margin-top:0;">Municipality / City</label>
+                    <select id="mgr-city"><option value="">-- Select Municipality / City --</option></select>
+                </div>
+                <div>
+                    <label for="mgr-barangay" style="margin-top:0;">Barangay</label>
+                    <select id="mgr-barangay"><option value="">-- Select Barangay --</option></select>
+                </div>
+            </div>
+
+            <label for="mgr-purok">Purok / Street</label>
+            <input type="text" id="mgr-purok" placeholder="Purok 3, Rizal St." maxlength="100">
+
+            <label>Complete location (auto-built)</label>
+            <div class="cm-addr-preview" id="mgr-addr-preview">&mdash;</div>
 
             <button type="submit" id="mgr-add-submit" class="cm-btn cm-btn-primary cm-btn-full" style="margin-top:16px;">Save planting</button>
         </form>
@@ -839,6 +885,9 @@ renderHeader('Crops Management');
     });
 </script>
 
+<!-- Shared Philippine address dropdowns (app/manager/crops/ph-address.js) -->
+<script src="<?php echo BASE_URL; ?>/app/manager/crops/ph-address.js"></script>
+
 <script>
 (function() {
     const MEMBERS = <?php echo json_encode($members, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -856,8 +905,40 @@ renderHeader('Crops Management');
     const typeSel   = document.getElementById('mgr-crop-type');
     const plantEl   = document.getElementById('mgr-planting-date');
     const infoEl    = document.getElementById('mgr-crop-info');
+    const areaEl    = document.getElementById('mgr-area');
 
     if (!openBtn) return;
+
+    // ---------- Errors (isa o higit pang mensahe) ----------
+    function showErrors(list) {
+        errorBox.textContent = '';
+        list.forEach(function(msg, i) {
+            if (i > 0) errorBox.appendChild(document.createElement('br'));
+            errorBox.appendChild(document.createTextNode(msg));
+        });
+        errorBox.classList.add('cm-show');
+        errorBox.scrollIntoView({ block: 'nearest' });
+    }
+    function showError(msg) { showErrors([msg]); }
+    function clearError() {
+        errorBox.textContent = '';
+        errorBox.classList.remove('cm-show');
+    }
+
+    // ---------- Philippine address (PSGC) ----------
+    const addr = PHAddress({
+        api: '<?php echo BASE_URL; ?>/app/manager/crops/api/psgc.php',
+        region: document.getElementById('mgr-region'),
+        province: document.getElementById('mgr-province'),
+        city: document.getElementById('mgr-city'),
+        barangay: document.getElementById('mgr-barangay'),
+        purok: document.getElementById('mgr-purok'),
+        preview: document.getElementById('mgr-addr-preview'),
+        onError: showError
+    });
+
+    // Area: numbers lang (hanggang 2 decimals)
+    PHAddress.bindDecimal(areaEl);
 
     function findType(id) {
         for (let i = 0; i < CROP_TYPES.length; i++) {
@@ -907,21 +988,16 @@ renderHeader('Crops Management');
     typeSel.addEventListener('change', updateInfo);
     plantEl.addEventListener('input', updateInfo);
 
-    function showError(msg) {
-        errorBox.textContent = msg;
-        errorBox.classList.add('cm-show');
+    function openModal() {
+        modal.classList.add('cm-open');
+        addr.load(); // i-load ang listahan ng regions (isang beses lang tatawag sa server)
     }
-    function clearError() {
-        errorBox.textContent = '';
-        errorBox.classList.remove('cm-show');
-    }
-
-    function openModal() { modal.classList.add('cm-open'); }
     function closeModal() {
         modal.classList.remove('cm-open');
         form.reset();
         memberEl.value = '';
         resultsEl.classList.remove('cm-show');
+        addr.reset();
         updateInfo();
         clearError();
     }
@@ -1003,13 +1079,20 @@ renderHeader('Crops Management');
         clearError();
 
         const data = Object.fromEntries(new FormData(form).entries());
+        Object.assign(data, addr.getValues());
 
-        if (!data.member_id) {
-            showError('Select a member from the search results.');
-            return;
+        // Required checks sa browser (ang server pa rin ang final na bantay)
+        const errs = [];
+        if (!data.member_id) errs.push('Select a member from the search results.');
+        if (!data.crop_type_id) errs.push('Please choose a crop.');
+        if (!/^\d{1,4}(\.\d{1,2})?$/.test(data.area_hectares || '') || Number(data.area_hectares) <= 0) {
+            errs.push('Area must be a number greater than 0 (e.g. 1.5).');
         }
-        if (!data.crop_type_id) {
-            showError('Please choose a crop.');
+        if (!data.planting_date) errs.push('Planting date is required.');
+        addr.validate().forEach(function(m) { errs.push(m); });
+
+        if (errs.length) {
+            showErrors(errs);
             return;
         }
 
@@ -1035,7 +1118,7 @@ renderHeader('Crops Management');
             if (response.ok && payload.success !== false) {
                 window.location.reload();
             } else {
-                showError(payload.message || 'Something went wrong.');
+                showErrors(payload.errors && payload.errors.length ? payload.errors : [payload.message || 'Something went wrong.']);
             }
         } catch (err) {
             showError('Could not reach the server: ' + err.message);

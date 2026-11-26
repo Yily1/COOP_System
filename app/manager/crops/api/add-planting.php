@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../../../config/config.php';
 require_once __DIR__ . '/../../../../config/functions.php';
+require_once __DIR__ . '/crop-validate.php';
 
 header('Content-Type: application/json');
 
@@ -17,42 +18,28 @@ if (!is_array($input)) {
     exit;
 }
 
-$memberId   = (int) ($input['member_id'] ?? 0);
-$cropTypeId = (int) ($input['crop_type_id'] ?? 0);
-$location   = trim($input['location'] ?? '');
-$area       = (float) ($input['area_hectares'] ?? 0);
-$planted    = trim($input['planting_date'] ?? '');
+$result = cm_validate_planting($pdo, $input);
+$errors = $result['errors'];
 
-if ($memberId <= 0 || $cropTypeId <= 0 || $location === '' || $area <= 0 || $planted === '') {
-    http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Please fill in all fields.']);
-    exit;
+$memberId = (int) ($input['member_id'] ?? 0);
+if ($memberId <= 0) {
+    array_unshift($errors, 'Select a member from the search results.');
+} else {
+    $check = $pdo->prepare("SELECT id FROM members WHERE id = ?");
+    $check->execute([$memberId]);
+    if (!$check->fetch()) {
+        array_unshift($errors, 'Member not found.');
+    }
 }
 
-$cropType = getCropTypeById($pdo, $cropTypeId);
-if (!$cropType) {
+if (!empty($errors)) {
     http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Please choose a crop from the list.']);
-    exit;
-}
-
-$expected = calculateCropExpectedHarvest($planted, $cropType['max_value'], $cropType['unit']);
-if ($expected === null) {
-    http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Enter a valid planting date.']);
-    exit;
-}
-
-$check = $pdo->prepare("SELECT id FROM members WHERE id = ?");
-$check->execute([$memberId]);
-if (!$check->fetch()) {
-    http_response_code(404);
-    echo json_encode(['success' => false, 'message' => 'Member not found.']);
+    echo json_encode(['success' => false, 'message' => implode(' ', $errors), 'errors' => $errors]);
     exit;
 }
 
 try {
-    $ok = addCropPlanting($pdo, $memberId, $cropType['name'], $location, $area, $planted, $expected, (int) $cropType['id']);
+    $ok = cm_insert_planting($pdo, $memberId, $result['data']);
     echo json_encode(['success' => (bool) $ok]);
 } catch (PDOException $e) {
     http_response_code(500);

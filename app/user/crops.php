@@ -344,6 +344,24 @@ renderHeader('My Crops');
     padding: 7px 9px !important;
     font-size: 13px !important;
 }
+.crop-form .form-group select:disabled { background: #f0f0ec; color: #6b756b; }
+
+/* Farm location section */
+.crop-section-label {
+    margin: 6px 0 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1b3a24;
+}
+.crop-addr-preview {
+    background: #F1F6EA;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12.5px;
+    color: #3B6D11;
+    line-height: 1.4;
+    min-height: 18px;
+}
 
 .crop-info {
     display: none;
@@ -574,7 +592,7 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
 
         <div id="cropModalErrors" style="display: none; background: #fbe6e6; color: #a6322f; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; text-align: left;"></div>
 
-        <form id="cropForm" class="crop-form">
+        <form id="cropForm" class="crop-form" autocomplete="off">
             <div class="form-group span-2">
                 <label for="crop_type">Crop</label>
                 <select id="crop_type" name="crop_type_id" required>
@@ -589,7 +607,7 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
 
             <div class="form-group">
                 <label for="crop_area">Area (hectares)</label>
-                <input type="number" id="crop_area" name="area_hectares" placeholder="e.g. 1.5" min="0.01" step="0.01" required>
+                <input type="text" id="crop_area" name="area_hectares" placeholder="e.g. 1.5" inputmode="decimal" maxlength="7" required>
             </div>
 
             <div class="form-group">
@@ -597,9 +615,36 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
                 <input type="date" id="crop_planting_date" name="planting_date" value="<?php echo htmlspecialchars($todayManila); ?>" required>
             </div>
 
+            <p class="crop-section-label span-2" style="grid-column: 1 / -1;">Farm location</p>
+
+            <div class="form-group">
+                <label for="crop_region">Region</label>
+                <select id="crop_region"><option value="">-- Select Region --</option></select>
+            </div>
+
+            <div class="form-group">
+                <label for="crop_province">Province</label>
+                <select id="crop_province"><option value="">-- Select Province --</option></select>
+            </div>
+
+            <div class="form-group">
+                <label for="crop_city">Municipality / City</label>
+                <select id="crop_city"><option value="">-- Select Municipality / City --</option></select>
+            </div>
+
+            <div class="form-group">
+                <label for="crop_barangay">Barangay</label>
+                <select id="crop_barangay"><option value="">-- Select Barangay --</option></select>
+            </div>
+
             <div class="form-group span-2">
-                <label for="crop_location">Farm location</label>
-                <input type="text" id="crop_location" name="location" placeholder="e.g. Barangay Malinis, Sitio Ilaya" required>
+                <label for="crop_purok">Purok / Street</label>
+                <input type="text" id="crop_purok" placeholder="Purok 3, Rizal St." maxlength="100">
+            </div>
+
+            <div class="form-group span-2">
+                <label>Complete location (auto-built)</label>
+                <div class="crop-addr-preview" id="cropAddrPreview">&mdash;</div>
             </div>
 
             <button type="submit" id="cropSubmitBtn">Submit planting</button>
@@ -621,6 +666,9 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
     </div>
 </div>
 
+<!-- Shared Philippine address dropdowns (app/manager/crops/ph-address.js) -->
+<script src="<?php echo BASE_URL; ?>/app/manager/crops/ph-address.js"></script>
+
 <script>
 (function() {
     const CROP_TYPES = <?php echo json_encode($cropTypes, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -634,8 +682,36 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
     const typeSel = document.getElementById('crop_type');
     const plantingInput = document.getElementById('crop_planting_date');
     const infoEl = document.getElementById('cropInfo');
+    const areaEl = document.getElementById('crop_area');
 
     if (!openBtn) return;
+
+    // ---------- Errors (isa o higit pang mensahe) ----------
+    function showErrors(list) {
+        errorsEl.textContent = '';
+        list.forEach(function(msg, i) {
+            if (i > 0) errorsEl.appendChild(document.createElement('br'));
+            errorsEl.appendChild(document.createTextNode(msg));
+        });
+        errorsEl.style.display = 'block';
+        errorsEl.scrollIntoView({ block: 'nearest' });
+    }
+    function showError(msg) { showErrors([msg]); }
+
+    // ---------- Philippine address (PSGC) ----------
+    const addr = PHAddress({
+        api: '<?php echo BASE_URL; ?>/app/manager/crops/api/psgc.php',
+        region: document.getElementById('crop_region'),
+        province: document.getElementById('crop_province'),
+        city: document.getElementById('crop_city'),
+        barangay: document.getElementById('crop_barangay'),
+        purok: document.getElementById('crop_purok'),
+        preview: document.getElementById('cropAddrPreview'),
+        onError: showError
+    });
+
+    // Area: numbers lang (hanggang 2 decimals)
+    PHAddress.bindDecimal(areaEl);
 
     function findType(id) {
         for (let i = 0; i < CROP_TYPES.length; i++) {
@@ -687,10 +763,14 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
     typeSel.addEventListener('change', updateInfo);
     plantingInput.addEventListener('input', updateInfo);
 
-    function openModal() { backdrop.classList.add('crop-open'); }
+    function openModal() {
+        backdrop.classList.add('crop-open');
+        addr.load(); // i-load ang listahan ng regions (isang beses lang tatawag sa server)
+    }
     function closeModal() {
         backdrop.classList.remove('crop-open');
         form.reset();
+        addr.reset();
         updateInfo();
         errorsEl.style.display = 'none';
     }
@@ -708,10 +788,19 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
 
         const formData = new FormData(form);
         const data = Object.fromEntries(formData.entries());
+        Object.assign(data, addr.getValues());
 
-        if (!data.crop_type_id) {
-            errorsEl.textContent = 'Please choose a crop.';
-            errorsEl.style.display = 'block';
+        // Required checks sa browser (ang server pa rin ang final na bantay)
+        const errs = [];
+        if (!data.crop_type_id) errs.push('Please choose a crop.');
+        if (!/^\d{1,4}(\.\d{1,2})?$/.test(data.area_hectares || '') || Number(data.area_hectares) <= 0) {
+            errs.push('Area must be a number greater than 0 (e.g. 1.5).');
+        }
+        if (!data.planting_date) errs.push('Planting date is required.');
+        addr.validate().forEach(function(m) { errs.push(m); });
+
+        if (errs.length) {
+            showErrors(errs);
             return;
         }
 
@@ -730,20 +819,17 @@ button.cc-btn:disabled { opacity: 0.6; cursor: not-allowed !important; }
                 payload = JSON.parse(rawText);
             } catch (parseErr) {
                 console.error('Non-JSON response:', rawText);
-                errorsEl.textContent = 'Server error. Check the console (F12).';
-                errorsEl.style.display = 'block';
+                showError('Server error. Check the console (F12).');
                 return;
             }
 
             if (response.ok && payload.success !== false) {
                 window.location.reload();
             } else {
-                errorsEl.textContent = payload.message || 'Something went wrong.';
-                errorsEl.style.display = 'block';
+                showErrors(payload.errors && payload.errors.length ? payload.errors : [payload.message || 'Something went wrong.']);
             }
         } catch (err) {
-            errorsEl.textContent = 'Could not reach the server: ' + err.message;
-            errorsEl.style.display = 'block';
+            showError('Could not reach the server: ' + err.message);
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Submit planting';
